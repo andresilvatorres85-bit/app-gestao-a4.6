@@ -3,6 +3,12 @@ name: Deploy no GitHub Pages
 on:
   push:
     branches: ["main"]
+  schedule:
+    # 09:00 UTC = 06:00 no horario de Brasilia (UTC-3, sem horario de verao).
+    # O agendamento do GitHub Actions roda em UTC e pode atrasar sob carga;
+    # nao e garantido no minuto exato. Alem disso, o GitHub desativa o
+    # agendamento apos ~60 dias sem commits no repositorio.
+    - cron: "0 9 * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,8 +24,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar código
+      - name: Baixar codigo
         uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias do gerador
+        run: pip install openpyxl
+
+      - name: Gerar base LEXOR (baixa a planilha do repo de origem)
+        env:
+          # Forca o download da planilha do repositorio emendas.apresentadas.ploa
+          # a cada execucao, ignorando qualquer copia local eventualmente commitada.
+          LEXOR_XLSX: ""
+        run: python gerar_lexor.py
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -27,7 +48,7 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - name: Instalar dependências
+      - name: Instalar dependencias
         run: npm install
 
       - name: Compilar (usa os Secrets do Supabase)
