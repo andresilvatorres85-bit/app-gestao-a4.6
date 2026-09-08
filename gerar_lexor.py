@@ -12,12 +12,48 @@ Correções aplicadas na conversão (ver análise de qualidade de dados):
   5. Tipo de emenda padronizado (27 variações -> 3 categorias + marca de repetida).
 """
 import json
+import os
 import re
+import tempfile
 import unicodedata
+import urllib.request
+from pathlib import Path
+
 import openpyxl
 
-ORIGEM = "/home/claude/app/Controle_LEXOR.xlsx"
-DESTINO = "/home/claude/app/src/data/lexor.js"
+# Diretório do próprio script = raiz do repositório.
+RAIZ = Path(__file__).resolve().parent
+
+# Fonte da planilha: repositório separado, tratado como fonte única de verdade.
+# O workflow diário do GitHub Actions baixa daqui automaticamente. Pode ser
+# sobrescrita por variável de ambiente para testes locais.
+FONTE_URL = os.environ.get(
+    "LEXOR_XLSX_URL",
+    "https://raw.githubusercontent.com/andresilvatorres85-bit/"
+    "emendas.apresentadas.ploa/main/Controle_LEXOR.xlsx",
+)
+# Caminho local opcional: se existir, tem prioridade (conveniência no dev local).
+LOCAL_XLSX = os.environ.get("LEXOR_XLSX", str(RAIZ / "Controle_LEXOR.xlsx"))
+DESTINO = str(RAIZ / "src" / "data" / "lexor.js")
+
+
+def obter_planilha():
+    """Devolve o caminho do xlsx a processar.
+
+    Prioriza um arquivo local (se existir); caso contrário, baixa da FONTE_URL.
+    No CI não há arquivo local, então baixa sempre a versão mais recente do
+    repositório de origem.
+    """
+    if os.path.isfile(LOCAL_XLSX):
+        print(f"Planilha local: {LOCAL_XLSX}")
+        return LOCAL_XLSX
+    print(f"Baixando planilha de: {FONTE_URL}")
+    fd, tmp = tempfile.mkstemp(suffix=".xlsx")
+    os.close(fd)
+    req = urllib.request.Request(FONTE_URL, headers={"User-Agent": "gerar_lexor"})
+    with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
+        f.write(r.read())
+    return tmp
 
 # Siglas que devem continuar em caixa alta ao converter texto de CAIXA ALTA
 SIGLAS = {
@@ -143,7 +179,8 @@ RP_POR_TIPO = {"Emenda Individual": "6", "Emenda de Bancada": "7", "Emenda de Co
 
 
 def main():
-    wb = openpyxl.load_workbook(ORIGEM, data_only=True)
+    origem = obter_planilha()
+    wb = openpyxl.load_workbook(origem, data_only=True)
 
     # ---------- aba Ações: tabela de apoio (o "PROCV" do modelo do Word) ----------
     aba = wb["Ações"]
@@ -253,7 +290,10 @@ def main():
     sem_autor = [p["nr"] for p in props if not p.get("parlamentar")]
 
     cab = f"""// GERADO AUTOMATICAMENTE a partir de Controle_LEXOR.xlsx — não editar à mão.
-// Para atualizar: substitua a planilha na raiz do repositório e rode gerar_lexor.py.
+// Fonte: repositório emendas.apresentadas.ploa (branch main).
+// Atualização automática: workflow diário do GitHub Actions (06:00 BRT) baixa a
+// planilha, roda gerar_lexor.py e publica. Para atualizar na hora, dispare o
+// workflow "Deploy no GitHub Pages" manualmente (workflow_dispatch).
 //
 // Propostas: {len(props)}   |   Ações cadastradas: {len(acoes)}
 // Correções aplicadas na conversão:
