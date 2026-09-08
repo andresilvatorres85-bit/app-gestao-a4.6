@@ -1,5 +1,8 @@
 node_modules
 dist
+
+# A planilha e a fonte unica no repo emendas.apresentadas.ploa; nao commitar copia local
+Controle_LEXOR.xlsx
 .env
 .env.local
 .DS_Store
