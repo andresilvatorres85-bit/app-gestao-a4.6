@@ -427,9 +427,21 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 }
 .aba-btn:hover { background: var(--surface-hi); color: var(--ink); }
 .aba-btn-active { background: var(--brand); border-color: var(--brand-hi); color: #fff; }
+/* Celular: empilha o cabeçalho. A marca (brasão + GESTÃO + subtítulo) fica na
+   primeira linha e os botões (MÉTRICAS, LEXOR, LOA, CARTILHAS e Sair) descem
+   para uma faixa logo abaixo, ocupando a largura toda e quebrando em mais de uma
+   linha se não couberem — assim nenhum botão fica escondido fora da tela, que era
+   o problema no formato em linha única. A altura real do cabeçalho é medida por
+   ResizeObserver (--topbar-h), então tudo que vem abaixo se reajusta sozinho. */
+@media (max-width: 640px) {
+  .topbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .topbar-right { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
+  .abas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .aba-btn { justify-content: center; white-space: nowrap; }
+  .logout-btn { align-self: flex-end; }
+}
 @media (max-width: 520px) {
   .aba-btn { padding: 8px 10px; font-size: 11px; letter-spacing: 0.03em; }
-  .logout-txt { display: none; }
   .topbar { padding-left: 14px; padding-right: 14px; }
   .brand-brasao { width: 42px; height: 42px; }
   .brand-title { font-size: 16px; }
