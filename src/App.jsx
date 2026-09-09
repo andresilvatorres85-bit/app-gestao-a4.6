@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText } from "lucide-react";
+import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark } from "lucide-react";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
@@ -13,6 +13,8 @@ import Historico from "./components/Historico.jsx";
 import Configuracoes from "./components/Configuracoes.jsx";
 // A aba LEXOR carrega ~1.200 propostas; só é baixada quando o usuário a abre.
 const Lexor = lazy(() => import("./components/Lexor.jsx"));
+// A aba LOA embute (ao vivo) o app "Análise LOA"; só é montada quando aberta.
+const Loa = lazy(() => import("./components/Loa.jsx"));
 
 // Converte uma linha da tabela "registros" (Supabase) para o formato interno
 // enxuto usado pelos componentes (mesmas chaves do histórico da planilha).
@@ -31,6 +33,7 @@ function mapDbRow(row) {
 const ABAS = [
   { id: "metricas", label: "MÉTRICAS", icon: Gauge },
   { id: "lexor", label: "LEXOR", icon: FileText },
+  { id: "loa", label: "LOA", icon: Landmark },
 ];
 
 // Seções internas da aba MÉTRICAS
@@ -167,8 +170,12 @@ export default function App() {
         </nav>
       )}
 
-      <main className="main">
-        {aba === "lexor" ? (
+      <main className={`main${aba === "loa" ? " main-loa" : ""}`}>
+        {aba === "loa" ? (
+          <Suspense fallback={<div className="loading-state">Carregando Análise LOA…</div>}>
+            <Loa />
+          </Suspense>
+        ) : aba === "lexor" ? (
           <Suspense fallback={<div className="loading-state">Carregando propostas…</div>}>
             <Lexor />
           </Suspense>
