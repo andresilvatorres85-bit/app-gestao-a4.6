@@ -100,24 +100,24 @@ body { margin: 0; }
 }
 @media (min-width: 860px) { .main { padding-bottom: 36px; } }
 
-/* Aba LOA — o app "Análise LOA" é embutido (iframe) e ocupa toda a área abaixo
-   do cabeçalho. Esta aba não tem subnav nem navegação inferior, então o único
-   espaço a reservar é a altura da topbar. Zeramos os paddings herdados de
-   .main para o iframe encostar nas bordas. */
-.main-loa { padding: var(--topbar-h, 94px) 0 0; }
-.loa-wrap {
+/* Abas LOA e Cartilhas — cada uma embute um app externo (iframe) que ocupa
+   toda a área abaixo do cabeçalho. Essas abas não têm subnav nem navegação
+   inferior, então o único espaço a reservar é a altura da topbar. Zeramos os
+   paddings herdados de .main para o iframe encostar nas bordas. */
+.main-loa, .main-cartilhas { padding: var(--topbar-h, 94px) 0 0; }
+.loa-wrap, .cartilhas-wrap {
   position: relative;
   width: 100%;
   height: calc(100dvh - var(--topbar-h, 94px));
 }
-.loa-frame {
+.loa-frame, .cartilhas-frame {
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
   background: var(--bg-deep);
 }
-.loa-loading {
+.loa-loading, .cartilhas-loading {
   position: absolute;
   inset: 0;
   display: flex;

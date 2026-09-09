@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark } from "lucide-react";
+import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen } from "lucide-react";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
@@ -15,6 +15,8 @@ import Configuracoes from "./components/Configuracoes.jsx";
 const Lexor = lazy(() => import("./components/Lexor.jsx"));
 // A aba LOA embute (ao vivo) o app "Análise LOA"; só é montada quando aberta.
 const Loa = lazy(() => import("./components/Loa.jsx"));
+// A aba Cartilhas embute (ao vivo) o "Banco de Projetos de Emendas"; idem.
+const Cartilhas = lazy(() => import("./components/Cartilhas.jsx"));
 
 // Converte uma linha da tabela "registros" (Supabase) para o formato interno
 // enxuto usado pelos componentes (mesmas chaves do histórico da planilha).
@@ -34,6 +36,7 @@ const ABAS = [
   { id: "metricas", label: "MÉTRICAS", icon: Gauge },
   { id: "lexor", label: "LEXOR", icon: FileText },
   { id: "loa", label: "LOA", icon: Landmark },
+  { id: "cartilhas", label: "Cartilhas", icon: BookOpen },
 ];
 
 // Seções internas da aba MÉTRICAS
@@ -170,10 +173,14 @@ export default function App() {
         </nav>
       )}
 
-      <main className={`main${aba === "loa" ? " main-loa" : ""}`}>
+      <main className={`main${aba === "loa" ? " main-loa" : aba === "cartilhas" ? " main-cartilhas" : ""}`}>
         {aba === "loa" ? (
           <Suspense fallback={<div className="loading-state">Carregando Análise LOA…</div>}>
             <Loa />
+          </Suspense>
+        ) : aba === "cartilhas" ? (
+          <Suspense fallback={<div className="loading-state">Carregando Cartilhas…</div>}>
+            <Cartilhas />
           </Suspense>
         ) : aba === "lexor" ? (
           <Suspense fallback={<div className="loading-state">Carregando propostas…</div>}>
