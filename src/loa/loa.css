@@ -218,6 +218,15 @@
   box-shadow: 0 2px 12px -4px rgba(27, 175, 122, 0.65);
 }
 
+/* Alinhamento da navegação conforme a seção ativa (pedido do usuário):
+   - Resultado LEXOR e suas subabas: centralizados na página;
+   - PLOA e suas subabas: alinhados à esquerda.
+   Vale para os dois níveis (seções e subabas) via data-secao no cabeçalho. */
+.loa-app .cabecalho[data-secao='lexor'] .secoes,
+.loa-app .cabecalho[data-secao='lexor'] .abas { justify-content: safe center; }
+.loa-app .cabecalho[data-secao='ploa'] .secoes,
+.loa-app .cabecalho[data-secao='ploa'] .abas { justify-content: flex-start; }
+
 /* avisos da aba PLOA. O de defeito de origem (aba duplicada) é tratado como
    alerta; o de regra aplicada (fase herdada) é apenas uma nota. */
 .loa-app .ploa-aviso, .loa-app .ploa-nota {
@@ -1193,7 +1202,11 @@
 /* de leiaute abaixo valem na TELA (não em @media print) — mas a folha só  */
 /* fica visível dentro do palco: no app ela continua display:none.         */
 /* ====================================================================== */
-.loa-app .folha-pdf { display: none; }
+/* A folha do PDF é sempre em modo CLARO (papel A4 branco), independentemente
+   de o módulo em tela estar no tema escuro: assim os gráficos e textos montados
+   dentro dela "assam" cores claras e a exportação sai como antes. Como a folha
+   fica display:none na tela, isto não tem efeito visual no app. */
+.loa-app .folha-pdf { display: none; color-scheme: light; }
 .loa-app .folha-pdf.folha-render { display: block; }
 /* modo claro forçado no palco, como o antigo truque de impressão */
 .loa-app .folha-render { color-scheme: light; }
