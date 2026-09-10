@@ -1,0 +1,1303 @@
+/* ===========================================================================
+   SISTEMA VISUAL
+   ---------------------------------------------------------------------------
+   Um único conjunto de tokens atende os modos claro e escuro via light-dark().
+   O modo é decidido por `color-scheme`:
+     :root                     -> segue o aparelho (light dark)
+     :root[data-tema="claro"]  -> força claro
+     :root[data-tema="escuro"] -> força escuro
+   O botão de tema só troca o atributo; nenhuma cor é declarada duas vezes.
+
+   Superfícies e tintas seguem a paleta de dataviz validada (superfície clara
+   #fcfcfb, escura #1a1a19), para que os gráficos sejam medidos contra a
+   superfície em que realmente são desenhados.
+=========================================================================== */
+.loa-app {
+  color-scheme: light dark;
+
+  /* planos e tintas */
+  --plano: light-dark(#f4f4f1, #0b0b0b);
+  --superficie: light-dark(#fcfcfb, #1a1a19);
+  --superficie-2: light-dark(#f2f2ee, #232322);
+  --tinta: light-dark(#0b0b0b, #ffffff);
+  --tinta-2: light-dark(#52514e, #c3c2b7);
+  --tinta-3: light-dark(#77756f, #9b9a90);
+  --tinta-fraca: light-dark(#7c7a74, #918f88);
+  --hairline: light-dark(#e1e0d9, #2c2c2a);
+  --borda: light-dark(rgba(11, 11, 11, 0.1), rgba(255, 255, 255, 0.1));
+  --trilho: light-dark(#eceae4, #26262a);
+
+  /* faixa institucional (cabeçalho) */
+  --cab-de: light-dark(#0f4429, #0b2118);
+  --cab-para: light-dark(#07281b, #06100c);
+  --cab-acento: #1baf7a;
+  --cab-tinta: #ffffff;
+  --cab-tinta-2: rgba(255, 255, 255, 0.72);
+  --cab-vidro: rgba(255, 255, 255, 0.12);
+
+  /* séries de dados — cor por identidade, nunca por posição.
+     Escalonadas para cada superfície e aprovadas no validador de paleta
+     (banda de luminosidade, piso de croma, separação para daltonismo e
+     piso de visão normal) nos dois modos. */
+  --serie-azul: light-dark(#2a78d6, #3987e5);
+  --serie-verde: light-dark(#008300, #008300);
+  --serie-magenta: light-dark(#e87ba4, #d55181);
+  --serie-amarelo: light-dark(#eda100, #c98500);
+  --serie-aqua: light-dark(#1baf7a, #199e70);
+  --serie-violeta: light-dark(#4a3aa7, #9085e9);
+  --serie-laranja: light-dark(#eb6834, #d95926);
+  --serie-vermelho: light-dark(#e34948, #e66767);
+
+  /* Cores institucionais das Forças (usadas na aba PLOA). Escolha do usuário,
+     que sobrepõe a paleta do validador: MD cinza, Marinha "branco" que ainda
+     contraste sobre a superfície clara (por isso um cinza-claro, não #fff puro,
+     que sumiria), Aeronáutica no azul, Exército no verde. A tonalidade da barra
+     de cada Força nos gráficos PL×Autógrafo deriva destas por color-mix. */
+  --forca-md: light-dark(#6b7280, #9aa2ad);
+  --forca-exercito: light-dark(#1f7a33, #2e9c48);
+  --forca-marinha: light-dark(#c7ced8, #e8edf4);
+  --forca-aeronautica: light-dark(#2a78d6, #3987e5);
+  --acento: var(--serie-azul);
+
+  /* estado (nunca reutilizado como cor de série) */
+  --alerta-fundo: light-dark(#fdf3ef, #2a1c15);
+  --alerta-borda: light-dark(#ec835a, #b45a38);
+  --alerta-texto: light-dark(#9a3412, #f0a583);
+  --aviso-fundo: light-dark(#fdf8e7, #2a2413);
+  --aviso-borda: light-dark(#d9a521, #8f7018);
+  --aviso-texto: light-dark(#8a6100, #e8c46a);
+  --marca-fundo: light-dark(#ffe9a8, #6b5510);
+
+  /* forma */
+  --r-g: 18px;
+  --r-m: 12px;
+  --r-p: 8px;
+  --sombra: light-dark(0 1px 2px rgba(11, 11, 11, 0.05), 0 1px 2px rgba(0, 0, 0, 0.5));
+  --sombra-alta:
+    light-dark(0 10px 30px -12px rgba(11, 11, 11, 0.22), 0 12px 32px -12px rgba(0, 0, 0, 0.7));
+  --barra-h: 14px;
+}
+
+/* O botão de tema só grava data-tema em <html>; trocar o color-scheme "usado"
+   é suficiente para light-dark() reavaliar todos os tokens acima. */
+.loa-app[data-tema='claro'] { color-scheme: light; }
+.loa-app[data-tema='escuro'] { color-scheme: dark; }
+
+/* Escala tipográfica que cresce com a tela: em projetor/telão os números e
+   rótulos sobem junto, sem precisar de um "modo apresentação" à parte. */
+.loa-app { font-size: clamp(16px, 0.62vw + 12.2px, 20px); }
+
+.loa-app, .loa-app * { box-sizing: border-box; }
+.loa-app, .loa-app { margin: 0; padding: 0; }
+.loa-app {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--plano);
+  color: var(--tinta);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.loa-app .app { min-height: 100vh; display: flex; flex-direction: column; }
+.loa-app .carregando { padding: 4rem 1rem; text-align: center; color: var(--tinta-2); }
+.loa-app :focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 4px; }
+
+/* ======================================================= cabeçalho ======== */
+.loa-app .cabecalho {
+  position: relative;
+  background: linear-gradient(120deg, var(--cab-de) 0%, var(--cab-para) 78%);
+  color: var(--cab-tinta);
+  padding: 1rem 1.1rem 0;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  overflow: hidden;
+}
+/* brilho diagonal discreto — dá profundidade sem virar decoração */
+.loa-app .cabecalho::before {
+  content: '';
+  position: absolute; inset: -60% 55% auto -10%; height: 220%;
+  background: radial-gradient(closest-side, rgba(27, 175, 122, 0.28), transparent 70%);
+  pointer-events: none;
+}
+.loa-app .cabecalho > * { position: relative; }
+.loa-app .cabecalho-topo {
+  display: flex; align-items: flex-start; gap: 0.9rem;
+  max-width: 1560px; margin: 0 auto; width: 100%;
+}
+/* Modo embutido (?embed=1): esconde a faixa de título — o app roda dentro de
+   outro que já tem o próprio cabeçalho. A navegação de seções/subabas fica. */
+.loa-app .app.embed .cabecalho-topo { display: none; }
+.loa-app .app.embed .cabecalho { padding-top: max(0.6rem, env(safe-area-inset-top)); }
+.loa-app .cabecalho-texto { min-width: 0; }
+.loa-app .cabecalho h1 {
+  margin: 0; font-size: 1.15rem; line-height: 1.25;
+  font-weight: 700; letter-spacing: -0.01em;
+}
+
+/* alternador de tema */
+.loa-app .tema {
+  margin-left: auto; flex: none; display: inline-flex; gap: 2px; padding: 3px;
+  background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+.loa-app .tema-op {
+  appearance: none; border: 0; cursor: pointer; font: inherit;
+  font-size: 0.7rem; font-weight: 600; line-height: 1;
+  padding: 0.38rem 0.6rem; border-radius: 999px;
+  background: transparent; color: var(--cab-tinta-2);
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.loa-app .tema-op:hover { color: #fff; }
+.loa-app .tema-op.ativa { background: var(--cab-vidro); color: #fff; }
+.loa-app .tema-txt { display: none; }
+
+/* abas */
+.loa-app .abas {
+  display: flex; gap: 0.2rem; margin-top: 0.9rem;
+  overflow-x: auto; scrollbar-width: none;
+  max-width: 1560px; margin-inline: auto; width: 100%;
+}
+.loa-app .abas::-webkit-scrollbar { display: none; }
+.loa-app .aba {
+  flex: none; white-space: nowrap;
+  appearance: none; border: 0; cursor: pointer;
+  background: transparent; color: var(--cab-tinta-2);
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.6rem 0.95rem; border-radius: 10px 10px 0 0;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border-bottom: 3px solid transparent;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.loa-app .aba:hover { color: #fff; background: rgba(255, 255, 255, 0.07); }
+.loa-app .aba.ativa {
+  background: var(--plano); color: var(--tinta);
+  border-bottom-color: var(--cab-acento);
+}
+.loa-app .aba-badge {
+  background: var(--alerta-borda); color: #fff; border-radius: 999px;
+  font-size: 0.66rem; font-weight: 700; padding: 0.05rem 0.42rem; line-height: 1.5;
+}
+
+/* seções (nível 1 da navegação) — a base de dados em que se está trabalhando.
+   Fica acima das abas e com peso maior: trocar de seção troca o universo de
+   dados inteiro, o que é uma mudança de outra ordem que trocar de subaba. */
+.loa-app .secoes {
+  display: flex; gap: 0.35rem; margin-top: 0.35rem;
+  max-width: 1560px; margin-inline: auto; width: 100%;
+  overflow-x: auto; scrollbar-width: none;
+}
+.loa-app .secoes::-webkit-scrollbar { display: none; }
+.loa-app .secao {
+  flex: none; white-space: nowrap;
+  appearance: none; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); color: var(--cab-tinta-2);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px;
+  font: inherit; font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 0.32rem 0.9rem;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.loa-app .secao:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.loa-app .secao.ativa {
+  background: var(--cab-acento); color: #fff;
+  border-color: transparent;
+}
+
+/* avisos da aba PLOA. O de defeito de origem (aba duplicada) é tratado como
+   alerta; o de regra aplicada (fase herdada) é apenas uma nota. */
+.loa-app .ploa-aviso, .loa-app .ploa-nota {
+  margin: 0 0 0.9rem; padding: 0.6rem 0.85rem;
+  border-radius: 10px; font-size: 0.85rem; line-height: 1.5;
+}
+.loa-app .ploa-aviso {
+  background: var(--alerta-fundo, color-mix(in oklab, var(--serie-laranja) 12%, transparent));
+  border: 1px solid color-mix(in oklab, var(--serie-laranja) 45%, transparent);
+  color: var(--tinta);
+}
+.loa-app .ploa-nota {
+  background: var(--cartao); border: 1px solid var(--borda); color: var(--tinta-2);
+}
+
+/* barras horizontais por categoria (PLOA) */
+.loa-app .pbar { margin: 0; }
+.loa-app .pbar-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.loa-app .pbar-item { display: flex; flex-direction: column; gap: 0.25rem; transition: opacity 0.15s; }
+.loa-app .pbar-topo { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.loa-app .pbar-rotulo { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; flex: 1 1 0; }
+.loa-app .pbar-chave {
+  flex: none; width: 9px; height: 9px; border-radius: 2px; align-self: center;
+}
+.loa-app .pbar-nome {
+  font-weight: 600; font-size: 0.87rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.loa-app .pbar-sub { flex: none; font-size: 0.74rem; color: var(--tinta-3); }
+.loa-app .pbar-valor { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.87rem; }
+.loa-app .pbar-pct { font-weight: 500; color: var(--tinta-3); font-size: 0.82rem; }
+.loa-app .pbar-trilho {
+  position: relative; height: var(--barra-h, 14px);
+  background: var(--trilho, color-mix(in oklab, var(--tinta) 8%, transparent));
+  border-radius: 4px; overflow: visible;
+}
+.loa-app .pbar-barra { display: block; height: 100%; border-radius: 4px; }
+/* O PL é um traço vertical sobre a barra do autógrafo — uma REFERÊNCIA, não
+   uma segunda barra: o que se lê é o quanto a barra passou (ou não chegou) da
+   marca, e duas barras lado a lado dariam o dobro do peso visual ao mesmo par. */
+.loa-app .pbar-marca-pl {
+  position: absolute; top: -3px; bottom: -3px; width: 2px;
+  background: var(--tinta); border-radius: 1px; transform: translateX(-1px);
+}
+.loa-app .pbar-nota {
+  display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0;
+  font-size: 0.76rem; color: var(--tinta-3); font-variant-numeric: tabular-nums;
+}
+.loa-app .legenda-marca-pl {
+  display: inline-block; width: 2px; height: 11px;
+  background: var(--tinta); border-radius: 1px;
+}
+
+/* tabela de apoio dos painéis de ciclo */
+.loa-app .ciclo-tabela {
+  margin-top: 0.9rem; display: flex; flex-direction: column; gap: 0.12rem;
+  font-size: 0.78rem; overflow-x: auto;
+}
+.loa-app .ciclo-linha {
+  display: grid; grid-template-columns: minmax(7.5rem, 1.3fr) repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column; grid-auto-columns: minmax(5.5rem, 1fr);
+  gap: 0.3rem; align-items: center;
+  padding: 0.32rem 0.4rem; border-radius: 6px;
+}
+.loa-app .ciclo-linha:nth-child(even) { background: color-mix(in oklab, var(--tinta) 3.5%, transparent); }
+.loa-app .ciclo-cab {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--tinta-3); background: none !important;
+}
+.loa-app .ciclo-nome {
+  display: flex; align-items: center; gap: 0.35rem; font-weight: 600;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.loa-app .ciclo-cel { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
+.loa-app .ciclo-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+.loa-app .ciclo-cel .var-sobe, .loa-app .ciclo-cel .var-desce, .loa-app .ciclo-cel .var-nula { font-size: 0.7rem; }
+
+.loa-app .painel-rodape {
+  margin: 0.75rem 0 0; font-size: 0.75rem; color: var(--tinta-3); line-height: 1.45;
+}
+
+.loa-app .ano-card-copia { border-style: dashed; }
+.loa-app .ano-card-flag {
+  margin-left: 0.4rem; font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.05rem 0.4rem; border-radius: 999px;
+  background: color-mix(in oklab, var(--serie-laranja) 20%, transparent);
+  color: var(--tinta-2);
+}
+
+/* ========================================================= filtros ======== */
+.loa-app .filtros {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+  padding: 0.6rem 1.1rem; border-bottom: 1px solid var(--hairline);
+  background: light-dark(rgba(252, 252, 251, 0.88), rgba(26, 26, 25, 0.88));
+  backdrop-filter: saturate(1.6) blur(10px);
+  position: sticky; top: 0; z-index: 30;
+}
+.loa-app .filtros-rotulo {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tinta-fraca);
+  margin-right: 0.15rem;
+}
+.loa-app .ms { position: relative; }
+.loa-app .ms-botao {
+  appearance: none; cursor: pointer; font: inherit;
+  font-size: 0.76rem; padding: 0.38rem 0.6rem;
+  border: 1px solid var(--borda); border-radius: 999px;
+  background: var(--superficie); color: var(--tinta-2);
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.loa-app .ms-botao:hover { border-color: var(--tinta-fraca); color: var(--tinta); }
+.loa-app .ms-botao.ativo {
+  border-color: var(--acento); color: var(--tinta); font-weight: 600;
+  background: light-dark(#eaf2fd, #16283c);
+}
+.loa-app .ms-badge {
+  background: var(--acento); color: #fff; border-radius: 999px;
+  font-size: 0.66rem; font-weight: 700; min-width: 1.15rem;
+  text-align: center; line-height: 1.5;
+}
+.loa-app .ms-seta { font-size: 0.58rem; color: var(--tinta-fraca); }
+.loa-app .ms-painel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  min-width: 250px; max-width: 340px;
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-m); box-shadow: var(--sombra-alta);
+  padding: 0.45rem;
+}
+.loa-app .ms-busca {
+  width: 100%; font: inherit; font-size: 0.8rem;
+  padding: 0.4rem 0.55rem; margin-bottom: 0.35rem;
+  border: 1px solid var(--hairline); border-radius: var(--r-p);
+  background: var(--plano); color: var(--tinta);
+}
+.loa-app .ms-opcoes { max-height: 280px; overflow-y: auto; }
+.loa-app .ms-opcao {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.32rem 0.35rem; border-radius: 6px;
+  font-size: 0.8rem; cursor: pointer;
+}
+.loa-app .ms-opcao:hover { background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.07)); }
+.loa-app .ms-rotulo { flex: 1; overflow-wrap: anywhere; }
+.loa-app .ms-n { color: var(--tinta-fraca); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
+.loa-app .ms-vazio { padding: 0.5rem; color: var(--tinta-fraca); font-size: 0.8rem; }
+.loa-app .ms-limpar, .loa-app .limpar-tudo {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 0.75rem; color: var(--acento); padding: 0.4rem 0.35rem;
+}
+.loa-app .limpar-tudo { align-self: center; font-weight: 700; }
+
+/* botão "Exportar PPTX" — fica na barra de filtros, junto do recorte que ele
+   exporta, e é sólido para se separar dos seletores */
+.loa-app .btn-pptx {
+  appearance: none; cursor: pointer; font: inherit;
+  font-size: 0.76rem; font-weight: 700; line-height: 1;
+  padding: 0.44rem 0.75rem; margin-left: auto; align-self: center;
+  border: 1px solid var(--acento); border-radius: 999px;
+  background: var(--acento); color: light-dark(#fff, #06110c);
+  white-space: nowrap;
+}
+.loa-app .btn-pptx:hover { filter: brightness(1.06); }
+.loa-app .btn-pptx:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* ======================================================== conteúdo ======== */
+.loa-app .conteudo {
+  flex: 1; padding: 1.1rem; max-width: 1560px; width: 100%; margin: 0 auto;
+}
+.loa-app .contagem { color: var(--tinta-2); font-size: 0.8rem; margin: 0 0 0.6rem; }
+.loa-app .vazio { color: var(--tinta-2); font-size: 0.9rem; max-width: 46rem; }
+
+/* ------------------------------- destaque (herói + indicadores) ---------- */
+.loa-app .destaque { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
+.loa-app .heroi {
+  position: relative; overflow: hidden;
+  background:
+    radial-gradient(120% 140% at 0% 0%, light-dark(#eaf2fd, #16283c) 0%, transparent 62%),
+    var(--superficie);
+  border: 1px solid var(--borda); border-radius: var(--r-g);
+  box-shadow: var(--sombra);
+  padding: 1.15rem 1.3rem;
+}
+.loa-app .heroi::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: linear-gradient(var(--serie-azul), var(--serie-aqua));
+}
+.loa-app .heroi-rotulo {
+  margin: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--tinta-fraca);
+}
+.loa-app .heroi-valor {
+  margin: 0.3rem 0 0; font-weight: 700; letter-spacing: -0.025em; line-height: 1;
+  font-size: clamp(2.6rem, 5.2vw, 3.9rem);
+  /* algarismos proporcionais: `tabular-nums` deixa números grandes frouxos */
+}
+.loa-app .heroi-unidade {
+  font-size: 0.42em; font-weight: 700; letter-spacing: 0;
+  color: var(--tinta-fraca); margin-left: 0.28em;
+}
+.loa-app .heroi-exato {
+  margin: 0.5rem 0 0; font-size: 0.86rem; color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+.loa-app .heroi-nota { margin: 0.15rem 0 0; font-size: 0.74rem; color: var(--tinta-fraca); }
+
+/* Em telas estreitas três colunas espremem os números; duas + uma larga leem
+   melhor. A partir de 560px voltam as três colunas. */
+.loa-app .tiras { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.loa-app .tiras > :nth-child(3) { grid-column: span 2; }
+.loa-app .tira {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-g); box-shadow: var(--sombra);
+  padding: 0.9rem 1rem; display: flex; flex-direction: column; justify-content: center;
+  min-width: 0;
+}
+.loa-app .tira-rotulo {
+  margin: 0; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tinta-fraca);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.loa-app .tira-ponto { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.loa-app .tira-valor {
+  margin: 0.35rem 0 0; font-size: clamp(1.5rem, 2.4vw, 2.05rem);
+  font-weight: 700; line-height: 1; letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.loa-app .tira-unidade {
+  font-size: 0.5em; font-weight: 700; letter-spacing: 0;
+  color: var(--tinta-fraca); margin-left: 0.25em;
+}
+.loa-app .tira-nota { margin: 0.3rem 0 0; font-size: 0.72rem; color: var(--tinta-2); }
+
+/* ----------------------------------------- ajustes da aba PLOA ----------- */
+/* item 4.4: título dos 4 cards superiores maior e tudo centralizado. Só na
+   aba PLOA (classe .destaque-ploa), sem afetar o Dashboard das emendas. */
+.loa-app .destaque-ploa .heroi { text-align: center; }
+.loa-app .destaque-ploa .heroi::before { display: none; }
+.loa-app .destaque-ploa .heroi-rotulo,
+.loa-app .destaque-ploa .tira-rotulo { font-size: 0.9rem; letter-spacing: 0.06em; justify-content: center; }
+.loa-app .destaque-ploa .tira { text-align: center; align-items: center; }
+.loa-app .destaque-ploa .tira-valor { align-self: center; }
+.loa-app .destaque-ploa .heroi-nota { font-size: 0.82rem; }
+
+/* Cascata (RP) --------------------------------------------------------------*/
+.loa-app .cascata { margin: 0.4rem 0 0; }
+.loa-app .cascata-viewport { width: 100%; }
+.loa-app .cascata-svg { width: 100%; height: auto; display: block; }
+.loa-app .cascata-base { stroke: var(--borda); stroke-width: 1; }
+.loa-app .cascata-conector { stroke: var(--tinta-fraca); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.6; }
+.loa-app .cascata-barra { transition: opacity 0.15s; }
+.loa-app .cascata-barra-total { filter: saturate(0.4); }
+.loa-app .cascata-valor { fill: var(--tinta); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.loa-app .cascata-rotulo { fill: var(--tinta-2); font-size: 12px; font-weight: 600; }
+.loa-app .cascata-dica { margin: 0.5rem 0 0; font-size: 0.74rem; color: var(--tinta-3); text-align: center; }
+
+/* Código destacado no rótulo (item 4.4 da Ação) -----------------------------*/
+.loa-app .pbar-codigo,
+.loa-app .matriz-codigo {
+  flex: none; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: 0.82rem; letter-spacing: 0.01em;
+  padding: 0.05rem 0.35rem; border-radius: 4px;
+  background: color-mix(in oklab, var(--serie-laranja) 15%, transparent);
+}
+.loa-app .matriz-codigo { margin-right: 0.4rem; color: var(--serie-laranja); }
+
+/* Botões de expansão Mostrar +/− (itens 4.5.3 e 4.5.4) ----------------------*/
+.loa-app .pbar-expansao { display: flex; gap: 0.5rem; justify-content: center; margin: 0.85rem 0 0; flex-wrap: wrap; }
+.loa-app .pbar-btn {
+  font: inherit; font-size: 0.82rem; font-weight: 600;
+  padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer;
+  background: var(--superficie-2); color: var(--tinta); border: 1px solid var(--borda);
+  transition: background 0.15s, border-color 0.15s;
+}
+.loa-app .pbar-btn:hover { background: var(--cartao); border-color: var(--acento); }
+.loa-app .pbar-btn-nota { color: var(--tinta-3); font-weight: 400; }
+
+/* Rolagem horizontal dos gráficos no celular (item 4.5.8) -------------------*/
+/* No mobile, gráficos densos (cascata, colunas por Força/fase) rolam na
+   horizontal dentro do card em vez de espremer barras e rótulos até se
+   sobreporem. O conteúdo mantém uma largura mínima confortável e o dedo
+   arrasta; no desktop a faixa é larga o bastante e nada rola. */
+.loa-app .rolagem-x { width: 100%; }
+@media (max-width: 640px) {
+  .loa-app .rolagem-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .loa-app .rolagem-x > * { min-width: 560px; }
+  .loa-app .rolagem-x .cascata-svg { min-width: 520px; }
+}
+
+/* ------------------------------------------ grade de painéis ------------- */
+.loa-app .paineis { display: grid; gap: 0.85rem; grid-template-columns: 1fr; margin-top: 0.85rem; }
+.loa-app .painel-grafico {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-g); box-shadow: var(--sombra);
+  padding: 1.1rem 1.2rem 1.2rem;
+  min-width: 0; position: relative;
+}
+.loa-app .painel-cab {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.35rem 1rem; flex-wrap: wrap;
+  /* espaço reservado no canto para os dois botões (PPTX e PNG), posicionados */
+  padding-right: 6.1rem;
+  margin-bottom: 0.9rem; padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--hairline);
+}
+/* No celular o título fica com a linha inteira e o total desce para a linha
+   de baixo; em telas largas (≥640px) a base 0 mantém os dois lado a lado. */
+.loa-app .painel-cab-txt { min-width: 0; flex: 1 1 auto; display: grid; gap: 0.22rem; }
+.loa-app .painel-grafico h2 {
+  margin: 0; font-size: 0.92rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--tinta);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.loa-app .painel-grafico h2::before {
+  content: ''; width: 3px; height: 0.95em; border-radius: 2px;
+  background: var(--acento); flex: none;
+}
+.loa-app .painel-sub { margin: 0; font-size: 0.76rem; color: var(--tinta-fraca); }
+.loa-app .painel-total {
+  flex: none; margin-left: auto; font-size: 0.82rem; font-weight: 700; color: var(--tinta-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* o percentual ao lado do total é contexto, não o número principal */
+.loa-app .painel-total-nota { font-weight: 600; color: var(--tinta-fraca); }
+
+/* botão de exportar o card em PNG — discreto até o cursor chegar perto */
+.loa-app .btn-png {
+  appearance: none; cursor: pointer; font: inherit;
+  position: absolute; top: 1.05rem; right: 1.2rem;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
+  line-height: 1; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--borda); border-radius: 999px;
+  background: var(--superficie-2); color: var(--tinta-fraca);
+  transition: color 0.12s, border-color 0.12s;
+}
+.loa-app .painel-grafico:hover .btn-png { color: var(--tinta-2); }
+.loa-app .btn-png:hover { color: var(--acento); border-color: var(--acento); }
+.loa-app .btn-png:disabled { cursor: progress; opacity: 0.6; }
+.loa-app .btn-png:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+/* o botão de slide fica à esquerda do de PNG, no mesmo canto */
+.loa-app .btn-slide { right: 4.05rem; }
+
+/* --------------------------------------------------- rosca (donut) ------- */
+.loa-app .pizza { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.8rem; }
+/* O viewBox reserva folga lateral para o rótulo de uma linha ("Nome (12,3%)").
+   O corpo aparente da fonte é `font-size x largura renderizada / largura do
+   viewBox` — por isso alargar o viewBox exige alargar também o desenho, senão
+   o rótulo encolhe na tela. */
+.loa-app .pizza svg { width: 100%; max-width: 640px; height: auto; }
+.loa-app .pizza-rotulo text { font-size: 17px; font-weight: 700; fill: var(--tinta); }
+.loa-app .pizza-rotulo-pct { font-weight: 600; fill: var(--tinta-fraca); }
+.loa-app .pizza-centro-valor { font-size: 30px; font-weight: 700; fill: var(--tinta); }
+.loa-app .pizza-centro-sub { font-size: 11.5px; fill: var(--tinta-fraca); }
+.loa-app .pizza-centro-nome { font-size: 12.5px; font-weight: 600; fill: var(--tinta-2); }
+.loa-app .pizza-legenda { display: flex; flex-direction: column; gap: 0.15rem; width: 100%; max-width: 640px; }
+.loa-app .legenda-item {
+  display: flex; align-items: center; gap: 0.55rem; font-size: 0.86rem;
+  padding: 0.28rem 0.4rem; border-radius: var(--r-p);
+  transition: background 0.12s;
+}
+.loa-app .legenda-item:hover { background: var(--superficie-2); }
+.loa-app .legenda-cor { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.loa-app .legenda-nome { font-weight: 600; min-width: 2.8rem; }
+.loa-app .legenda-valor {
+  color: var(--tinta-2); margin-left: auto; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.loa-app .grafico-vazio { color: var(--tinta-2); text-align: center; padding: 1.5rem 0; }
+
+/* ------------------------------------------------- barras (comuns) ------- */
+/* Trilho e preenchimento seguem a especificação de marca: barra fina, ponta
+   arredondada em 4px do lado do dado e quadrada na linha de base. */
+.loa-app .trilho {
+  display: block; background: var(--trilho); border-radius: 0 4px 4px 0;
+  height: var(--barra-h); position: relative;
+}
+.loa-app .fill {
+  display: block; height: 100%; min-width: 2px;
+  border-radius: 0 4px 4px 0; transition: width 0.35s ease;
+}
+
+/* comparativo por C Mil A: uma barra empilhada por comando */
+.loa-app .cmila { margin: 0; }
+.loa-app .cmila-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.8rem;
+}
+.loa-app .cmila-item { display: grid; gap: 0.32rem; min-width: 0; transition: opacity 0.12s; }
+.loa-app .cmila-topo { display: flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
+.loa-app .cmila-sigla { font-weight: 700; font-size: 0.92rem; letter-spacing: 0.02em; flex: none; }
+.loa-app .cmila-nome {
+  flex: 0 1 auto; min-width: 0;
+  font-size: 0.74rem; color: var(--tinta-fraca);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.loa-app .cmila-total {
+  margin-left: auto; flex: none; font-size: 0.9rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.loa-app .cmila-barra { display: flex; }
+.loa-app .cmila-seg { height: var(--barra-h); min-width: 2px; transition: width 0.35s ease; }
+/* folga de 2px na cor da superfície separa os segmentos — nunca um contorno */
+.loa-app .cmila-seg + .cmila-seg { margin-left: 2px; }
+.loa-app .cmila-seg:last-child { border-radius: 0 4px 4px 0; }
+.loa-app .cmila-quebra {
+  display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem;
+  font-size: 0.72rem; color: var(--tinta-2); font-variant-numeric: tabular-nums;
+}
+.loa-app .cmila-quebra span { display: inline-flex; align-items: center; gap: 0.32rem; }
+.loa-app .cmila-ponto { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+/* legenda compartilhada dos gráficos de barra */
+.loa-app .barras-legenda {
+  display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;
+  margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--hairline);
+}
+.loa-app .barras-legenda-item {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.76rem; font-weight: 600; color: var(--tinta-2); cursor: default;
+}
+
+/* ------------------------------------------ linhas do ciclo por exercício */
+/* Uma linha por exercício ao longo das fases do rito. Exceção deliberada à
+   regra "ano vai na posição": aqui a posição é a fase, então a série é o ano.
+   A cor vem da paleta categórica validada (não rampa), e cada linha também se
+   distingue pelo traçado — a cor não é a única codificação. */
+.loa-app .linhas-fases { margin: 0; }
+.loa-app .linhas-fases svg {
+  display: block; width: 100%; height: auto;
+  /* aspect-ratio = viewBox (1120×360): a caixa tem a MESMA proporção do desenho,
+     então com preserveAspectRatio="meet" não sobra faixa lateral — o gráfico
+     ocupa toda a largura do painel. O teto de altura evita que fique gigante em
+     telas muito largas; o piso mantém legibilidade no mobile. */
+  aspect-ratio: 1120 / 360;
+  max-height: 460px;
+  min-height: 240px;
+  overflow: visible;
+}
+.loa-app .lf-grade { stroke: var(--hairline); stroke-width: 1; }
+.loa-app .lf-tick-y {
+  fill: var(--tinta-fraca); font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.loa-app .lf-tick-x { fill: var(--tinta-2); font-size: 14px; font-weight: 600; }
+.loa-app .lf-linha { transition: opacity 0.12s; }
+.loa-app .lf-ponto { transition: opacity 0.12s; }
+/* swatch de LINHA na legenda (o de quadrado, .legenda-cor, fica para barras) */
+.loa-app .legenda-linha { width: 18px; height: 3px; border-radius: 2px; flex: none; }
+
+/* ------------------------------ linhas do ciclo por exercício ----------- */
+/* Exceção consciente à regra "ano vai na posição": nesta leitura de TRAJETÓRIA
+   a posição já é a fase do rito, então cada exercício é uma linha. A cor vem da
+   paleta categórica validada (não de uma rampa sequencial) e o traçado de cada
+   linha é uma segunda codificação além da cor. */
+.loa-app .linhas-fases { margin: 0; }
+.loa-app .linhas-fases svg { display: block; width: 100%; height: auto; overflow: visible; }
+.loa-app .lf-grade { stroke: var(--hairline); }
+.loa-app .lf-tick-y {
+  fill: var(--tinta-fraca); font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.loa-app .lf-tick-x { fill: var(--tinta-2); font-size: 14px; font-weight: 600; }
+.loa-app .lf-linha, .loa-app .lf-ponto { transition: opacity 0.12s; cursor: default; }
+/* swatch de linha na legenda (traço, não quadrado como nos gráficos de barra) */
+.loa-app .legenda-linha { width: 18px; height: 3px; border-radius: 2px; flex: none; }
+
+/* =========================================== aba Histórico =============== */
+.loa-app .historico-intro {
+  margin: 0 0 0.9rem; font-size: 0.84rem; line-height: 1.5; color: var(--tinta-2);
+  max-width: 62rem;
+}
+
+/* Um cartão por exercício. Grid fluido: com 4 anos cabe tudo numa linha em
+   telas largas e vira coluna única no celular, sem media query. */
+/* base estreita o bastante para cinco exercícios caberem numa linha em tela
+   larga, e o auto-fit continua empilhando sozinho no celular */
+.loa-app .historico-anos {
+  display: grid; gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+}
+.loa-app .ano-card {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-g); box-shadow: var(--sombra); padding: 1rem 1.1rem;
+}
+.loa-app .ano-card-ano {
+  margin: 0; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--tinta-fraca); font-variant-numeric: tabular-nums;
+}
+.loa-app .ano-card-valor {
+  margin: 0.3rem 0 0; font-size: 1.85rem; font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--tinta);
+}
+.loa-app .ano-card-unidade { font-size: 0.55em; font-weight: 700; color: var(--tinta-fraca); margin-left: 0.22em; }
+.loa-app .ano-card-var { margin: 0.35rem 0 0; font-size: 0.74rem; font-weight: 700; }
+/* a seta e o sinal repetem o que a cor diz — a variação nunca é só cor */
+.loa-app .var-sobe { color: light-dark(#0a6b4a, #4cc79a); }
+.loa-app .var-desce { color: light-dark(#a83a2c, #e88b7c); }
+.loa-app .var-nula { color: var(--tinta-fraca); font-weight: 600; }
+.loa-app .ano-card-linhas {
+  margin: 0.8rem 0 0; padding-top: 0.7rem; border-top: 1px solid var(--hairline);
+  display: grid; gap: 0.28rem; font-size: 0.78rem;
+}
+.loa-app .ano-card-linhas > div { display: flex; justify-content: space-between; gap: 0.6rem; }
+.loa-app .ano-card-linhas dt { color: var(--tinta-fraca); }
+.loa-app .ano-card-linhas dd {
+  margin: 0; font-weight: 700; color: var(--tinta-2); font-variant-numeric: tabular-nums;
+}
+.loa-app .ano-card-pct { font-weight: 600; color: var(--tinta-fraca); }
+
+/* ------------------------------------------ colunas por exercício -------- */
+/* O ano é uma dimensão ordenada: vai na posição (eixo x), nunca na cor. */
+.loa-app .colunas {
+  margin: 0;
+  /* medidas compartilhadas pelas colunas e pelo SVG das tendências, que
+     precisa cobrir exatamente a área de plotagem */
+  --colunas-h: 168px;
+  --colunas-topo: 2.3em;
+  --colunas-gap: 0.35rem;
+}
+/* Sem folga entre as colunas: assim o centro do ano `i` é exatamente
+   (i + 0,5)/n da largura — é o que faz a reta de tendência cair no lugar. A
+   folga visual vem do padding interno de cada coluna. */
+.loa-app .colunas-plot {
+  position: relative;
+  display: grid; grid-template-columns: repeat(var(--n-anos), minmax(0, 1fr));
+  align-items: end;
+}
+.loa-app .colunas-ano { display: grid; gap: var(--colunas-gap); min-width: 0; padding: 0 0.25rem; }
+/* O rótulo do total pode ocupar duas linhas ("R$ 879,2 mi (10,2%)") sem
+   desalinhar as colunas: a caixa tem altura fixa e o texto encosta embaixo. */
+.loa-app .colunas-total {
+  display: flex; align-items: flex-end; justify-content: center;
+  min-height: var(--colunas-topo); line-height: 1.15; text-align: center;
+  font-size: 0.72rem; font-weight: 700; color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+.loa-app .colunas-trilho { height: var(--colunas-h); display: flex; align-items: flex-end; }
+/* Quando cada barra leva um rótulo no topo (valor ou %), a barra que atinge o
+   máximo encostaria no rótulo do total. Uma folga proporcional no topo do
+   trilho (via padding) reserva a faixa do rótulo sem desalinhar as bases. */
+.loa-app .colunas-trilho.rotulado { padding-top: 1.1em; box-sizing: border-box; }
+/* `width: 100%` é obrigatório: um SVG com viewBox tem proporção intrínseca, e
+   com `width: auto` o par left/right NÃO estica o elemento — ele fica do
+   tamanho natural e a reta sai cortada no primeiro ano. */
+.loa-app .colunas-tendencias {
+  position: absolute; left: 0; top: calc(var(--colunas-topo) + var(--colunas-gap));
+  width: 100%; height: var(--colunas-h);
+  pointer-events: none; overflow: visible;
+}
+.loa-app .legenda-tracejo {
+  width: 18px; height: 0; flex: none;
+  border-top: 2px dashed var(--tinta-fraca);
+}
+.loa-app .colunas-pilha {
+  width: 100%; display: flex; flex-direction: column-reverse;
+  /* folga de 2px na cor da superfície entre segmentos — separação por espaço,
+     nunca por borda */
+  gap: 2px; border-radius: 4px 4px 0 0; overflow: hidden; min-height: 2px;
+}
+.loa-app .colunas-seg { display: block; width: 100%; min-height: 2px; transition: opacity 0.12s; }
+.loa-app .colunas-grupo {
+  width: 100%; height: 100%; display: flex; align-items: flex-end;
+  justify-content: center; gap: 2px;
+}
+.loa-app .colunas-barra {
+  position: relative;
+  flex: 1 1 0; max-width: 3.2rem; min-height: 2px;
+  border-radius: 4px 4px 0 0; transition: opacity 0.12s;
+}
+/* rótulo direto acima da barra — texto em token de tinta, nunca na cor da série */
+.loa-app .colunas-barra-rotulo {
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  margin-bottom: 3px; font-size: 0.68rem; font-weight: 700; line-height: 1;
+  color: var(--tinta-2); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.loa-app .colunas-rotulo {
+  text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--tinta);
+  font-variant-numeric: tabular-nums; padding-top: 0.35rem;
+  border-top: 1px solid var(--hairline);
+}
+
+/* ------------------------------------------ matriz categoria x ano ------- */
+/* Onde as categorias são muitas para uma paleta honesta, o ano vira COLUNA.
+   Um tom só; a magnitude é o comprimento da barra. */
+.loa-app .matriz-rolagem { overflow-x: auto; margin: 0 -0.2rem; padding: 0 0.2rem; }
+.loa-app .matriz-dica { margin: 0 0 0.5rem; font-size: 0.72rem; color: var(--tinta-fraca); }
+@media (min-width: 640px) { .loa-app .matriz-dica { display: none; } }
+.loa-app .matriz {
+  width: 100%; border-collapse: collapse; font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.loa-app .matriz th, .loa-app .matriz td { text-align: right; padding: 0.42rem 0.5rem; }
+.loa-app .matriz thead th {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tinta-fraca); border-bottom: 1px solid var(--borda); white-space: nowrap;
+}
+.loa-app .matriz tbody tr + tr th, .loa-app .matriz tbody tr + tr td { border-top: 1px solid var(--hairline); }
+.loa-app .matriz .matriz-cat { text-align: left; font-weight: 600; color: var(--tinta); }
+.loa-app .matriz-nome { display: block; line-height: 1.25; }
+.loa-app .matriz-sub { display: block; font-size: 0.68rem; font-weight: 500; color: var(--tinta-fraca); }
+.loa-app .matriz-celula { min-width: 5.6rem; }
+.loa-app .matriz-valor { display: block; font-weight: 600; color: var(--tinta-2); white-space: nowrap; }
+.loa-app .matriz-celula.vazia .matriz-valor { color: var(--tinta-fraca); font-weight: 500; }
+/* a seta repete o que o tom da célula diz — a direção nunca é só cor */
+.loa-app .matriz-seta { font-size: 0.62em; margin-right: 0.3em; }
+.loa-app .matriz-seta.sobe { color: var(--serie-azul); }
+.loa-app .matriz-seta.desce { color: var(--serie-laranja); }
+.loa-app .matriz-trilho { display: block; margin-top: 0.22rem; height: 3px; background: var(--hairline); border-radius: 2px; }
+.loa-app .matriz-fill { display: block; height: 100%; background: var(--serie-azul); border-radius: 2px; }
+.loa-app .matriz td.matriz-total .matriz-valor { color: var(--tinta); font-weight: 800; }
+.loa-app .matriz th.matriz-total, .loa-app .matriz td.matriz-total { border-left: 1px solid var(--borda); background: none; }
+
+.loa-app .matriz-legenda {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem;
+  margin: 0.7rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--hairline);
+  font-size: 0.72rem; font-weight: 600; color: var(--tinta-2);
+}
+.loa-app .matriz-chave {
+  width: 20px; height: 12px; border-radius: 3px; flex: none;
+  border: 1px solid var(--hairline);
+}
+.loa-app .matriz-chave.sobe { background: color-mix(in oklab, var(--serie-azul) 26%, transparent); }
+.loa-app .matriz-chave.desce { background: color-mix(in oklab, var(--serie-laranja) 26%, transparent); }
+.loa-app .matriz-chave.desce { margin-left: 0.5rem; }
+
+/* ------------------------------------------ ranking horizontal ----------- */
+.loa-app .ranking { margin: 0; }
+.loa-app .ranking-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem;
+}
+.loa-app .ranking-item { display: grid; gap: 0.26rem; min-width: 0; transition: opacity 0.12s; }
+.loa-app .ranking-topo {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 0.6rem; min-width: 0;
+}
+.loa-app .ranking-nome {
+  display: flex; align-items: baseline; gap: 0.4rem;
+  flex: 0 1 auto; min-width: 0; font-size: 0.88rem;
+}
+.loa-app .ranking-pos {
+  color: var(--tinta-fraca); font-weight: 700; font-size: 0.78rem;
+  font-variant-numeric: tabular-nums; flex: none; min-width: 1.35rem;
+}
+.loa-app .ranking-chave { width: 8px; height: 8px; border-radius: 2px; flex: none; align-self: center; }
+.loa-app .ranking-sigla { font-weight: 700; font-size: 0.76rem; color: var(--tinta-2); flex: none; }
+.loa-app .ranking-autor {
+  font-weight: 600; color: var(--tinta); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.loa-app .ranking-uf { color: var(--tinta-fraca); font-size: 0.78rem; flex: none; }
+.loa-app .ranking-qtd { color: var(--tinta-fraca); font-size: 0.76rem; flex: none; white-space: nowrap; }
+.loa-app .ranking-valor {
+  font-size: 0.88rem; font-weight: 700; white-space: nowrap;
+  font-variant-numeric: tabular-nums; color: var(--tinta); flex: none;
+}
+.loa-app .ranking-trilho {
+  display: block; background: var(--trilho); border-radius: 0 4px 4px 0;
+  height: 12px;
+}
+.loa-app .ranking-fill {
+  display: block; height: 100%; min-width: 2px;
+  border-radius: 0 4px 4px 0; transition: width 0.35s ease;
+}
+
+/* ==================================================== grade de cartões ==== */
+.loa-app .grade { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+.loa-app .cartao {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-m); overflow: hidden; box-shadow: var(--sombra);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.loa-app .cartao:hover { box-shadow: var(--sombra-alta); }
+.loa-app .cartao-cab {
+  appearance: none; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; width: 100%; cursor: pointer;
+  padding: 0.8rem 0.95rem; display: block;
+}
+.loa-app .cartao-cab:hover { background: light-dark(rgba(0, 0, 0, 0.03), rgba(255, 255, 255, 0.04)); }
+.loa-app .cartao-linha1 { display: flex; justify-content: space-between; gap: 0.6rem; align-items: baseline; }
+.loa-app .cartao-autor { font-size: 0.9rem; }
+.loa-app .cartao-valor { font-weight: 700; font-size: 0.9rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.loa-app .cartao-linha2 { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.45rem; align-items: center; }
+.loa-app .tag {
+  font-size: 0.68rem; font-weight: 600; padding: 0.12rem 0.5rem;
+  border-radius: 999px; background: var(--superficie-2); color: var(--tinta-2);
+}
+.loa-app .tag-rp { background: light-dark(#e3edf9, #1d2c3f); color: var(--acento); }
+.loa-app .cartao-num { margin-left: auto; font-size: 0.68rem; color: var(--tinta-fraca); }
+
+.loa-app .cartao-alerta { background: var(--alerta-fundo); border: 1px solid var(--alerta-borda); border-left-width: 5px; }
+/* OM e objeto no cartão fechado: rótulo pequeno em versalete + o texto em
+   tinta normal, para o olho pular direto ao conteúdo */
+.loa-app .cartao-om {
+  margin: 0.5rem 0 0; display: grid; gap: 0.2rem;
+  font-size: 0.78rem; line-height: 1.35; text-align: left;
+}
+.loa-app .cartao-om-bloco { display: flex; gap: 0.45rem; min-width: 0; }
+.loa-app .cartao-om-rot {
+  flex: none; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--tinta-fraca); padding-top: 0.16em;
+  min-width: 3.2rem;
+}
+.loa-app .cartao-om-txt { color: var(--tinta-2); font-weight: 600; min-width: 0; }
+.loa-app .cartao-frase-alerta { margin: 0.5rem 0 0; font-size: 0.76rem; font-weight: 600; color: var(--alerta-texto); }
+
+/* detalhe */
+.loa-app .cartao-detalhe { border-top: 1px solid var(--hairline); padding: 0.8rem 0.95rem; }
+.loa-app .detalhe-item + .detalhe-item { border-top: 1px dashed var(--hairline); margin-top: 0.7rem; padding-top: 0.7rem; }
+.loa-app .detalhe-item-titulo { margin: 0 0 0.4rem; font-size: 0.72rem; font-weight: 700; color: var(--tinta-fraca); }
+.loa-app .cartao-detalhe dl { margin: 0; display: grid; grid-template-columns: 1fr; gap: 0.3rem; }
+.loa-app .cartao-detalhe dl div { display: flex; gap: 0.5rem; font-size: 0.8rem; }
+.loa-app .cartao-detalhe dt { font-weight: 700; color: var(--tinta-2); min-width: 6.2rem; flex: none; }
+.loa-app .cartao-detalhe dd { margin: 0; overflow-wrap: anywhere; }
+.loa-app .detalhe-just-titulo { margin: 0.6rem 0 0.15rem; font-size: 0.8rem; font-weight: 700; color: var(--tinta-2); }
+.loa-app .detalhe-just { margin: 0; font-size: 0.8rem; white-space: pre-line; color: var(--tinta); }
+.loa-app .detalhe-incons {
+  margin-top: 0.6rem; background: var(--alerta-fundo); border: 1px solid var(--alerta-borda);
+  border-radius: var(--r-p); padding: 0.55rem 0.7rem; display: grid; gap: 0.5rem;
+}
+.loa-app .detalhe-incons-titulo { margin: 0 0 0.25rem; font-size: 0.8rem; font-weight: 700; color: var(--alerta-texto); }
+.loa-app .detalhe-incons ul { margin: 0; padding-left: 1.1rem; font-size: 0.78rem; }
+.loa-app .detalhe-incons ul li + li { margin-top: 0.25rem; }
+.loa-app .detalhe-incons-nota { margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--tinta-2); }
+.loa-app .tag-incons { background: var(--alerta-fundo); color: var(--alerta-texto); border: 1px solid var(--alerta-borda); }
+
+/* ============================================ aba "Inconsistências" ======= */
+.loa-app .aba-incons { display: block; }
+.loa-app .cards { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+.loa-app .card {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-g); padding: 1rem; box-shadow: var(--sombra);
+}
+.loa-app .card-titulo {
+  margin: 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tinta-fraca); line-height: 1.3;
+}
+.loa-app .card-valor { margin: 0.35rem 0 0; font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.loa-app .cards-incons { grid-template-columns: repeat(2, 1fr); }
+.loa-app .card-alerta { background: var(--alerta-fundo); border-color: var(--alerta-borda); }
+.loa-app .card-alerta .card-titulo { color: var(--alerta-texto); }
+.loa-app .card-alerta .card-valor { font-size: 1.4rem; }
+.loa-app .card-rodape { margin: 0.35rem 0 0; font-size: 0.7rem; color: var(--tinta-2); }
+
+.loa-app .ranking-fill-alerta { background: var(--alerta-borda); }
+.loa-app .aba-incons .ranking-nome { flex-wrap: wrap; }
+.loa-app .aba-incons .ranking-autor { white-space: normal; overflow: visible; }
+.loa-app .aba-incons .painel-grafico { margin-top: 0.85rem; }
+
+.loa-app .subfiltros {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;
+  margin: 1rem 0 0.7rem;
+}
+.loa-app .subfiltros-rotulo {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tinta-fraca); margin-left: 0.6rem;
+}
+.loa-app .subfiltros-rotulo:first-child { margin-left: 0; }
+.loa-app .pilula {
+  appearance: none; cursor: pointer; font: inherit; font-size: 0.74rem; font-weight: 600;
+  padding: 0.32rem 0.75rem; border-radius: 999px;
+  border: 1px solid var(--borda); background: var(--superficie); color: var(--tinta-2);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.loa-app .pilula:hover { border-color: var(--acento); color: var(--acento); }
+.loa-app .pilula.ativa { background: var(--acento); border-color: var(--acento); color: #fff; }
+
+.loa-app .cartao-alerta.grav-media { border-color: var(--aviso-borda); background: var(--aviso-fundo); }
+.loa-app .cartao-uo { margin: 0.45rem 0 0; font-size: 0.76rem; font-weight: 600; color: var(--tinta-2); }
+.loa-app .chips-alerta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.45rem; }
+.loa-app .chip {
+  font-size: 0.66rem; font-weight: 700; padding: 0.14rem 0.5rem; border-radius: 6px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.loa-app .chip-alta { background: var(--alerta-fundo); border-color: var(--alerta-borda); color: var(--alerta-texto); }
+.loa-app .chip-media { background: var(--aviso-fundo); border-color: var(--aviso-borda); color: var(--aviso-texto); }
+.loa-app .chip-grav { margin-left: auto; }
+.loa-app .chips-alerta .chip-grav { margin-left: 0; }
+.loa-app .cartao-alerta.grav-media .cartao-frase-alerta { color: var(--aviso-texto); }
+
+.loa-app .alerta-bloco {
+  border-radius: var(--r-p); padding: 0.55rem 0.65rem;
+  background: var(--superficie); border: 1px solid var(--borda); border-left-width: 4px;
+}
+.loa-app .alerta-alta { border-left-color: var(--alerta-borda); }
+.loa-app .alerta-media { border-left-color: var(--aviso-borda); }
+.loa-app .alerta-titulo {
+  margin: 0; font-size: 0.78rem; font-weight: 700; color: var(--tinta);
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+}
+.loa-app .alerta-desc { margin: 0.25rem 0 0; font-size: 0.78rem; color: var(--tinta-2); }
+.loa-app .alerta-meta { margin: 0.4rem 0 0 !important; display: grid; gap: 0.2rem; }
+.loa-app .alerta-meta div { display: flex; gap: 0.4rem; font-size: 0.73rem; }
+.loa-app .alerta-meta dt { font-weight: 700; color: var(--tinta-fraca); min-width: 7.5rem; flex: none; }
+.loa-app .alerta-meta dd { margin: 0; color: var(--tinta-2); overflow-wrap: anywhere; }
+
+.loa-app .marca-evidencia {
+  background: var(--marca-fundo); color: var(--tinta);
+  padding: 0 0.12rem; border-radius: 3px; font-weight: 700;
+}
+
+.loa-app .metodologia {
+  margin-top: 1.2rem; background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: var(--r-m); padding: 0.75rem 0.95rem;
+}
+.loa-app .metodologia summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--tinta-2); }
+.loa-app .metodologia p { font-size: 0.78rem; color: var(--tinta-2); margin: 0.6rem 0 0; }
+
+/* ======================================================= tela de erro ===== */
+.loa-app .tela-erro { padding: 3rem 1.25rem; max-width: 42rem; margin: 0 auto; }
+.loa-app .tela-erro h1 { font-size: 1.2rem; margin: 0 0 0.6rem; }
+.loa-app .tela-erro p { font-size: 0.9rem; color: var(--tinta-2); margin: 0 0 1rem; }
+.loa-app .tela-erro-acoes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.loa-app .botao-primario, .loa-app .botao-secundario {
+  appearance: none; cursor: pointer; font: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 0.6rem 1.05rem; border-radius: var(--r-p); border: 1px solid var(--acento);
+}
+.loa-app .botao-primario { background: var(--acento); color: #fff; }
+.loa-app .botao-secundario { background: transparent; color: var(--acento); }
+.loa-app .tela-erro details { font-size: 0.78rem; color: var(--tinta-fraca); }
+.loa-app .tela-erro summary { cursor: pointer; }
+.loa-app .tela-erro pre {
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.72rem;
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r-p); padding: 0.6rem;
+}
+
+/* =========================================================== rodapé ======= */
+.loa-app .rodape {
+  padding: 1rem 1.1rem 1.4rem; color: var(--tinta-fraca);
+  font-size: 0.7rem; text-align: center;
+  border-top: 1px solid var(--hairline); margin-top: 1.2rem;
+}
+.loa-app .rodape p { margin: 0; max-width: 60rem; margin-inline: auto; }
+
+/* =================================================== telas maiores ======== */
+@media (min-width: 560px) {
+  .loa-app .tema-txt { display: inline; }
+  .loa-app .tiras { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .loa-app .tiras > :nth-child(3) { grid-column: auto; }
+}
+@media (min-width: 640px) {
+  .loa-app .cabecalho { padding: 1.2rem 1.6rem 0; }
+  .loa-app .cabecalho h1 { font-size: 1.35rem; }
+  .loa-app .filtros { padding: 0.65rem 1.6rem; }
+  .loa-app .conteudo { padding: 1.4rem 1.6rem; }
+  .loa-app .cards-incons { grid-template-columns: repeat(4, 1fr); }
+  .loa-app .grade { grid-template-columns: repeat(2, 1fr); }
+  .loa-app .pizza { flex-direction: row; justify-content: center; align-items: center; gap: 1.6rem; }
+  .loa-app .painel-cab-txt { flex: 1 1 0; }
+}
+@media (min-width: 1024px) {
+  .loa-app .destaque { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.6fr); align-items: stretch; }
+  .loa-app .paineis { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .loa-app .p-6 { grid-column: span 6; }
+  .loa-app .p-12 { grid-column: span 12; }
+  .loa-app .paineis .pizza { flex-direction: column; }
+  .loa-app .grade { grid-template-columns: repeat(3, 1fr); }
+  .loa-app .aba-incons .grade { grid-template-columns: repeat(2, 1fr); }
+  /* a lista de partidos é longa e de barras curtas: duas colunas evitam
+     um bloco alto e quase vazio */
+  .loa-app .partidos .ranking-lista { grid-template-columns: 1fr 1fr; gap: 0.6rem 2rem; }
+}
+@media (min-width: 1440px) {
+  .loa-app .conteudo { padding: 1.6rem 2rem; }
+  .loa-app { --barra-h: 16px; }
+  .loa-app .ranking-trilho { height: 14px; }
+}
+
+/* quem pediu menos movimento não recebe transições de largura */
+@media (prefers-reduced-motion: reduce) {
+  .loa-app, .loa-app * { transition: none !important; animation: none !important; }
+}
+
+/* =========================================== folha A4 (Exportar PDF) ======
+   O cabeçalho de folha só existe no papel; na tela ele fica fora do fluxo. */
+.loa-app .folha-cab { display: none; }
+
+@media print {
+  /* Todo o sistema de cores é light-dark(): forçar o color-scheme usado para
+     "light" já converte cada token para a versão de papel, sem paleta extra. */
+  .loa-app, .loa-app[data-tema='claro'], .loa-app[data-tema='escuro'] { color-scheme: light; }
+
+  @page { size: A4 portrait; margin: 12mm 10mm; }
+
+  .loa-app, .loa-app { background: #fff; }
+  .loa-app { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* fora do papel: navegação, controles e os próprios botões de exportação */
+  .loa-app .cabecalho, .loa-app .filtros, .loa-app .rodape, .loa-app .abas, .loa-app .secoes, .loa-app .tema, .loa-app .btn-pptx, .loa-app .btn-png, .loa-app [data-sem-exportar] { display: none !important; }
+
+  .loa-app .app { display: block; }
+  .loa-app .conteudo { padding: 0; max-width: none; }
+
+  .loa-app .folha-cab { display: block; margin: 0 0 6mm; }
+  .loa-app .folha-cab h2 {
+    margin: 0 0 1.5mm; font-size: 15pt; font-weight: 800;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .loa-app .folha-cab p { margin: 0.6mm 0; font-size: 8pt; color: #444; }
+
+  /* uma coluna: cada card ocupa a largura da folha e nunca parte no meio */
+  .loa-app .destaque, .loa-app .tiras, .loa-app .paineis { display: block; }
+  .loa-app .destaque { margin-bottom: 4mm; }
+  .loa-app .heroi, .loa-app .tira, .loa-app .painel-grafico {
+    break-inside: avoid; page-break-inside: avoid;
+    box-shadow: none; margin: 0 0 4mm;
+    border: 1px solid #d8d8d4; border-radius: 6px;
+  }
+  .loa-app .tiras { display: flex; gap: 4mm; }
+  .loa-app .tiras > * { flex: 1 1 0; }
+
+  .loa-app .painel-grafico { padding: 4mm 5mm 5mm; }
+  .loa-app .painel-grafico h2 { font-size: 10pt; }
+  .loa-app .painel-sub, .loa-app .painel-total { font-size: 8pt; }
+
+  /* os gráficos ficam no tamanho da folha, não no da tela — e mais compactos,
+     para que caibam dois cards por página em vez de um só com folga */
+  .loa-app .pizza { flex-direction: column; gap: 0.4rem; }
+  .loa-app .pizza svg { max-width: 112mm; }
+  .loa-app .pizza-legenda { max-width: 130mm; }
+  .loa-app .legenda-item { padding: 0.12rem 0.3rem; font-size: 8.5pt; }
+  .loa-app .heroi-valor { font-size: 26pt; }
+  .loa-app .tira-valor { font-size: 15pt; }
+
+  .loa-app { --barra-h: 11px; }
+  .loa-app .ranking-trilho { height: 10px; }
+  .loa-app .cmila-lista { gap: 0.5rem; }
+  .loa-app .ranking-lista { gap: 0.45rem; }
+  .loa-app .cmila-item, .loa-app .ranking-item { gap: 0.18rem; }
+  /* a lista de partidos é longa: duas colunas evitam uma página quase vazia */
+  .loa-app .partidos .ranking-lista { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem 8mm; }
+
+  /* PLOA: as barras e as tabelas de ciclo encolhem como as demais listas */
+  .loa-app .pbar-lista { gap: 0.45rem; }
+  .loa-app .pbar-item { gap: 0.15rem; }
+  .loa-app .pbar-nome, .loa-app .pbar-valor { font-size: 8.5pt; }
+  .loa-app .pbar-sub, .loa-app .pbar-nota { font-size: 7.5pt; }
+  .loa-app .ciclo-tabela { font-size: 7.5pt; overflow-x: visible; }
+  .loa-app .ciclo-linha { padding: 0.2rem 0.25rem; }
+  .loa-app .painel-rodape, .loa-app .ploa-nota, .loa-app .ploa-aviso { font-size: 7.5pt; }
+
+  .loa-app a[href]::after { content: none !important; }
+}
+
+/* ====================================================================== */
+/* Barras estreitas: gráficos de composição/comparação densos do Histórico */
+/* (GND, RP e ciclo). Pedido do usuário — reduzir a largura das barras.     */
+/* ====================================================================== */
+.loa-app .colunas-fina .colunas-trilho { justify-content: center; }
+.loa-app .colunas-fina .colunas-pilha { max-width: 2.1rem; }
+.loa-app .colunas-fina .colunas-barra { max-width: 1.5rem; }
+
+/* ====================================================================== */
+/* Botão "Exportar PDF" — irmão do "Exportar PPTX" na barra de filtros.    */
+/* Contorno (não sólido) para se distinguir do PPTX ao lado.               */
+/* ====================================================================== */
+.loa-app .btn-pdf {
+  appearance: none; cursor: pointer; font: inherit;
+  font-size: 0.76rem; font-weight: 700; line-height: 1;
+  padding: 0.44rem 0.75rem; align-self: center; margin-left: 0.5rem;
+  border: 1px solid var(--acento); border-radius: 999px;
+  background: transparent; color: var(--acento); white-space: nowrap;
+}
+.loa-app .btn-pdf:hover { background: color-mix(in oklab, var(--acento) 12%, transparent); }
+.loa-app .btn-pdf:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* ====================================================================== */
+/* Folha A4 do botão "Exportar PDF" (subabas do PLOA).                     */
+/*                                                                        */
+/* O PDF é gerado DIRETO no navegador (sem window.print()): o pdf.js clona */
+/* esta folha para um "palco" fora da tela, marca-o com .folha-render,     */
+/* pagina o conteúdo em folhas A4 e rasteriza cada uma. Por isso as regras */
+/* de leiaute abaixo valem na TELA (não em @media print) — mas a folha só  */
+/* fica visível dentro do palco: no app ela continua display:none.         */
+/* ====================================================================== */
+.loa-app .folha-pdf { display: none; }
+.loa-app .folha-pdf.folha-render { display: block; }
+/* modo claro forçado no palco, como o antigo truque de impressão */
+.loa-app .folha-render { color-scheme: light; }
+.loa-app .folha-render .pdf-pagina-conteudo { box-sizing: border-box; }
+
+.loa-app .folha-pdf { font-size: 9pt; color: var(--tinta); }
+
+/* cabeça da folha: título + linha de recorte (só na 1ª página) */
+.loa-app .folha-pdf .pdf-cabeca { margin: 0 0 4mm; }
+.loa-app .folha-pdf .pdf-titulo {
+  margin: 0 0 1mm; font-size: 17pt; font-weight: 800; letter-spacing: 0.01em;
+}
+.loa-app .folha-pdf .pdf-recorte { margin: 0; font-size: 9pt; color: var(--tinta-2); }
+.loa-app .folha-pdf .pdf-recorte-rot { font-weight: 700; color: var(--tinta); }
+.loa-app .folha-pdf .pdf-recorte-sec { color: var(--tinta-fraca); font-size: 8.5pt; margin-top: 0.4mm; }
+
+/* 4 cards superiores do Dashboard (o primeiro sem qualquer degradê) */
+.loa-app .folha-pdf .pdf-topo {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 0 0 4mm;
+}
+.loa-app .folha-pdf .pdf-mini {
+  border: 1px solid #d8d8d4; border-radius: 5px; padding: 2.6mm 2.6mm;
+  text-align: center; background: var(--superficie);
+}
+.loa-app .folha-pdf .pdf-mini-rot {
+  margin: 0; font-size: 7pt; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--tinta-fraca);
+}
+.loa-app .folha-pdf .pdf-mini-val {
+  margin: 1mm 0 0; font-size: 14pt; font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.02em; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.loa-app .folha-pdf .pdf-mini-heroi .pdf-mini-val { font-size: 16pt; }
+.loa-app .folha-pdf .pdf-mini-un { font-size: 0.5em; font-weight: 700; color: var(--tinta-fraca); margin-left: 0.2em; }
+.loa-app .folha-pdf .pdf-mini-nota { margin: 0.9mm 0 0; font-size: 6.4pt; color: var(--tinta-fraca); line-height: 1.2; }
+
+/* cards de gráfico */
+.loa-app .folha-pdf .pdf-card {
+  border: 1px solid #d8d8d4; border-radius: 6px; padding: 3mm 4mm 4mm;
+  margin: 0 0 4mm; background: var(--superficie);
+}
+.loa-app .folha-pdf .pdf-card-cab { display: flex; align-items: baseline; gap: 3mm; margin: 0 0 2mm; }
+.loa-app .folha-pdf .pdf-card-txt { flex: 1 1 auto; min-width: 0; }
+.loa-app .folha-pdf .pdf-card h2 { margin: 0; font-size: 11pt; font-weight: 700; }
+.loa-app .folha-pdf .pdf-card-sub { margin: 0.4mm 0 0; font-size: 7.5pt; color: var(--tinta-fraca); }
+.loa-app .folha-pdf .pdf-card-total {
+  font-size: 10pt; font-weight: 800; color: var(--tinta); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* último card de uma página não precisa da margem inferior */
+.loa-app .folha-pdf .pdf-pagina-conteudo > .pdf-card:last-child,
+.loa-app .folha-pdf .pdf-pagina-conteudo > .pdf-linha-2:last-child { margin-bottom: 0; }
+
+/* Dashboard: RP (cascata) + GND lado a lado */
+.loa-app .folha-pdf .pdf-linha-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin: 0 0 4mm;
+}
+.loa-app .folha-pdf .pdf-linha-2 .pdf-card { margin: 0; }
+
+/* gráficos compactados para caber na folha */
+.loa-app .folha-pdf .colunas { --colunas-h: 26mm; --colunas-topo: 2em; }
+.loa-app .folha-pdf .linhas-fases svg { max-height: 52mm; min-height: 0; }
+.loa-app .folha-pdf .lf-tick-y { font-size: 11px; }
+.loa-app .folha-pdf .lf-tick-x { font-size: 12px; }
+.loa-app .folha-pdf .cascata-svg { min-width: 0 !important; }
+.loa-app .folha-pdf .cascata-dica, .loa-app .folha-pdf .matriz-dica { display: none; }
+.loa-app .folha-pdf .matriz-legenda { font-size: 6.8pt; margin-top: 1.2mm; padding-top: 1.2mm; }
+.loa-app .folha-pdf .barras-legenda { font-size: 7.2pt; }
+.loa-app .folha-pdf .colunas-total { font-size: 6.6pt; }
+.loa-app .folha-pdf .colunas-rotulo { font-size: 7pt; padding-top: 1mm; }
+.loa-app .folha-pdf .colunas-barra-rotulo { font-size: 5.4pt; margin-bottom: 1.5px; }
+
+/* barras horizontais (Ação, UO, GND, Força) compactadas para render do PDF —
+   espelha o antigo bloco @media print para adensar a lista de ações */
+.loa-app .folha-pdf .pbar-lista { gap: 1.4mm; }
+.loa-app .folha-pdf .pbar-item { gap: 0.4mm; }
+.loa-app .folha-pdf .pbar-topo { gap: 2mm; }
+.loa-app .folha-pdf .pbar-nome, .loa-app .folha-pdf .pbar-valor { font-size: 8.2pt; }
+.loa-app .folha-pdf .pbar-sub, .loa-app .folha-pdf .pbar-nota { font-size: 7pt; }
+.loa-app .folha-pdf .pbar-codigo { font-size: 7.4pt; }
+.loa-app .folha-pdf .pbar-trilho { height: 6px; }
+
+/* MATRIZ no papel: todas as colunas de ano precisam caber na largura A4 — na
+   tela a tabela rola na horizontal, mas no papel a rolagem seria um corte.
+   `table-layout: fixed` + colunas estreitas fazem os 8 exercícios + total
+   caberem sem clipe. */
+.loa-app .folha-pdf .matriz-rolagem { overflow: visible; margin: 0; padding: 0; }
+.loa-app .folha-pdf .matriz { table-layout: fixed; font-size: 6.6pt; }
+.loa-app .folha-pdf .matriz th, .loa-app .folha-pdf .matriz td { padding: 0.7mm 0.8mm; }
+.loa-app .folha-pdf .matriz thead th { font-size: 6.2pt; letter-spacing: 0.02em; }
+.loa-app .folha-pdf .matriz .matriz-cat { width: 34mm; }
+.loa-app .folha-pdf .matriz th.matriz-total, .loa-app .folha-pdf .matriz td.matriz-total { width: 15mm; }
+.loa-app .folha-pdf .matriz-celula { min-width: 0; }
+.loa-app .folha-pdf .matriz-seta { font-size: 0.5em; margin-right: 0.12em; }
+.loa-app .folha-pdf .matriz-sub { font-size: 5.8pt; }
+.loa-app .folha-pdf .matriz-trilho { margin-top: 0.4mm; height: 2px; }
+
+/* Histórico: cards de exercício, numa única fileira compacta */
+.loa-app .folha-pdf .pdf-anos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(20mm, 1fr));
+  gap: 2mm; margin: 0 0 3.5mm;
+}
+.loa-app .folha-pdf .pdf-ano {
+  border: 1px solid #d8d8d4; border-radius: 4px; padding: 1.8mm 1.8mm;
+  background: var(--superficie);
+}
+.loa-app .folha-pdf .pdf-ano-ano { margin: 0; font-size: 8.5pt; font-weight: 800; }
+.loa-app .folha-pdf .pdf-ano-val { margin: 0.5mm 0 0; font-size: 9.5pt; font-weight: 800; letter-spacing: -0.02em; }
+.loa-app .folha-pdf .pdf-ano-un { font-size: 0.55em; font-weight: 700; color: var(--tinta-fraca); }
+.loa-app .folha-pdf .pdf-ano-linhas { margin: 1.2mm 0 0; font-size: 6pt; display: grid; gap: 0.5mm; }
+.loa-app .folha-pdf .pdf-ano-linhas > div { display: flex; justify-content: space-between; gap: 0.8mm; }
+.loa-app .folha-pdf .pdf-ano-linhas dt { color: var(--tinta-fraca); margin: 0; }
+.loa-app .folha-pdf .pdf-ano-linhas dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+
+
+/* ==== Integração nativa no Gestão A4.6 (sem iframe) ==== */
+/* Força o tema escuro (o Gestão é dark fixo) — light-dark() resolve p/ escuro. */
+.loa-app { color-scheme: dark; }
+/* A raiz do LOA deixa de ser 100vh (vive abaixo da topbar fixa do Gestão) e
+   passa a preencher o espaço restante da viewport. */
+.loa-app { min-height: calc(100dvh - var(--topbar-h, 94px)); }
+/* A barra de filtros do LOA gruda logo ABAIXO da topbar do Gestão, não no topo
+   da viewport (senão ficaria escondida atrás da topbar fixa). */
+.loa-app .filtros { top: var(--topbar-h, 94px); }
