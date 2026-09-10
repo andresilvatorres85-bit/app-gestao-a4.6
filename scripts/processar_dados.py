@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Pipeline de carga: lê o(s) .xlsx do repositório de dados
-(andresilvatorres85-bit/emendas.apresentadas.ploa), filtra o Órgão 52000
+(andresilvatorres85-bit/dados-gestao-a4.6), filtra o Órgão 52000
 (Ministério da Defesa) / setor da Defesa, calcula colunas derivadas e gera o
 JSON consumido pelo front-end (public/dados.json).
 
@@ -128,7 +128,7 @@ import openpyxl
 # ---------------------------------------------------------------------------
 # Configuração
 # ---------------------------------------------------------------------------
-REPO_DADOS = "andresilvatorres85-bit/emendas.apresentadas.ploa"
+REPO_DADOS = "andresilvatorres85-bit/dados-gestao-a4.6"
 ORGAO_COD = "52000"
 SETOR_NOME = "DEFESA"  # recorte por nome: o código mudou de 08 (2023) para 13
 ABA_PREFERIDA = "Todos os Setores"  # tem as colunas extras "UF" e "Localidade"

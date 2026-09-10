@@ -1,5 +1,5 @@
 // GERADO AUTOMATICAMENTE a partir de Controle_LEXOR.xlsx — não editar à mão.
-// Fonte: repositório emendas.apresentadas.ploa (branch main).
+// Fonte: repositório dados-gestao-a4.6 (branch main).
 // Atualização automática: workflow diário do GitHub Actions (06:00 BRT) baixa a
 // planilha, roda gerar_lexor.py e publica. Para atualizar na hora, dispare o
 // workflow "Deploy no GitHub Pages" manualmente (workflow_dispatch).

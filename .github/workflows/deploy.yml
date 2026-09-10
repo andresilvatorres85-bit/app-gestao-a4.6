@@ -37,7 +37,7 @@ jobs:
 
       - name: Gerar base LEXOR (baixa a planilha do repo de origem)
         env:
-          # Forca o download da planilha do repositorio emendas.apresentadas.ploa
+          # Forca o download da planilha do repositorio dados-gestao-a4.6
           # a cada execucao, ignorando qualquer copia local eventualmente commitada.
           LEXOR_XLSX: ""
         run: python gerar_lexor.py
