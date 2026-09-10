@@ -228,8 +228,12 @@
 .loa-app .secoes {
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
 }
-.loa-app .secao-ploa { grid-column: 1; justify-self: start; }
-.loa-app .secao-lexor { grid-column: 2; justify-self: center; }
+/* grid-row: 1 nos dois: sem isso, como a LEXOR vem antes no DOM e ocupa a
+   coluna 2, o empacotamento padrão (não-denso) não volta à coluna 1 e joga a
+   PLOA para uma segunda linha — desalinhando os botões e aumentando a altura
+   do cabeçalho. Fixando a linha, ambos ficam lado a lado na mesma faixa. */
+.loa-app .secao-ploa { grid-column: 1; grid-row: 1; justify-self: start; }
+.loa-app .secao-lexor { grid-column: 2; grid-row: 1; justify-self: center; }
 
 /* As subabas seguem a posição da seção ativa: LEXOR ao centro, PLOA à esquerda. */
 .loa-app .cabecalho[data-secao='lexor'] .abas { justify-content: safe center; }
