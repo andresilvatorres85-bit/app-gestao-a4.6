@@ -431,7 +431,7 @@ export default function LoaApp() {
       : opcoesDoFiltro(registros, filtros, f)
   return (
     <div className="loa-app">
-      <header className="cabecalho">
+      <header className="cabecalho" data-secao={secaoId}>
         {/* Nível 1: a base de dados. Cada seção responde por uma planilha. */}
         <nav className="secoes" role="tablist" aria-label="Seções">
           {SECOES.map((s) => (
