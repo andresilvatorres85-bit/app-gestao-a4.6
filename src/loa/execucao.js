@@ -143,3 +143,101 @@ export function porFonte(registros) {
 }
 
 export const anosExec = (registros) => [...new Set(registros.map((r) => r.ano))].sort()
+
+// ------------------------------------------------- séries por exercício -----
+// Usadas pela subaba "Histórico LOA", que ignora o filtro de Ano. Todas
+// consolidam o AUTORIZADO (a leitura primária desta base).
+
+// Resumo por exercício: Autorizado, Dotação Inicial, saldo (Aut − Inicial) e a
+// variação do Autorizado sobre o exercício anterior.
+export function resumoPorAnoExec(registros) {
+  const anos = anosExec(registros)
+  const porAno = new Map(anos.map((a) => [a, []]))
+  for (const r of registros) porAno.get(r.ano)?.push(r)
+  const linhas = anos.map((ano) => {
+    const itens = porAno.get(ano)
+    const aut = itens.reduce((s, r) => s + vAut(r), 0)
+    const ini = itens.reduce((s, r) => s + vIni(r), 0)
+    return { ano, aut, ini, delta: aut - ini, pctSaldo: variacao(ini, aut), linhas: itens.length }
+  })
+  return linhas.map((l, i) => ({
+    ...l,
+    variacao: i === 0 ? null : variacao(linhas[i - 1].aut, l.aut),
+  }))
+}
+
+// Núcleo genérico "categoria × ano", consolidando o Autorizado.
+function serieCatExec(registros, anos, chave, rotulo, extra = null) {
+  const mapa = new Map()
+  for (const r of registros) {
+    const k = chave(r)
+    if (k === '' || k == null) continue
+    if (!mapa.has(k)) {
+      mapa.set(k, { chave: k, rotulo: rotulo(r), valores: anos.map(() => 0), total: 0, ...(extra ? extra(r) : {}) })
+    }
+    const alvo = mapa.get(k)
+    const i = anos.indexOf(r.ano)
+    if (i < 0) continue
+    const v = vAut(r)
+    alvo.valores[i] += v
+    alvo.total += v
+  }
+  return [...mapa.values()].filter((l) => l.total !== 0).sort((a, b) => b.total - a.total)
+}
+
+export function forcaPorAnoExec(registros) {
+  const anos = anosExec(registros)
+  const series = AGREGADOS.map((a) => {
+    const valores = anos.map((ano) =>
+      registros.filter((r) => r.ano === ano && r.orgao === a.id).reduce((s, r) => s + vAut(r), 0)
+    )
+    return { ...a, chave: a.id, valores, total: valores.reduce((s, v) => s + v, 0) }
+  }).filter((s) => s.total !== 0)
+  return { anos, series }
+}
+
+export function uoPorAnoExec(registros) {
+  const anos = anosExec(registros)
+  return { anos, series: serieCatExec(registros, anos, (r) => r.uoCod, (r) => `${r.uoCod} — ${r.uo}`) }
+}
+
+export function rpPorAnoExec(registros) {
+  const anos = anosExec(registros)
+  const series = serieCatExec(registros, anos, (r) => r.rp || '—', (r) => RP_LABEL(r.rp))
+    .sort((a, b) => String(a.chave).localeCompare(String(b.chave), 'pt-BR', { numeric: true }))
+    .map((s) => ({ ...s, cor: corDoRP(s.chave) }))
+  return { anos, series }
+}
+
+export function gndPorAnoExec(registros) {
+  const anos = anosExec(registros)
+  const series = serieCatExec(registros, anos, (r) => r.gnd || '—', (r) => `GND ${r.gnd}`)
+    .sort((a, b) => String(a.chave).localeCompare(String(b.chave), 'pt-BR', { numeric: true }))
+    .map((s) => ({ ...s, cor: corDoGND(s.chave) }))
+  return { anos, series }
+}
+
+export function acaoPorAnoExec(registros, n = Infinity) {
+  const anos = anosExec(registros)
+  const todas = serieCatExec(registros, anos, (r) => r.acaoCod || '—', (r) => `${r.acaoCod} — ${r.acao}`)
+  return { anos, series: n === Infinity ? todas : todas.slice(0, n), total: todas.length }
+}
+
+// Fonte Grupo (Cod/Desc) por exercício — poucas categorias (Tesouro corrente,
+// Tesouro exercícios anteriores, condicionados), boa para colunas empilhadas.
+const COR_FGRUPO = {
+  1: 'var(--serie-azul)',
+  3: 'var(--serie-laranja)',
+  9: 'var(--serie-violeta)',
+}
+export function fonteGrupoPorAno(registros) {
+  const anos = anosExec(registros)
+  const series = serieCatExec(
+    registros, anos,
+    (r) => r.fgrupoCod || r.fgrupo || '—',
+    (r) => (r.fgrupo || r.fgrupoCod || '—').replace(/^\s*\S+\s*-\s*/, '') || (r.fgrupo || '—')
+  )
+    .sort((a, b) => String(a.chave).localeCompare(String(b.chave), 'pt-BR', { numeric: true }))
+    .map((s) => ({ ...s, cor: COR_FGRUPO[s.chave] || 'var(--serie-aqua)' }))
+  return { anos, series }
+}
