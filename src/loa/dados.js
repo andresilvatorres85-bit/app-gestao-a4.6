@@ -127,13 +127,13 @@ function normalizarInconsistencia(item) {
   }
 }
 
-// URL do dados.json publicado pelo app LOA (repositório emendas-defesa-app).
-// Em produção o Gestão A4.6 e o LOA ficam na MESMA origem
-// (andresilvatorres85-bit.github.io), então este fetch é same-origin — sem CORS.
-// Buscar o arquivo publicado (em vez de embutir uma cópia) preserva a
-// atualização diária: o pipeline próprio do LOA regenera o dados.json todo dia,
-// e o módulo nativo aqui passa a refletir isso sem republicar o Gestão A4.6.
-const LOA_DADOS_URL = 'https://andresilvatorres85-bit.github.io/emendas-defesa-app/dados.json'
+// dados.json é gerado pelo PRÓPRIO pipeline do Gestão A4.6 (scripts/
+// processar_dados.py, rodado no CI antes do build) e publicado em public/, na
+// mesma origem do app. O caminho relativo './dados.json' resolve para
+// .../app-gest-o-a4.6/dados.json em produção — sem depender de nenhum outro
+// repositório. O CI diário regenera o arquivo, então anos/linhas novos nas
+// planilhas de origem entram sozinhos.
+const LOA_DADOS_URL = './dados.json'
 
 export async function carregarDados() {
   const resp = await fetch(LOA_DADOS_URL)
