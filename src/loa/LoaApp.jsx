@@ -49,6 +49,7 @@ import AbaHistorico from './components/AbaHistorico.jsx'
 import AbaPLOA from './components/AbaPLOA.jsx'
 import AbaHistoricoPLOA from './components/AbaHistoricoPLOA.jsx'
 import AbaExecucao from './components/AbaExecucao.jsx'
+import AbaHistoricoExec from './components/AbaHistoricoExec.jsx'
 import { filtrarExecucao, opcoesExecucao, FILTROS_EXEC } from './execucao.js'
 
 // Navegação em dois níveis. Cada seção responde por UMA base de dados:
@@ -87,6 +88,7 @@ const SECOES = [
     descricao: 'Despesa por execução do órgão 52000 (LOA)',
     subabas: [
       { id: 'exec-dashboard', rotulo: 'Dashboard LOA' },
+      { id: 'exec-historico', rotulo: 'Histórico LOA' },
     ],
   },
 ]
@@ -163,6 +165,14 @@ export default function LoaApp() {
   // ignoram o filtro de Órgão, senão sob o padrão do app (Exército) sobraria uma.
   const execSemOrgao = useMemo(
     () => filtrarExecucao(execRegistros, filtros, 'orgao'), [execRegistros, filtros]
+  )
+  // A subaba Histórico LOA compara exercícios — ignora o Ano; e o painel por
+  // Força dela ignora também o Órgão, pelo mesmo motivo do PLOA.
+  const execSemAno = useMemo(
+    () => filtrarExecucao(execRegistros, filtros, 'ano'), [execRegistros, filtros]
+  )
+  const execSemAnoNemOrgao = useMemo(
+    () => filtrarExecucao(execRegistros, filtros, ['ano', 'orgao']), [execRegistros, filtros]
   )
 
   const filtrados = useMemo(() => filtrarRegistros(registros, filtros), [registros, filtros])
@@ -370,6 +380,11 @@ export default function LoaApp() {
   const contextoExec =
     `Execução da LOA — despesa por dotação — ${escopoExec}. ${anoTextoExec}. ` +
     `${fmtInt(execFiltrados.length)} dotações. ` +
+    `Extraído em ${new Date().toLocaleString('pt-BR')}.`
+  const contextoHistExec =
+    `Execução da LOA — histórico dos exercícios — ${escopoExec}. ` +
+    `Todos os exercícios (${(execucao.anos ?? []).join(', ')}). ` +
+    `${fmtInt(execSemAno.length)} dotações. ` +
     `Extraído em ${new Date().toLocaleString('pt-BR')}.`
 
   // Montadas no clique, como as demais: as agregações só rodam quando alguém
@@ -735,6 +750,14 @@ export default function LoaApp() {
             registrosTodasForcas={execSemOrgao}
             anos={execucao.anos ?? []}
             contexto={contextoExec}
+          />
+        )}
+
+        {aba === 'exec-historico' && (
+          <AbaHistoricoExec
+            registros={execSemAno}
+            registrosTodasForcas={execSemAnoNemOrgao}
+            contexto={contextoHistExec}
           />
         )}
       </main>

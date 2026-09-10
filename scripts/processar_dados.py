@@ -1061,8 +1061,8 @@ def anos_duplicados_ploa(registros):
 #   - Autorizado          -> card "Dotação autorizada" e barra dos gráficos
 #   - Contenção de Gastos -> card "Contenção de gastos" (campo `cont`)
 # Dimensões: Resultado Lei (Cod) = Identificador de Resultado Primário (RP),
-# GND (Cod), UO, Ação e Fonte (Cod/Desc). A Força vem de `familia_da_uo`, a mesma
-# regra do PLOA — a UO decide a Força.
+# GND (Cod), UO, Ação, Fonte (Cod/Desc) e Fonte Grupo (Cod/Desc). A Força vem de
+# `familia_da_uo`, a mesma regra do PLOA — a UO decide a Força.
 EXEC_COLS_ASSINATURA = {"Dotação Inicial", "Autorizado", "Contingenciamento"}
 
 
@@ -1119,6 +1119,7 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
             rp = str(d.get("Resultado Lei (Cod)") or "").strip()
             gnd = str(d.get("GND (Cod)") or "").strip()
             fonte_cod, fonte = _split_fonte(d.get("Fonte (Cod/Desc)"))
+            fgrupo_cod, fgrupo = _split_fonte(d.get("Fonte Grupo (Cod/Desc)"))
             registros.append({
                 "ano": ano,
                 "uoCod": uo_cod,
@@ -1130,6 +1131,8 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                 "acao": str(d.get("Ação") or "").strip(),
                 "fonteCod": fonte_cod,
                 "fonte": fonte,
+                "fgrupoCod": fgrupo_cod,
+                "fgrupo": fgrupo,
                 "ini": _money(d.get("Dotação Inicial")),
                 "aut": _money(d.get("Autorizado")),
                 "cont": _money(d.get("Contenção de Gastos")),
