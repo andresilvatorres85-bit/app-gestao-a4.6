@@ -50,7 +50,16 @@ import AbaPLOA from './components/AbaPLOA.jsx'
 import AbaHistoricoPLOA from './components/AbaHistoricoPLOA.jsx'
 import AbaExecucao from './components/AbaExecucao.jsx'
 import AbaHistoricoExec from './components/AbaHistoricoExec.jsx'
+import AbaDashboardEmendasExec from './components/AbaDashboardEmendasExec.jsx'
+import AbaEmendasExec from './components/AbaEmendasExec.jsx'
+import AbaHistoricoEmendasExec from './components/AbaHistoricoEmendasExec.jsx'
 import { filtrarExecucao, opcoesExecucao, FILTROS_EXEC } from './execucao.js'
+
+// Subabas de emenda da seção EXECUÇÃO LOA (usam a base execucao.emendas, com os
+// filtros completos de emenda). As demais subabas de execução são de dotação.
+const EXEC_EMENDAS_ABAS = new Set([
+  'exec-emendas-dashboard', 'exec-emendas', 'exec-emendas-historico',
+])
 
 // Navegação em dois níveis. Cada seção responde por UMA base de dados:
 // "Resultado LEXOR" pelas emendas apresentadas (`Historico_emendas_apresentadas
@@ -89,6 +98,9 @@ const SECOES = [
     subabas: [
       { id: 'exec-dashboard', rotulo: 'Dashboard LOA' },
       { id: 'exec-historico', rotulo: 'Histórico LOA' },
+      { id: 'exec-emendas-dashboard', rotulo: 'Dashboard Emendas' },
+      { id: 'exec-emendas', rotulo: 'Emendas LOA' },
+      { id: 'exec-emendas-historico', rotulo: 'Histórico Emendas' },
     ],
   },
 ]
@@ -175,6 +187,20 @@ export default function LoaApp() {
     () => filtrarExecucao(execRegistros, filtros, ['ano', 'orgao']), [execRegistros, filtros]
   )
 
+  // Emendas da execução (base própria: execucao.emendas, no formato das emendas
+  // apresentadas). Usa os filtros completos de emenda (filtrarRegistros).
+  const execEmRegistros = execucao.emendas ?? []
+  const execEmFiltrados = useMemo(
+    () => filtrarRegistros(execEmRegistros, filtros), [execEmRegistros, filtros]
+  )
+  const execEmSemAno = useMemo(
+    () => filtrarRegistros(execEmRegistros, filtros, 'ano'), [execEmRegistros, filtros]
+  )
+  const execEmSemAnoNemOrgao = useMemo(
+    () => filtrarRegistros(execEmRegistros, filtros, ['ano', 'orgao']), [execEmRegistros, filtros]
+  )
+  const emExecEmendas = EXEC_EMENDAS_ABAS.has(aba)
+
   const filtrados = useMemo(() => filtrarRegistros(registros, filtros), [registros, filtros])
   // A aba Histórico compara exercícios — ela é a única que ignora o filtro de Ano.
   const semAno = useMemo(() => filtrarRegistros(registros, filtros, 'ano'), [registros, filtros])
@@ -203,7 +229,7 @@ export default function LoaApp() {
   // ali faria o partido selecionado na outra seção seguir filtrando a lista sem
   // aparecer em lugar nenhum.
   const filtrosVisiveis =
-    secaoId === 'execucao' ? FILTROS_EXEC
+    secaoId === 'execucao' ? (emExecEmendas ? FILTROS : FILTROS_EXEC)
       : secaoId === 'ploa' && aba !== 'ploa-emendas' ? FILTROS_PLOA
         : FILTROS
   // "Limpar filtros" só aparece se algo estiver fora do padrão — e olha apenas
@@ -387,6 +413,19 @@ export default function LoaApp() {
     `${fmtInt(execSemAno.length)} dotações. ` +
     `Extraído em ${new Date().toLocaleString('pt-BR')}.`
 
+  // ------------------------------------- contexto das emendas da EXECUÇÃO LOA
+  const anosExecEmEmTela = [...new Set(execEmFiltrados.map((r) => r.ano))].sort()
+  const anoTextoExecEm = anosExecEmEmTela.length
+    ? `Exercício ${anosExecEmEmTela.join(', ')}`
+    : `Todos os exercícios (${(execucao.emendasAnos ?? []).join(', ')})`
+  const contextoExecEm =
+    `Emendas da execução da LOA (autorizado) — ${escopoExec}. ${anoTextoExecEm}. ` +
+    `${fmtInt(execEmFiltrados.length)} registros. Extraído em ${new Date().toLocaleString('pt-BR')}.`
+  const contextoExecEmHist =
+    `Emendas da execução da LOA (autorizado) — histórico — ${escopoExec}. ` +
+    `Todos os exercícios (${(execucao.emendasAnos ?? []).join(', ')}). ` +
+    `${fmtInt(execEmSemAno.length)} registros. Extraído em ${new Date().toLocaleString('pt-BR')}.`
+
   // Montadas no clique, como as demais: as agregações só rodam quando alguém
   // exporta de fato, e a hora carimbada é a da exportação.
   const cargaPLOA = () => ({
@@ -480,7 +519,9 @@ export default function LoaApp() {
   // aparece sozinho na lista, sem tocar no código.
   const opcoesDe = (f) =>
     secaoId === 'execucao'
-      ? opcoesExecucao(execRegistros, filtros, f)
+      ? (emExecEmendas
+        ? opcoesDoFiltro(execEmRegistros, filtros, f)
+        : opcoesExecucao(execRegistros, filtros, f))
       : secaoId === 'ploa' && aba !== 'ploa-emendas'
         ? opcoesPLOA(ploaRegistros, filtros, f)
         : opcoesDoFiltro(registros, filtros, f)
@@ -758,6 +799,30 @@ export default function LoaApp() {
             registros={execSemAno}
             registrosTodasForcas={execSemAnoNemOrgao}
             contexto={contextoHistExec}
+          />
+        )}
+
+        {aba === 'exec-emendas-dashboard' && (
+          <AbaDashboardEmendasExec
+            registros={execEmFiltrados}
+            contexto={contextoExecEm}
+            anoTexto={anoTextoExecEm}
+          />
+        )}
+
+        {aba === 'exec-emendas' && (
+          <AbaEmendasExec
+            registros={execEmFiltrados}
+            detalhe={detalhe}
+            abrirDetalhe={abrirDetalhe}
+          />
+        )}
+
+        {aba === 'exec-emendas-historico' && (
+          <AbaHistoricoEmendasExec
+            registros={execEmSemAno}
+            registrosTodasForcas={execEmSemAnoNemOrgao}
+            contexto={contextoExecEmHist}
           />
         )}
       </main>
