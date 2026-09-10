@@ -234,10 +234,13 @@
    do cabeçalho. Fixando a linha, ambos ficam lado a lado na mesma faixa. */
 .loa-app .secao-ploa { grid-column: 1; grid-row: 1; justify-self: start; }
 .loa-app .secao-lexor { grid-column: 2; grid-row: 1; justify-self: center; }
+.loa-app .secao-execucao { grid-column: 3; grid-row: 1; justify-self: end; }
 
-/* As subabas seguem a posição da seção ativa: LEXOR ao centro, PLOA à esquerda. */
+/* As subabas seguem a posição da seção ativa: LEXOR ao centro, PLOA à esquerda,
+   EXECUÇÃO LOA à direita. */
 .loa-app .cabecalho[data-secao='lexor'] .abas { justify-content: safe center; }
 .loa-app .cabecalho[data-secao='ploa'] .abas { justify-content: flex-start; }
+.loa-app .cabecalho[data-secao='execucao'] .abas { justify-content: safe flex-end; }
 
 /* avisos da aba PLOA. O de defeito de origem (aba duplicada) é tratado como
    alerta; o de regra aplicada (fase herdada) é apenas uma nota. */
