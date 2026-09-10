@@ -30,7 +30,7 @@ RAIZ = Path(__file__).resolve().parent
 FONTE_URL = os.environ.get(
     "LEXOR_XLSX_URL",
     "https://raw.githubusercontent.com/andresilvatorres85-bit/"
-    "emendas.apresentadas.ploa/main/Controle_LEXOR.xlsx",
+    "dados-gestao-a4.6/main/Controle_LEXOR.xlsx",
 )
 # Caminho local opcional: se existir, tem prioridade (conveniência no dev local).
 LOCAL_XLSX = os.environ.get("LEXOR_XLSX", str(RAIZ / "Controle_LEXOR.xlsx"))
@@ -290,7 +290,7 @@ def main():
     sem_autor = [p["nr"] for p in props if not p.get("parlamentar")]
 
     cab = f"""// GERADO AUTOMATICAMENTE a partir de Controle_LEXOR.xlsx — não editar à mão.
-// Fonte: repositório emendas.apresentadas.ploa (branch main).
+// Fonte: repositório dados-gestao-a4.6 (branch main).
 // Atualização automática: workflow diário do GitHub Actions (06:00 BRT) baixa a
 // planilha, roda gerar_lexor.py e publica. Para atualizar na hora, dispare o
 // workflow "Deploy no GitHub Pages" manualmente (workflow_dispatch).
