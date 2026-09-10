@@ -48,6 +48,8 @@ import AbaInconsistencias from './components/AbaInconsistencias.jsx'
 import AbaHistorico from './components/AbaHistorico.jsx'
 import AbaPLOA from './components/AbaPLOA.jsx'
 import AbaHistoricoPLOA from './components/AbaHistoricoPLOA.jsx'
+import AbaExecucao from './components/AbaExecucao.jsx'
+import { filtrarExecucao, opcoesExecucao, FILTROS_EXEC } from './execucao.js'
 
 // Navegação em dois níveis. Cada seção responde por UMA base de dados:
 // "Resultado LEXOR" pelas emendas apresentadas (`Historico_emendas_apresentadas
@@ -77,6 +79,14 @@ const SECOES = [
     subabas: [
       { id: 'ploa-dashboard', rotulo: 'Dashboard PLOA' },
       { id: 'ploa-historico', rotulo: 'Histórico PLOA' },
+    ],
+  },
+  {
+    id: 'execucao',
+    rotulo: 'EXECUÇÃO LOA',
+    descricao: 'Despesa por execução do órgão 52000 (LOA)',
+    subabas: [
+      { id: 'exec-dashboard', rotulo: 'Dashboard LOA' },
     ],
   },
 ]
@@ -140,6 +150,21 @@ export default function LoaApp() {
     () => filtrarPLOA(ploaRegistros, filtros, ['ano', 'orgao']), [ploaRegistros, filtros]
   )
 
+  // ------------------------------------------------------ base EXECUÇÃO LOA ---
+  // Terceira base independente: a despesa por execução do órgão 52000. Um
+  // dados.json anterior a esta versão não traz o bloco — o objeto vazio de
+  // reserva faz a seção aparecer vazia em vez de derrubar o app.
+  const execucao = dados?.execucao ?? { anos: [], registros: [] }
+  const execRegistros = execucao.registros ?? []
+  const execFiltrados = useMemo(
+    () => filtrarExecucao(execRegistros, filtros), [execRegistros, filtros]
+  )
+  // O painel "Total por Força" e o "Inicial × Autorizado" comparam as Forças —
+  // ignoram o filtro de Órgão, senão sob o padrão do app (Exército) sobraria uma.
+  const execSemOrgao = useMemo(
+    () => filtrarExecucao(execRegistros, filtros, 'orgao'), [execRegistros, filtros]
+  )
+
   const filtrados = useMemo(() => filtrarRegistros(registros, filtros), [registros, filtros])
   // A aba Histórico compara exercícios — ela é a única que ignora o filtro de Ano.
   const semAno = useMemo(() => filtrarRegistros(registros, filtros, 'ano'), [registros, filtros])
@@ -168,7 +193,9 @@ export default function LoaApp() {
   // ali faria o partido selecionado na outra seção seguir filtrando a lista sem
   // aparecer em lugar nenhum.
   const filtrosVisiveis =
-    secaoId === 'ploa' && aba !== 'ploa-emendas' ? FILTROS_PLOA : FILTROS
+    secaoId === 'execucao' ? FILTROS_EXEC
+      : secaoId === 'ploa' && aba !== 'ploa-emendas' ? FILTROS_PLOA
+        : FILTROS
   // "Limpar filtros" só aparece se algo estiver fora do padrão — e olha apenas
   // os filtros da tela, senão o botão surgiria no PLOA por causa de um filtro
   // de partido que ali nem está sendo aplicado.
@@ -334,6 +361,17 @@ export default function LoaApp() {
     `${fmtInt(ploaSemAno.length)} dotações. ` +
     `Extraído em ${new Date().toLocaleString('pt-BR')}.`
 
+  // ---------------------------------------------- contexto da EXECUÇÃO LOA ---
+  const anosExecEmTela = [...new Set(execFiltrados.map((r) => r.ano))].sort()
+  const escopoExec = 'Ministério da Defesa · Órgão 52000 · execução da LOA'
+  const anoTextoExec = anosExecEmTela.length
+    ? `Exercício ${anosExecEmTela.join(', ')}`
+    : `Todos os exercícios (${(execucao.anos ?? []).join(', ')})`
+  const contextoExec =
+    `Execução da LOA — despesa por dotação — ${escopoExec}. ${anoTextoExec}. ` +
+    `${fmtInt(execFiltrados.length)} dotações. ` +
+    `Extraído em ${new Date().toLocaleString('pt-BR')}.`
+
   // Montadas no clique, como as demais: as agregações só rodam quando alguém
   // exporta de fato, e a hora carimbada é a da exportação.
   const cargaPLOA = () => ({
@@ -426,9 +464,11 @@ export default function LoaApp() {
   // correspondente e são facetadas, então uma UO ou um RP novo na planilha
   // aparece sozinho na lista, sem tocar no código.
   const opcoesDe = (f) =>
-    secaoId === 'ploa' && aba !== 'ploa-emendas'
-      ? opcoesPLOA(ploaRegistros, filtros, f)
-      : opcoesDoFiltro(registros, filtros, f)
+    secaoId === 'execucao'
+      ? opcoesExecucao(execRegistros, filtros, f)
+      : secaoId === 'ploa' && aba !== 'ploa-emendas'
+        ? opcoesPLOA(ploaRegistros, filtros, f)
+        : opcoesDoFiltro(registros, filtros, f)
   return (
     <div className="loa-app">
       <header className="cabecalho" data-secao={secaoId}>
@@ -686,6 +726,15 @@ export default function LoaApp() {
             contexto={contextoHistPLOA}
             onExportarSlide={baixarSlideHistPLOA}
             filtrosTexto={filtrosTextoHistPLOA}
+          />
+        )}
+
+        {aba === 'exec-dashboard' && (
+          <AbaExecucao
+            registros={execFiltrados}
+            registrosTodasForcas={execSemOrgao}
+            anos={execucao.anos ?? []}
+            contexto={contextoExec}
           />
         )}
       </main>

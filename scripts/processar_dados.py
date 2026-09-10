@@ -1048,6 +1048,98 @@ def anos_duplicados_ploa(registros):
     return pares
 
 
+# ---------------------------------------------------------------------------
+# REGRA 4 — LOA: despesa por execução (Dashboard LOA)
+# ---------------------------------------------------------------------------
+# Fonte: `LOA_despesa_execucao.xlsx`, uma aba por exercício (nome da aba = ano).
+# Escopo: órgão 52000 — a aba do exercício de fechamento pode trazer o Orçamento
+# inteiro da União (todos os órgãos), então o recorte por Órgão (Cod)=52000 é
+# obrigatório para isolar o Ministério da Defesa.
+#
+# Colunas de interesse:
+#   - Dotação Inicial   -> card "Dotação inicial" e traço dos gráficos
+#   - Autorizado        -> card "Dotação autorizada" e barra dos gráficos
+#   - Contingenciamento -> card "Contingenciamentos"
+# Dimensões: Resultado Lei (Cod) = Identificador de Resultado Primário (RP),
+# GND (Cod), UO, Ação e Fonte (Cod/Desc). A Força vem de `familia_da_uo`, a mesma
+# regra do PLOA — a UO decide a Força.
+EXEC_COLS_ASSINATURA = {"Dotação Inicial", "Autorizado", "Contingenciamento"}
+
+
+def _eh_planilha_execucao(caminho_xlsx):
+    """Reconhece o arquivo de execução da LOA pelo cabeçalho (não pelo nome)."""
+    wb = openpyxl.load_workbook(caminho_xlsx, read_only=True, data_only=True)
+    try:
+        for nome in wb.sheetnames:
+            linhas = wb[nome].iter_rows(values_only=True)
+            try:
+                cab = {str(c).strip() for c in next(linhas) if c is not None}
+            except StopIteration:
+                continue
+            if EXEC_COLS_ASSINATURA <= cab:
+                return True
+        return False
+    finally:
+        wb.close()
+
+
+def _split_fonte(v):
+    """"1000 - RECURSOS LIVRES DA UNIAO" -> ("1000", "1000 - RECURSOS LIVRES ...")."""
+    s = str(v or "").strip()
+    if not s or s.upper() == "NÃO APLICÁVEL":
+        return "", ""
+    cod = re.split(r"\s*-\s*", s, maxsplit=1)[0].strip()
+    return cod, s
+
+
+def _money(v):
+    """Valor monetário compacto: inteiro quando não há centavos, senão 2 casas."""
+    n = _num(v)
+    return int(n) if n == int(n) else round(n, 2)
+
+
+def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
+    """Lê o arquivo de execução e devolve a lista de dotações do órgão 52000."""
+    wb = openpyxl.load_workbook(caminho_xlsx, read_only=True, data_only=True)
+    registros = []
+    abas_ano = [n for n in wb.sheetnames if re.fullmatch(r"\s*20\d{2}\s*", str(n))]
+    for nome in abas_ano:
+        ano = str(nome).strip()
+        ws = wb[nome]
+        linhas = ws.iter_rows(values_only=True)
+        cabecalho = [str(c).strip() if c is not None else "" for c in next(linhas)]
+        n_ano = 0
+        for linha in linhas:
+            d = dict(zip(cabecalho, linha))
+            if str(d.get("Órgão (Cod)") or "").strip() != ORGAO_COD:
+                continue
+            uo_cod = str(d.get("UO (Cod)") or "").strip()
+            uo_nome = str(d.get("UO") or "").strip()
+            familia = familia_da_uo(uo_cod, uo_nome, uos_nao_catalogadas)
+            rp = str(d.get("Resultado Lei (Cod)") or "").strip()
+            gnd = str(d.get("GND (Cod)") or "").strip()
+            fonte_cod, fonte = _split_fonte(d.get("Fonte (Cod/Desc)"))
+            registros.append({
+                "ano": ano,
+                "uoCod": uo_cod,
+                "uo": uo_nome,
+                "orgao": FAMILIA_ORGAO[familia],
+                "rp": "" if rp.upper() in ("", "NÃO APLICÁVEL") else rp,
+                "gnd": "" if gnd.upper() in ("", "NÃO APLICÁVEL") else gnd,
+                "acaoCod": str(d.get("Ação (Cod)") or "").strip(),
+                "acao": str(d.get("Ação") or "").strip(),
+                "fonteCod": fonte_cod,
+                "fonte": fonte,
+                "ini": _money(d.get("Dotação Inicial")),
+                "aut": _money(d.get("Autorizado")),
+                "cont": _money(d.get("Contingenciamento")),
+            })
+            n_ano += 1
+        print(f"  EXEC aba {ano}: {n_ano} linhas do órgão {ORGAO_COD}")
+    wb.close()
+    return registros
+
+
 def main():
     if len(sys.argv) > 1:
         pasta = sys.argv[1]
@@ -1069,9 +1161,12 @@ def main():
     # triagem é pelo cabeçalho (ver `_eh_planilha_ploa`) — não pelo nome —,
     # então uma planilha renomeada na origem continua caindo no lugar certo.
     arquivos_ploa = [a for a in arquivos if _eh_planilha_ploa(a)]
-    arquivos = [a for a in arquivos if a not in arquivos_ploa]
+    arquivos_exec = [a for a in arquivos
+                     if a not in arquivos_ploa and _eh_planilha_execucao(a)]
+    arquivos = [a for a in arquivos
+                if a not in arquivos_ploa and a not in arquivos_exec]
     if not arquivos:
-        sys.exit("Nenhuma planilha de emendas encontrada (só arquivos de PLOA).")
+        sys.exit("Nenhuma planilha de emendas encontrada (só arquivos de PLOA/execução).")
 
     # 1) Lê tudo e agrupa por ano. Ver REGRA 0 para a precedência entre o
     #    arquivo do exercício e a aba do consolidado.
@@ -1164,6 +1259,26 @@ def main():
         print(f"  AVISO: a aba {d['ano']} é idêntica à aba {d['igualA']} "
               f"({d['linhas']} linhas iguais) — sinalizado no app, não removido")
 
+    # 4) EXECUÇÃO DA LOA (REGRA 4). Terceira base independente: a despesa por
+    #    execução do órgão 52000, uma dotação por linha, com Dotação Inicial,
+    #    Autorizado e Contingenciamento.
+    exec_registros, exec_uos = [], {}
+    for arq in arquivos_exec:
+        print(f"\nLendo EXECUÇÃO {arq}")
+        exec_registros.extend(ler_execucao(arq, exec_uos))
+    exec_anos = sorted({r["ano"] for r in exec_registros})
+    for r in exec_registros:  # enxuga o JSON: campos textuais vazios saem
+        for chave in [k for k, v in r.items() if v == ""]:
+            del r[chave]
+    if exec_registros:
+        print("\nExecução da LOA por ano (dotação inicial / autorizado):")
+        for ano in exec_anos:
+            do_ano = [r for r in exec_registros if r["ano"] == ano]
+            ini = sum(r.get("ini", 0) for r in do_ano)
+            aut = sum(r.get("aut", 0) for r in do_ano)
+            print(f"  {ano}: {len(do_ano)} dotações | inicial R$ {ini:,.2f} | "
+                  f"autorizado R$ {aut:,.2f}")
+
     n_incons = sum(1 for r in registros if r.get("inconsistencias"))
     n_mod = sum(1 for r in registros
                 if any(i["tipo"] == "modalidade" for i in r.get("inconsistencias", [])))
@@ -1197,6 +1312,15 @@ def main():
             "anosDuplicados": ploa_duplicados,
             "gndNomes": GND_NOMES,
             "registros": ploa_registros,
+        },
+        # Bloco da aba EXECUÇÃO LOA (Dashboard LOA). Base própria: a despesa por
+        # execução do órgão 52000, com Dotação Inicial, Autorizado e
+        # Contingenciamento por dotação. Ver REGRA 4.
+        "execucao": {
+            "anos": exec_anos,
+            "anoCorrente": exec_anos[-1] if exec_anos else "",
+            "gndNomes": GND_NOMES,
+            "registros": exec_registros,
         },
     }
     os.makedirs(os.path.dirname(os.path.abspath(SAIDA)), exist_ok=True)
