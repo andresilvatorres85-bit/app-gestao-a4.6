@@ -13,7 +13,11 @@
    superfície em que realmente são desenhados.
 =========================================================================== */
 .loa-app {
-  color-scheme: light dark;
+  /* O módulo é apresentado no tema escuro: ele agora divide o mesmo fundo
+     fotográfico do restante do app (Métricas/LEXOR), que é escuro, e a paleta
+     escura foi validada no mesmo validador de dataviz. O alternador por
+     data-tema (abaixo) continua podendo sobrepor este padrão. */
+  color-scheme: dark;
 
   /* planos e tintas */
   --plano: light-dark(#f4f4f1, #0b0b0b);
@@ -91,7 +95,11 @@
 .loa-app, .loa-app { margin: 0; padding: 0; }
 .loa-app {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  background: var(--plano);
+  /* Transparente de propósito: deixa aparecer o fundo fotográfico fixo do app
+     (.app-bg), o mesmo de Métricas e LEXOR. Esse fundo NÃO entra nas
+     exportações — PDF/PNG clonam o alvo para uma moldura branca própria e o
+     PPTX é montado a partir dos dados (ver pdf.js, exportar.js e pptx.js). */
+  background: transparent;
   color: var(--tinta);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -103,7 +111,13 @@
 /* ======================================================= cabeçalho ======== */
 .loa-app .cabecalho {
   position: relative;
-  background: linear-gradient(120deg, var(--cab-de) 0%, var(--cab-para) 78%);
+  /* Faixa institucional translúcida: mantém o verde e o contraste do texto
+     branco da navegação, mas deixa a foto de fundo do app transparecer por
+     trás (vidro fosco), na mesma linguagem das barras de Métricas/LEXOR. */
+  background: linear-gradient(120deg, rgba(15, 68, 41, 0.80) 0%, rgba(7, 40, 27, 0.84) 78%);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
   color: var(--cab-tinta);
   padding: 1rem 1.1rem 0;
   padding-top: max(1rem, env(safe-area-inset-top));
@@ -150,7 +164,7 @@
 
 /* abas */
 .loa-app .abas {
-  display: flex; gap: 0.2rem; margin-top: 0.9rem;
+  display: flex; gap: 0.35rem; margin-top: 1rem;
   overflow-x: auto; scrollbar-width: none;
   max-width: 1560px; margin-inline: auto; width: 100%;
 }
@@ -158,28 +172,31 @@
 .loa-app .aba {
   flex: none; white-space: nowrap;
   appearance: none; border: 0; cursor: pointer;
-  background: transparent; color: var(--cab-tinta-2);
-  font: inherit; font-size: 0.85rem; font-weight: 600;
-  padding: 0.6rem 0.95rem; border-radius: 10px 10px 0 0;
-  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.05); color: var(--cab-tinta-2);
+  font: inherit; font-size: 1rem; font-weight: 600;
+  padding: 0.72rem 1.2rem; border-radius: 12px 12px 0 0;
+  display: inline-flex; align-items: center; gap: 0.45rem;
   border-bottom: 3px solid transparent;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-.loa-app .aba:hover { color: #fff; background: rgba(255, 255, 255, 0.07); }
+.loa-app .aba:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+/* subaba ativa: assume a superfície dos cards de conteúdo (com o acento
+   embaixo), lendo como "o painel começa aqui" mesmo sobre o fundo fotográfico */
 .loa-app .aba.ativa {
-  background: var(--plano); color: var(--tinta);
+  background: var(--superficie); color: var(--tinta);
   border-bottom-color: var(--cab-acento);
+  box-shadow: 0 -2px 10px -6px rgba(0, 0, 0, 0.5);
 }
 .loa-app .aba-badge {
   background: var(--alerta-borda); color: #fff; border-radius: 999px;
-  font-size: 0.66rem; font-weight: 700; padding: 0.05rem 0.42rem; line-height: 1.5;
+  font-size: 0.72rem; font-weight: 700; padding: 0.08rem 0.5rem; line-height: 1.5;
 }
 
 /* seções (nível 1 da navegação) — a base de dados em que se está trabalhando.
    Fica acima das abas e com peso maior: trocar de seção troca o universo de
    dados inteiro, o que é uma mudança de outra ordem que trocar de subaba. */
 .loa-app .secoes {
-  display: flex; gap: 0.35rem; margin-top: 0.35rem;
+  display: flex; gap: 0.45rem; margin-top: 0.5rem;
   max-width: 1560px; margin-inline: auto; width: 100%;
   overflow-x: auto; scrollbar-width: none;
 }
@@ -187,17 +204,18 @@
 .loa-app .secao {
   flex: none; white-space: nowrap;
   appearance: none; cursor: pointer;
-  background: rgba(255, 255, 255, 0.06); color: var(--cab-tinta-2);
-  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px;
-  font: inherit; font-size: 0.78rem; font-weight: 700;
-  letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 0.32rem 0.9rem;
+  background: rgba(255, 255, 255, 0.07); color: var(--cab-tinta-2);
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px;
+  font: inherit; font-size: 0.9rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 0.46rem 1.1rem;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-.loa-app .secao:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.loa-app .secao:hover { color: #fff; background: rgba(255, 255, 255, 0.14); }
 .loa-app .secao.ativa {
   background: var(--cab-acento); color: #fff;
   border-color: transparent;
+  box-shadow: 0 2px 12px -4px rgba(27, 175, 122, 0.65);
 }
 
 /* avisos da aba PLOA. O de defeito de origem (aba duplicada) é tratado como
