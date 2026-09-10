@@ -1098,35 +1098,79 @@ def _money(v):
     return int(n) if n == int(n) else round(n, 2)
 
 
+# Modalidade das linhas que NÃO são emenda parlamentar (o PLOA e os créditos).
+EXEC_MODALIDADE_NAO_EMENDA = "PLOA, DEMAIS EMENDAS E CRÉDITOS"
+
+
+def _num_emenda(d):
+    """Número da emenda, tolerando o nome da coluna entre os anos.
+
+    2026/2019… trazem "Emenda.Emenda"; 2025 traz "Emenda" (e "Emenda (Número/Ano)"
+    no formato "20470005 - 2019"). Devolve só o número.
+    """
+    for c in ("Emenda.Emenda", "Emenda", "Emenda (Número/Ano)"):
+        v = str(d.get(c) or "").strip()
+        if v:
+            return re.split(r"\s*-\s*", v, maxsplit=1)[0].strip()
+    return ""
+
+
+def _norm_modalidade(m):
+    """"BANCADA ESTADUAL (RP 7)" -> "BANCADA ESTADUAL" (alinha com a base de emendas)."""
+    return re.sub(r"\s*\(RP\s*\d+\)\s*$", "", str(m or "").strip()).strip()
+
+
 def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
-    """Lê o arquivo de execução e devolve a lista de dotações do órgão 52000."""
+    """Lê um arquivo de execução e devolve (dotacoes, emendas) do órgão 52000.
+
+    O ano vem da ABA (nome = ano) ou, se a aba não for um ano, do NOME DO ARQUIVO
+    (LOA_despesa_execucao2027 etc.) — assim o app absorve sozinho anos futuros.
+
+    - dotacoes: uma por linha (base do Dashboard/Histórico LOA).
+    - emendas: só as linhas de emenda parlamentar (modalidade ≠ "PLOA, DEMAIS
+      EMENDAS E CRÉDITOS"), no formato das emendas apresentadas, com valor =
+      Autorizado. OM/Objeto e a Casa (Dep/Sen) são completados em main().
+    """
     wb = openpyxl.load_workbook(caminho_xlsx, read_only=True, data_only=True)
-    registros = []
+    dotacoes, emendas = [], []
     abas_ano = [n for n in wb.sheetnames if re.fullmatch(r"\s*20\d{2}\s*", str(n))]
+    if abas_ano:
+        ano_por_aba = {n: str(n).strip() for n in abas_ano}
+    else:
+        m = ANO_RE.search(os.path.basename(caminho_xlsx))
+        if not m:
+            print(f"  AVISO: sem ano na aba nem no nome de {caminho_xlsx}; ignorado")
+            wb.close()
+            return [], []
+        abas_ano = [wb.sheetnames[0]]
+        ano_por_aba = {wb.sheetnames[0]: m.group(1)}
     for nome in abas_ano:
-        ano = str(nome).strip()
+        ano = ano_por_aba[nome]
         ws = wb[nome]
         linhas = ws.iter_rows(values_only=True)
         cabecalho = [str(c).strip() if c is not None else "" for c in next(linhas)]
-        n_ano = 0
+        n_dot = n_em = 0
         for linha in linhas:
             d = dict(zip(cabecalho, linha))
             if str(d.get("Órgão (Cod)") or "").strip() != ORGAO_COD:
                 continue
             uo_cod = str(d.get("UO (Cod)") or "").strip()
             uo_nome = str(d.get("UO") or "").strip()
-            familia = familia_da_uo(uo_cod, uo_nome, uos_nao_catalogadas)
+            orgao = FAMILIA_ORGAO[familia_da_uo(uo_cod, uo_nome, uos_nao_catalogadas)]
             rp = str(d.get("Resultado Lei (Cod)") or "").strip()
+            rp = "" if rp.upper() in ("", "NÃO APLICÁVEL") else rp
             gnd = str(d.get("GND (Cod)") or "").strip()
+            gnd = "" if gnd.upper() in ("", "NÃO APLICÁVEL") else gnd
             fonte_cod, fonte = _split_fonte(d.get("Fonte (Cod/Desc)"))
             fgrupo_cod, fgrupo = _split_fonte(d.get("Fonte Grupo (Cod/Desc)"))
-            registros.append({
+            aut = _money(d.get("Autorizado"))
+            dotacoes.append({
                 "ano": ano,
                 "uoCod": uo_cod,
                 "uo": uo_nome,
-                "orgao": FAMILIA_ORGAO[familia],
-                "rp": "" if rp.upper() in ("", "NÃO APLICÁVEL") else rp,
-                "gnd": "" if gnd.upper() in ("", "NÃO APLICÁVEL") else gnd,
+                "orgao": orgao,
+                "rp": rp,
+                "gnd": gnd,
                 "acaoCod": str(d.get("Ação (Cod)") or "").strip(),
                 "acao": str(d.get("Ação") or "").strip(),
                 "fonteCod": fonte_cod,
@@ -1134,13 +1178,34 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                 "fgrupoCod": fgrupo_cod,
                 "fgrupo": fgrupo,
                 "ini": _money(d.get("Dotação Inicial")),
-                "aut": _money(d.get("Autorizado")),
+                "aut": aut,
                 "cont": _money(d.get("Contenção de Gastos")),
             })
-            n_ano += 1
-        print(f"  EXEC aba {ano}: {n_ano} linhas do órgão {ORGAO_COD}")
+            n_dot += 1
+
+            modalidade = _norm_modalidade(d.get("Emenda (Modalidade)"))
+            if modalidade and modalidade != EXEC_MODALIDADE_NAO_EMENDA:
+                uf = str(d.get("Autor (UF)") or "").strip()
+                cmila, _ = deduzir_cmila({"Autor (UF)": uf})
+                emendas.append({
+                    "ano": ano,
+                    "emenda": _num_emenda(d),
+                    "rp": rp,
+                    "valor": aut,  # Autorizado
+                    "autor": str(d.get("Autor") or "").strip(),
+                    "autorTipo": "",  # Casa (Dep/Sen) — preenchida em main()
+                    "autorUF": uf,
+                    "partido": str(d.get("Partido") or "").strip(),
+                    "modalidade": modalidade,
+                    "cmila": cmila,
+                    "orgao": orgao,
+                    "uoCod": uo_cod,
+                    "uo": uo_nome,
+                })
+                n_em += 1
+        print(f"  EXEC {ano}: {n_dot} dotações do {ORGAO_COD} | {n_em} linhas de emenda")
     wb.close()
-    return registros
+    return dotacoes, emendas
 
 
 def main():
@@ -1265,22 +1330,61 @@ def main():
     # 4) EXECUÇÃO DA LOA (REGRA 4). Terceira base independente: a despesa por
     #    execução do órgão 52000, uma dotação por linha, com Dotação Inicial,
     #    Autorizado e Contingenciamento.
-    exec_registros, exec_uos = [], {}
+    exec_registros, exec_emendas, exec_uos = [], [], {}
     for arq in arquivos_exec:
         print(f"\nLendo EXECUÇÃO {arq}")
-        exec_registros.extend(ler_execucao(arq, exec_uos))
+        dots, ems = ler_execucao(arq, exec_uos)
+        exec_registros.extend(dots)
+        exec_emendas.extend(ems)
     exec_anos = sorted({r["ano"] for r in exec_registros})
+
+    # As emendas de execução herdam da base de emendas apresentadas o que a
+    # planilha de execução não traz: OM/Objeto (pelo NÚMERO da emenda) e a Casa
+    # do autor — Deputado/Senador (pelo NOME do autor). O Partido já vem no
+    # próprio arquivo de execução.
+    om_por_chave, om_por_num, casa_por_autor = {}, {}, {}
+    for r in registros:
+        a, e = r["ano"], str(r.get("emenda") or "")
+        if r.get("om") or r.get("objeto"):
+            par = (r.get("om", ""), r.get("objeto", ""))
+            om_por_chave.setdefault((a, e), par)
+            om_por_num.setdefault(e, par)
+        tipo = r.get("autorTipo", "")
+        if tipo in ("DEPUTADO FEDERAL", "SENADOR"):
+            casa_por_autor.setdefault(_sem_acento(r.get("autor", "")).upper().strip(), tipo)
+    n_om = n_casa = 0
+    for em in exec_emendas:
+        e = str(em.get("emenda") or "")
+        om, objeto = om_por_chave.get((em["ano"], e)) or om_por_num.get(e) or ("", "")
+        if om:
+            em["om"] = om
+        if objeto:
+            em["objeto"] = objeto
+        if om or objeto:
+            n_om += 1
+        casa = casa_por_autor.get(_sem_acento(em.get("autor", "")).upper().strip())
+        if casa:
+            em["autorTipo"] = casa
+            n_casa += 1
+
     for r in exec_registros:  # enxuga o JSON: campos textuais vazios saem
         for chave in [k for k, v in r.items() if v == ""]:
             del r[chave]
+    for em in exec_emendas:
+        for chave in [k for k, v in em.items() if v == ""]:
+            del em[chave]
+    exec_emendas_anos = sorted({e["ano"] for e in exec_emendas})
     if exec_registros:
-        print("\nExecução da LOA por ano (dotação inicial / autorizado):")
+        print("\nExecução da LOA por ano (dotação inicial / autorizado | emendas):")
         for ano in exec_anos:
             do_ano = [r for r in exec_registros if r["ano"] == ano]
             ini = sum(r.get("ini", 0) for r in do_ano)
             aut = sum(r.get("aut", 0) for r in do_ano)
+            n_em = sum(1 for e in exec_emendas if e["ano"] == ano)
             print(f"  {ano}: {len(do_ano)} dotações | inicial R$ {ini:,.2f} | "
-                  f"autorizado R$ {aut:,.2f}")
+                  f"autorizado R$ {aut:,.2f} | {n_em} linhas de emenda")
+        print(f"  Emendas de execução: {len(exec_emendas)} linhas | "
+              f"OM/Objeto preenchidos: {n_om} | Casa (Dep/Sen) preenchida: {n_casa}")
 
     n_incons = sum(1 for r in registros if r.get("inconsistencias"))
     n_mod = sum(1 for r in registros
@@ -1324,6 +1428,11 @@ def main():
             "anoCorrente": exec_anos[-1] if exec_anos else "",
             "gndNomes": GND_NOMES,
             "registros": exec_registros,
+            # Linhas de emenda parlamentar da execução (valor = Autorizado), no
+            # formato das emendas apresentadas — alimentam as subabas Dashboard
+            # Emendas, Emendas LOA e Histórico Emendas.
+            "emendasAnos": exec_emendas_anos,
+            "emendas": exec_emendas,
         },
     }
     os.makedirs(os.path.dirname(os.path.abspath(SAIDA)), exist_ok=True)
