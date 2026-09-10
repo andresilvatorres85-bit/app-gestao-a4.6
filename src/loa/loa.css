@@ -218,13 +218,21 @@
   box-shadow: 0 2px 12px -4px rgba(27, 175, 122, 0.65);
 }
 
-/* Alinhamento da navegação conforme a seção ativa (pedido do usuário):
-   - Resultado LEXOR e suas subabas: centralizados na página;
-   - PLOA e suas subabas: alinhados à esquerda.
-   Vale para os dois níveis (seções e subabas) via data-secao no cabeçalho. */
-.loa-app .cabecalho[data-secao='lexor'] .secoes,
+/* Posicionamento pedido pelo usuário (independente para cada seção):
+   - "Resultado LEXOR" sozinha no CENTRO da página;
+   - "PLOA" sozinha à ESQUERDA da página.
+   Os dois botões ficam em posições fixas (não deslocam juntos): grid de três
+   trilhos [1fr | auto | 1fr] coloca a PLOA no trilho esquerdo e a LEXOR no
+   trilho central. Como .secoes é centralizada (margin-inline:auto até 1560px),
+   o trilho central cai no centro real da página. */
+.loa-app .secoes {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+}
+.loa-app .secao-ploa { grid-column: 1; justify-self: start; }
+.loa-app .secao-lexor { grid-column: 2; justify-self: center; }
+
+/* As subabas seguem a posição da seção ativa: LEXOR ao centro, PLOA à esquerda. */
 .loa-app .cabecalho[data-secao='lexor'] .abas { justify-content: safe center; }
-.loa-app .cabecalho[data-secao='ploa'] .secoes,
 .loa-app .cabecalho[data-secao='ploa'] .abas { justify-content: flex-start; }
 
 /* avisos da aba PLOA. O de defeito de origem (aba duplicada) é tratado como

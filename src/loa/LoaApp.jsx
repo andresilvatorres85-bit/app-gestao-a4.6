@@ -439,7 +439,7 @@ export default function LoaApp() {
               key={s.id}
               role="tab"
               aria-selected={secaoId === s.id}
-              className={`secao${secaoId === s.id ? ' ativa' : ''}`}
+              className={`secao secao-${s.id}${secaoId === s.id ? ' ativa' : ''}`}
               onClick={() => irParaAba(PRIMEIRA_SUBABA[s.id])}
               title={s.descricao}
             >
