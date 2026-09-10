@@ -1057,9 +1057,9 @@ def anos_duplicados_ploa(registros):
 # obrigatório para isolar o Ministério da Defesa.
 #
 # Colunas de interesse:
-#   - Dotação Inicial   -> card "Dotação inicial" e traço dos gráficos
-#   - Autorizado        -> card "Dotação autorizada" e barra dos gráficos
-#   - Contingenciamento -> card "Contingenciamentos"
+#   - Dotação Inicial     -> card "Dotação inicial" e traço dos gráficos
+#   - Autorizado          -> card "Dotação autorizada" e barra dos gráficos
+#   - Contenção de Gastos -> card "Contenção de gastos" (campo `cont`)
 # Dimensões: Resultado Lei (Cod) = Identificador de Resultado Primário (RP),
 # GND (Cod), UO, Ação e Fonte (Cod/Desc). A Força vem de `familia_da_uo`, a mesma
 # regra do PLOA — a UO decide a Força.
@@ -1132,7 +1132,7 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                 "fonte": fonte,
                 "ini": _money(d.get("Dotação Inicial")),
                 "aut": _money(d.get("Autorizado")),
-                "cont": _money(d.get("Contingenciamento")),
+                "cont": _money(d.get("Contenção de Gastos")),
             })
             n_ano += 1
         print(f"  EXEC aba {ano}: {n_ano} linhas do órgão {ORGAO_COD}")

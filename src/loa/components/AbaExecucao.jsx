@@ -93,12 +93,12 @@ export default function AbaExecucao({
             <p className="tira-nota">Dotação inicial da LOA</p>
           </section>
           <section className="tira">
-            <p className="tira-rotulo">Contingenciamentos</p>
+            <p className="tira-rotulo">Contenção de gastos</p>
             <p className="tira-valor">
               R$ {cCont.valor}
               <span className="tira-unidade">{cCont.unidade}</span>
             </p>
-            <p className="tira-nota">Total contingenciado no recorte</p>
+            <p className="tira-nota">Total em contenção de gastos no recorte</p>
           </section>
           <section className="tira">
             <p className="tira-rotulo">Variação das dotações</p>
