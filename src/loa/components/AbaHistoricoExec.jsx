@@ -9,6 +9,7 @@ import BotaoPNG from './BotaoPNG.jsx'
 import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
 import MatrizAnos from './MatrizAnos.jsx'
+import { FolhaHistoricoExec } from './FolhaPDFExec.jsx'
 
 // Subaba "Histórico LOA" (seção EXECUÇÃO LOA). Mesma diagramação do Histórico
 // PLOA, mas sobre a base de EXECUÇÃO e consolidando o AUTORIZADO. Como o
@@ -27,7 +28,7 @@ function Variacao({ pct }) {
   )
 }
 
-export default function AbaHistoricoExec({ registros, registrosTodasForcas, contexto, onExportarSlide }) {
+export default function AbaHistoricoExec({ registros, registrosTodasForcas, contexto, onExportarSlide, filtrosTexto }) {
   const todasForcas = registrosTodasForcas ?? registros
   const anosResumo = useMemo(() => resumoPorAnoExec(registros), [registros])
   const forcas = useMemo(() => forcaPorAnoExec(todasForcas), [todasForcas])
@@ -70,6 +71,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
   const saldoTotal = anosResumo.reduce((s, a) => s + a.delta, 0)
 
   return (
+    <>
     <div className="ploa-tela">
       <header className="folha-cab">
         <h2>EXECUÇÃO DA LOA — HISTÓRICO DOS EXERCÍCIOS</h2>
@@ -316,5 +318,15 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
         </section>
       </div>
     </div>
+
+    {/* Só aparece na impressão via botão "Exportar PDF" (ver styles.css). */}
+    <div className="folha-pdf" aria-hidden>
+      <FolhaHistoricoExec
+        registros={registros}
+        registrosTodasForcas={registrosTodasForcas}
+        filtrosTexto={filtrosTexto}
+      />
+    </div>
+    </>
   )
 }

@@ -8,13 +8,14 @@ import BotaoPNG from './BotaoPNG.jsx'
 import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoBarrasExec from './GraficoBarrasExec.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
+import { FolhaDashboardExec } from './FolhaPDFExec.jsx'
 
 // Subaba "Dashboard LOA" (seção EXECUÇÃO LOA). Mesma diagramação do Dashboard
 // PLOA, mas sobre a base de EXECUÇÃO (Dotação Inicial × Autorizado). Recebe as
 // dotações já filtradas; `registrosTodasForcas` é o mesmo recorte SEM o filtro
 // de Órgão — os painéis que comparam Forças precisam das quatro, não de uma só.
 export default function AbaExecucao({
-  registros, registrosTodasForcas, anos, contexto, onExportarSlide,
+  registros, registrosTodasForcas, anos, contexto, onExportarSlide, filtrosTexto,
 }) {
   const todasForcas = registrosTodasForcas ?? registros
   const totais = useMemo(() => somaTotais(registros), [registros])
@@ -63,6 +64,7 @@ export default function AbaExecucao({
   ]
 
   return (
+    <>
     <div className="ploa-tela">
       <header className="folha-cab">
         <h2>EXECUÇÃO DA LOA — DESPESA POR DOTAÇÃO</h2>
@@ -311,5 +313,15 @@ export default function AbaExecucao({
         </section>
       </div>
     </div>
+
+    {/* Só aparece na impressão via botão "Exportar PDF" (ver styles.css). */}
+    <div className="folha-pdf" aria-hidden>
+      <FolhaDashboardExec
+        registros={registros}
+        registrosTodasForcas={todasForcas}
+        filtrosTexto={filtrosTexto}
+      />
+    </div>
+    </>
   )
 }

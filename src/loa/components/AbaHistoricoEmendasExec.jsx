@@ -8,6 +8,7 @@ import BotaoPNG from './BotaoPNG.jsx'
 import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
 import MatrizAnos from './MatrizAnos.jsx'
+import { FolhaHistoricoEmendasExec } from './FolhaPDFExec.jsx'
 
 // Subaba "Histórico Emendas" (seção EXECUÇÃO LOA). Mesma diagramação da subaba
 // "Histórico" da seção RESULTADO LEXOR, mas sobre as EMENDAS DA EXECUÇÃO
@@ -24,7 +25,7 @@ function Variacao({ pct }) {
   )
 }
 
-export default function AbaHistoricoEmendasExec({ registros, registrosTodasForcas, contexto, onExportarSlide }) {
+export default function AbaHistoricoEmendasExec({ registros, registrosTodasForcas, contexto, onExportarSlide, filtrosTexto }) {
   const anosResumo = useMemo(() => resumoPorAno(registros), [registros])
   const rp = useMemo(() => rpPorAno(registros), [registros])
   const modalidade = useMemo(() => modalidadePorAno(registros), [registros])
@@ -256,6 +257,15 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
             vazio="Sem parlamentares (Deputado/Senador) para os filtros aplicados."
           />
         </section>
+      </div>
+
+      {/* Só aparece na impressão via botão "Exportar PDF" (ver styles.css). */}
+      <div className="folha-pdf" aria-hidden>
+        <FolhaHistoricoEmendasExec
+          registros={registros}
+          registrosTodasForcas={registrosTodasForcas}
+          filtrosTexto={filtrosTexto}
+        />
       </div>
     </>
   )
