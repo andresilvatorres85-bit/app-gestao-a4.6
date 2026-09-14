@@ -6,6 +6,7 @@ import {
   acaoPorAnoExec, fonteGrupoPorAno,
 } from '../execucao.js'
 import BotaoPNG from './BotaoPNG.jsx'
+import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
 import MatrizAnos from './MatrizAnos.jsx'
 
@@ -26,7 +27,7 @@ function Variacao({ pct }) {
   )
 }
 
-export default function AbaHistoricoExec({ registros, registrosTodasForcas, contexto }) {
+export default function AbaHistoricoExec({ registros, registrosTodasForcas, contexto, onExportarSlide }) {
   const todasForcas = registrosTodasForcas ?? registros
   const anosResumo = useMemo(() => resumoPorAnoExec(registros), [registros])
   const forcas = useMemo(() => forcaPorAnoExec(todasForcas), [todasForcas])
@@ -119,6 +120,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               <p className="painel-sub">Somatório da dotação autorizada em cada exercício</p>
             </div>
             <span className="painel-total">{fmtBi(totalPeriodo)}</span>
+            <BotaoPPTX titulo="Lei Orçamentária Anual por exercício" onExportar={() => onExportarSlide('hexec-total')} />
             <BotaoPNG titulo="Lei Orçamentária Anual por exercício" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -140,6 +142,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               <p className="painel-sub">Participação de cada grupo de natureza da despesa no autorizado</p>
             </div>
             <span className="painel-total">{fmtBi(totalPeriodo)}</span>
+            <BotaoPPTX titulo="Composição por GND" onExportar={() => onExportarSlide('hexec-gnd')} />
             <BotaoPNG titulo="Composição por GND" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -163,6 +166,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               </p>
             </div>
             <span className="painel-total">{fmtBi(uos.series.reduce((s, l) => s + l.total, 0))}</span>
+            <BotaoPPTX titulo="Unidades orçamentárias por exercício" onExportar={() => onExportarSlide('hexec-uo')} />
             <BotaoPNG titulo="Unidades orçamentárias por exercício" contexto={contexto} />
           </div>
           <MatrizAnos
@@ -183,6 +187,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               <p className="painel-sub">Participação de cada resultado primário no autorizado de cada ano</p>
             </div>
             <span className="painel-total">{fmtBi(totalPeriodo)}</span>
+            <BotaoPPTX titulo="Composição por RP" onExportar={() => onExportarSlide('hexec-rp')} />
             <BotaoPNG titulo="Composição por RP" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -206,6 +211,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
             <span className="painel-total">
               {`${saldoTotal >= 0 ? '+' : '−'} ${fmtBi(Math.abs(saldoTotal))}`}
             </span>
+            <BotaoPPTX titulo="Dotação inicial vs. dotação autorizada por exercício" onExportar={() => onExportarSlide('hexec-iniaut')} />
             <BotaoPNG titulo="Dotação inicial vs. dotação autorizada por exercício" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -248,6 +254,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               </p>
             </div>
             <span className="painel-total">{fmtBi(acoes.series.reduce((s, l) => s + l.total, 0))}</span>
+            <BotaoPPTX titulo="Ações orçamentárias por exercício" onExportar={() => onExportarSlide('hexec-acao')} />
             <BotaoPNG titulo="Ações orçamentárias por exercício" contexto={contexto} />
           </div>
           <MatrizAnos
@@ -269,6 +276,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               <p className="painel-sub">Dotação autorizada de cada Força em cada ano</p>
             </div>
             <span className="painel-total">{fmtBi(forcas.series.reduce((s, x) => s + x.total, 0))}</span>
+            <BotaoPPTX titulo="Por Força, ao longo dos exercícios" onExportar={() => onExportarSlide('hexec-forca')} />
             <BotaoPNG titulo="Por Força, ao longo dos exercícios" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -293,6 +301,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
               <p className="painel-sub">Composição do autorizado por grupo de fonte, por exercício</p>
             </div>
             <span className="painel-total">{fmtBi(totalPeriodo)}</span>
+            <BotaoPPTX titulo="Por Fonte Grupo" onExportar={() => onExportarSlide('hexec-fgrupo')} />
             <BotaoPNG titulo="Por Fonte Grupo" contexto={contexto} />
           </div>
           <GraficoColunasAno

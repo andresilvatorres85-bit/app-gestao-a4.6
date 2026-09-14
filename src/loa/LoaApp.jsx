@@ -34,6 +34,7 @@ import { useUrlState } from './useUrlState.js'
 import {
   exportarPPTX, exportarPPTXHistorico, exportarSlidePPTX,
   exportarPPTXPLOA, exportarPPTXHistoricoPLOA,
+  exportarPPTXExec, exportarPPTXHistoricoExec,
 } from './pptx.js'
 import { exportarFolhaPDF } from './pdf.js'
 import MultiSelect from './components/MultiSelect.jsx'
@@ -53,7 +54,14 @@ import AbaHistoricoExec from './components/AbaHistoricoExec.jsx'
 import AbaDashboardEmendasExec from './components/AbaDashboardEmendasExec.jsx'
 import AbaEmendasExec from './components/AbaEmendasExec.jsx'
 import AbaHistoricoEmendasExec from './components/AbaHistoricoEmendasExec.jsx'
-import { filtrarExecucao, opcoesExecucao, FILTROS_EXEC } from './execucao.js'
+import {
+  filtrarExecucao, opcoesExecucao, FILTROS_EXEC,
+  somaTotais, porRP as execPorRP, porGND as execPorGND, porUO as execPorUO,
+  acoesOrdenadas as execAcoes, porForca as execPorForca,
+  iniVsAutorizado as execIniAut, porFonte as execPorFonte,
+  resumoPorAnoExec, forcaPorAnoExec, uoPorAnoExec, rpPorAnoExec,
+  gndPorAnoExec, acaoPorAnoExec, fonteGrupoPorAno,
+} from './execucao.js'
 
 // Subabas de emenda da seção EXECUÇÃO LOA (usam a base execucao.emendas, com os
 // filtros completos de emenda). As demais subabas de execução são de dotação.
@@ -426,6 +434,31 @@ export default function LoaApp() {
     `Todos os exercícios (${(execucao.emendasAnos ?? []).join(', ')}). ` +
     `${fmtInt(execEmSemAno.length)} registros. Extraído em ${new Date().toLocaleString('pt-BR')}.`
 
+  // Recortes impressos no rodapé das exportações da EXECUÇÃO LOA. Como no PLOA,
+  // as subabas de dotação só citam os filtros que de fato aplicam (FILTROS_EXEC);
+  // as de emenda usam os filtros completos (FILTROS). O Dashboard respeita o Ano
+  // (é o exercício em foco); o Histórico o ignora e cita todos os demais.
+  const anosExecTodos = `Todos os exercícios (${(execucao.anos ?? []).join(', ')})`
+  const anosExecEmTodos = `Todos os exercícios (${(execucao.emendasAnos ?? []).join(', ')})`
+  const filtrosAtivosExec = FILTROS_EXEC
+    .filter((f) => f.id !== 'ano' && filtros[f.id]?.size > 0)
+    .map((f) => `${f.rotulo}: ${[...filtros[f.id]].join(', ')}`)
+  const recorteExec = filtrosAtivosExec.length
+    ? `${anoTextoExec} · filtros — ${filtrosAtivosExec.join(' · ')}`
+    : `${anoTextoExec} · sem outros filtros`
+  const recorteHistExec = filtrosAtivosExec.length
+    ? `${anosExecTodos} · filtros — ${filtrosAtivosExec.join(' · ')}`
+    : `${anosExecTodos} · sem outros filtros`
+  const filtrosAtivosExecEm = FILTROS
+    .filter((f) => f.id !== 'ano' && filtros[f.id]?.size > 0)
+    .map((f) => `${f.rotulo}: ${[...filtros[f.id]].join(', ')}`)
+  const recorteExecEm = filtrosAtivosExecEm.length
+    ? `${anoTextoExecEm} · filtros — ${filtrosAtivosExecEm.join(' · ')}`
+    : `${anoTextoExecEm} · sem outros filtros`
+  const recorteExecEmHist = filtrosAtivosExecEm.length
+    ? `${anosExecEmTodos} · filtros — ${filtrosAtivosExecEm.join(' · ')}`
+    : `${anosExecEmTodos} · sem outros filtros`
+
   // Montadas no clique, como as demais: as agregações só rodam quando alguém
   // exporta de fato, e a hora carimbada é a da exportação.
   const cargaPLOA = () => ({
@@ -485,6 +518,123 @@ export default function LoaApp() {
   const baixarPPTXHistPLOA = () => exportarPPTXHistoricoPLOA(cargaHistPLOA())
   const baixarSlideHistPLOA = (id) => exportarSlidePPTX(cargaHistPLOA(), id)
 
+  // ------------------------------------------ exportações da EXECUÇÃO LOA -----
+  // Dotação (Dashboard/Histórico LOA): geradores próprios, fiéis à tela — o
+  // Autorizado × Dotação inicial, em bilhões (ver pptx.js). As emendas da
+  // execução reaproveitam os geradores das emendas apresentadas (mesmo formato),
+  // apenas com a base da execução (valor = Autorizado). Montadas no clique.
+  const cargaExec = () => ({
+    titulo: 'EXECUÇÃO DA LOA — DESPESA POR DOTAÇÃO',
+    escopo: escopoExec,
+    recorte: recorteExec,
+    geradoEm: new Date().toLocaleString('pt-BR'),
+    fonte: dados.fonte,
+    linhaResumo:
+      `${fmtInt(execFiltrados.length)} dotações · ` +
+      `autorizado ${fmtBi(somaTotais(execFiltrados).aut)}`,
+    totais: somaTotais(execFiltrados),
+    qtdDotacoes: execFiltrados.length,
+    rps: execPorRP(execFiltrados),
+    gnds: execPorGND(execFiltrados).map((g) => ({ rotulo: g.nome || g.rotulo, valor: g.valor, pl: g.pl })),
+    uos: execPorUO(execFiltrados).map((u) => ({ rotulo: u.uo, valor: u.valor, pl: u.pl })),
+    acoes: execAcoes(execFiltrados).map((a) => ({ rotulo: a.acao || a.acaoCod, valor: a.valor, pl: a.pl })),
+    forcas: execPorForca(execSemOrgao).map((a) => ({ rotulo: a.rotulo, valor: a.valor, pl: a.pl })),
+    iniAut: execIniAut(execSemOrgao),
+    fontes: execPorFonte(execFiltrados).map((f) => ({ rotulo: f.fonte, valor: f.valor, pl: f.pl })),
+  })
+  const cargaHistExec = () => {
+    const porAno = resumoPorAnoExec(execSemAno)
+    return {
+      titulo: 'EXECUÇÃO DA LOA — HISTÓRICO DOS EXERCÍCIOS',
+      escopo: escopoExec,
+      recorte: recorteHistExec,
+      geradoEm: new Date().toLocaleString('pt-BR'),
+      fonte: dados.fonte,
+      linhaResumo:
+        `${fmtInt(execSemAno.length)} dotações em ${porAno.length} exercícios · ` +
+        `autorizado somado ${fmtBi(porAno.reduce((s, a) => s + a.aut, 0))}`,
+      anos: porAno.map((a) => a.ano),
+      serieValor: porAno.map((a) => a.aut),
+      serieIni: porAno.map((a) => a.ini),
+      serieDot: porAno.map((a) => a.linhas),
+      gnd: gndPorAnoExec(execSemAno),
+      uo: uoPorAnoExec(execSemAno),
+      rp: rpPorAnoExec(execSemAno),
+      acao: acaoPorAnoExec(execSemAno, Infinity),
+      forca: forcaPorAnoExec(execSemAnoNemOrgao),
+      fgrupo: fonteGrupoPorAno(execSemAno),
+    }
+  }
+  const baixarPPTXExec = () => exportarPPTXExec(cargaExec())
+  const baixarSlideExec = (id) => exportarSlidePPTX(cargaExec(), id)
+  const baixarPPTXHistExec = () => exportarPPTXHistoricoExec(cargaHistExec())
+  const baixarSlideHistExec = (id) => exportarSlidePPTX(cargaHistExec(), id)
+
+  // Emendas da execução — mesma estrutura das emendas apresentadas (cargaPPTX /
+  // cargaHistorico), só que sobre execucao.emendas (valor = Autorizado).
+  const cargaEmExec = () => {
+    const regs = execEmFiltrados
+    const st = resumo(regs)
+    const prp = valorPorRP(regs)
+    const imp = valorImpositivas(regs)
+    const totImp = imp.reduce((s, d) => s + d.valor, 0)
+    const cmilaArr = impositivasPorCMilA(regs)
+    const aut10 = topAutores(regs, 10)
+    const totAut = aut10.reduce((s, d) => s + d.valor, 0)
+    const parts = valorPorPartido(regs)
+    const totRP6 = prp.find((d) => String(d.rp) === '6')?.valor ?? 0
+    return {
+      titulo: 'EMENDAS DA EXECUÇÃO DA LOA (AUTORIZADO)',
+      escopo: escopoExec,
+      recorte: recorteExecEm,
+      geradoEm: new Date().toLocaleString('pt-BR'),
+      fonte: dados.fonte,
+      stats: st,
+      qtdRegistros: regs.length,
+      totalImpositivas: totImp,
+      pctImpositivas: st.valorTotal ? (totImp / st.valorTotal) * 100 : 0,
+      porRP: prp,
+      impositivas: imp,
+      autores: aut10,
+      totalAutores: totAut,
+      pctAutoresRP6: totRP6 ? (totAut / totRP6) * 100 : 0,
+      cmila: cmilaArr,
+      totalCMilA: cmilaArr.reduce((s, d) => s + d.total, 0),
+      partidos: parts,
+      totalPartidos: parts.reduce((s, d) => s + d.valor, 0),
+    }
+  }
+  const cargaEmHistExec = () => {
+    const porAno = resumoPorAno(execEmSemAno)
+    const serie = (campo) => porAno.map((a) => a[campo])
+    return {
+      titulo: 'EMENDAS DA EXECUÇÃO DA LOA (AUTORIZADO)',
+      escopo: escopoExec,
+      recorte: recorteExecEmHist,
+      recorteForca: `${recorteExecEmHist} · painel sem o filtro de Órgão`,
+      geradoEm: new Date().toLocaleString('pt-BR'),
+      fonte: dados.fonte,
+      stats: resumo(execEmSemAno),
+      anos: porAno.map((a) => a.ano),
+      serieValor: serie('valor'),
+      serieEmendas: serie('qtdEmendas'),
+      serieParlamentares: serie('qtdParlamentares'),
+      serieImpositivo: serie('impositivo'),
+      totalPeriodo: porAno.reduce((s, a) => s + a.valor, 0),
+      impositivasPorAno: impositivasPorAno(execEmSemAno).series,
+      rpPorAno: rpPorAno(execEmSemAno).series,
+      modalidadePorAno: modalidadePorAno(execEmSemAno).series,
+      forcaPorAno: forcaPorAno(execEmSemAnoNemOrgao),
+      cmilaPorAno: cmilaPorAno(execEmSemAno),
+      partidosPorAno: partidosPorAno(execEmSemAno, 12),
+      autoresPorAno: autoresRecorrentes(execEmSemAno, 12),
+    }
+  }
+  const baixarPPTXEmExec = () => exportarPPTX(cargaEmExec())
+  const baixarSlideEmExec = (id) => exportarSlidePPTX(cargaEmExec(), id)
+  const baixarPPTXEmHistExec = () => exportarPPTXHistorico(cargaEmHistExec())
+  const baixarSlideEmHistExec = (id) => exportarSlidePPTX(cargaEmHistExec(), id)
+
   // "Exportar PDF": gera o arquivo DIRETO (sem abrir o diálogo de impressão) a
   // partir da folha A4 da subaba em tela — ver pdf.js. Sem window.print(), o
   // navegador não injeta cabeçalho/endereço/data no papel; o rodapé com a data e
@@ -511,6 +661,10 @@ export default function LoaApp() {
     historico: { acao: baixarPPTXHistorico, dica: 'Baixar a aba Histórico em PowerPoint editável com os filtros atuais' },
     'ploa-dashboard': { acao: baixarPPTXPLOA, dica: 'Baixar o Dashboard PLOA em PowerPoint editável com os filtros atuais' },
     'ploa-historico': { acao: baixarPPTXHistPLOA, dica: 'Baixar o Histórico PLOA em PowerPoint editável com os filtros atuais' },
+    'exec-dashboard': { acao: baixarPPTXExec, dica: 'Baixar o Dashboard LOA em PowerPoint editável com os filtros atuais' },
+    'exec-historico': { acao: baixarPPTXHistExec, dica: 'Baixar o Histórico LOA em PowerPoint editável com os filtros atuais' },
+    'exec-emendas-dashboard': { acao: baixarPPTXEmExec, dica: 'Baixar o Dashboard Emendas em PowerPoint editável com os filtros atuais' },
+    'exec-emendas-historico': { acao: baixarPPTXEmHistExec, dica: 'Baixar o Histórico Emendas em PowerPoint editável com os filtros atuais' },
   }
 
   // Filtros exibidos na barra: só os que existem na base da seção ativa (ver
@@ -791,6 +945,7 @@ export default function LoaApp() {
             registrosTodasForcas={execSemOrgao}
             anos={execucao.anos ?? []}
             contexto={contextoExec}
+            onExportarSlide={baixarSlideExec}
           />
         )}
 
@@ -799,6 +954,7 @@ export default function LoaApp() {
             registros={execSemAno}
             registrosTodasForcas={execSemAnoNemOrgao}
             contexto={contextoHistExec}
+            onExportarSlide={baixarSlideHistExec}
           />
         )}
 
@@ -807,6 +963,7 @@ export default function LoaApp() {
             registros={execEmFiltrados}
             contexto={contextoExecEm}
             anoTexto={anoTextoExecEm}
+            onExportarSlide={baixarSlideEmExec}
           />
         )}
 
@@ -823,6 +980,7 @@ export default function LoaApp() {
             registros={execEmSemAno}
             registrosTodasForcas={execEmSemAnoNemOrgao}
             contexto={contextoExecEmHist}
+            onExportarSlide={baixarSlideEmHistExec}
           />
         )}
       </main>
