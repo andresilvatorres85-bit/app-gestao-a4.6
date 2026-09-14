@@ -9,12 +9,13 @@ import GraficoPizza from './GraficoPizza.jsx'
 import GraficoBarras from './GraficoBarras.jsx'
 import GraficoBarrasSimples from './GraficoBarrasSimples.jsx'
 import GraficoPartidos from './GraficoPartidos.jsx'
+import { FolhaDashboardEmendasExec } from './FolhaPDFExec.jsx'
 
 // Subaba "Dashboard Emendas" (seção EXECUÇÃO LOA). Mesma diagramação do Dashboard
 // da seção RESULTADO LEXOR, mas sobre as EMENDAS DA EXECUÇÃO (valor = Autorizado).
 // Reaproveita as agregações de dados.js — os registros têm o mesmo formato das
 // emendas apresentadas. Exportação por PNG (sem PPTX nesta etapa).
-export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto, onExportarSlide }) {
+export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto, onExportarSlide, filtrosTexto }) {
   const stats = useMemo(() => resumo(registros), [registros])
   const porRP = useMemo(() => valorPorRP(registros), [registros])
   const impositivas = useMemo(() => valorImpositivas(registros), [registros])
@@ -137,6 +138,11 @@ export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto,
           </div>
           <GraficoPartidos dados={partidos} />
         </section>
+      </div>
+
+      {/* Só aparece na impressão via botão "Exportar PDF" (ver styles.css). */}
+      <div className="folha-pdf" aria-hidden>
+        <FolhaDashboardEmendasExec registros={registros} filtrosTexto={filtrosTexto} anoTexto={anoTexto} />
       </div>
     </>
   )

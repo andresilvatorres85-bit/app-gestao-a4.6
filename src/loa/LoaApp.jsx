@@ -459,6 +459,26 @@ export default function LoaApp() {
     ? `${anosExecEmTodos} · filtros — ${filtrosAtivosExecEm.join(' · ')}`
     : `${anosExecEmTodos} · sem outros filtros`
 
+  // Linha "— FILTROS:" impressa no cabeçalho de cada folha A4 (PDF) da EXECUÇÃO.
+  // O Dashboard respeita o Ano (rotulado "Exercício"); o Histórico o ignora.
+  const listarFiltros = (lista) => lista
+    .filter((f) => filtros[f.id]?.size > 0)
+    .map((f) => {
+      const rot = f.id === 'ano' ? 'Exercício' : f.rotulo
+      const vals = [...filtros[f.id]].map((v) => (f.formatar ? f.formatar(v) : v)).join(', ')
+      return `${rot}: ${vals}`
+    })
+  const filtrosDashExec = listarFiltros(FILTROS_EXEC)
+  const filtrosTextoDashExec = filtrosDashExec.length
+    ? filtrosDashExec.join(' · ') : 'Todos os órgãos e exercícios do 52000 (sem filtros)'
+  const filtrosTextoHistExec = filtrosAtivosExec.length
+    ? filtrosAtivosExec.join(' · ') : 'sem filtros aplicados (todos os órgãos e exercícios)'
+  const filtrosDashExecEm = listarFiltros(FILTROS)
+  const filtrosTextoDashExecEm = filtrosDashExecEm.length
+    ? filtrosDashExecEm.join(' · ') : 'sem filtros aplicados (todos os exercícios)'
+  const filtrosTextoHistExecEm = filtrosAtivosExecEm.length
+    ? filtrosAtivosExecEm.join(' · ') : 'sem filtros aplicados (todos os exercícios)'
+
   // Montadas no clique, como as demais: as agregações só rodam quando alguém
   // exporta de fato, e a hora carimbada é a da exportação.
   const cargaPLOA = () => ({
@@ -642,7 +662,7 @@ export default function LoaApp() {
   const exportarPDF = async () => {
     if (gerandoPDF) return
     const folha = document.querySelector('.folha-pdf')
-    const titulo = aba === 'ploa-historico' ? 'Análise Histórico PLOA' : 'Análise PLOA'
+    const titulo = TITULO_PDF[aba] ?? 'Análise LOA'
     setGerandoPDF(true)
     try {
       await exportarFolhaPDF(folha, titulo)
@@ -652,8 +672,20 @@ export default function LoaApp() {
       setGerandoPDF(false)
     }
   }
-  // Só as subabas do PLOA têm folha A4 dedicada (ver FolhaPDF.jsx).
-  const ABAS_COM_PDF = new Set(['ploa-dashboard', 'ploa-historico'])
+  // Subabas com folha A4 dedicada (ver FolhaPDF.jsx / FolhaPDFExec.jsx): as duas
+  // do PLOA e as quatro subabas com gráficos da EXECUÇÃO LOA.
+  const ABAS_COM_PDF = new Set([
+    'ploa-dashboard', 'ploa-historico',
+    'exec-dashboard', 'exec-historico', 'exec-emendas-dashboard', 'exec-emendas-historico',
+  ])
+  const TITULO_PDF = {
+    'ploa-dashboard': 'Análise PLOA',
+    'ploa-historico': 'Análise Histórico PLOA',
+    'exec-dashboard': 'Análise Execução LOA',
+    'exec-historico': 'Análise Histórico LOA',
+    'exec-emendas-dashboard': 'Análise Emendas Execução LOA',
+    'exec-emendas-historico': 'Análise Histórico Emendas Execução LOA',
+  }
 
   // Abas que exportam o baralho inteiro (as demais exportam só por gráfico).
   const ABAS_COM_BARALHO = {
@@ -946,6 +978,7 @@ export default function LoaApp() {
             anos={execucao.anos ?? []}
             contexto={contextoExec}
             onExportarSlide={baixarSlideExec}
+            filtrosTexto={filtrosTextoDashExec}
           />
         )}
 
@@ -955,6 +988,7 @@ export default function LoaApp() {
             registrosTodasForcas={execSemAnoNemOrgao}
             contexto={contextoHistExec}
             onExportarSlide={baixarSlideHistExec}
+            filtrosTexto={filtrosTextoHistExec}
           />
         )}
 
@@ -964,6 +998,7 @@ export default function LoaApp() {
             contexto={contextoExecEm}
             anoTexto={anoTextoExecEm}
             onExportarSlide={baixarSlideEmExec}
+            filtrosTexto={filtrosTextoDashExecEm}
           />
         )}
 
@@ -981,6 +1016,7 @@ export default function LoaApp() {
             registrosTodasForcas={execEmSemAnoNemOrgao}
             contexto={contextoExecEmHist}
             onExportarSlide={baixarSlideEmHistExec}
+            filtrosTexto={filtrosTextoHistExecEm}
           />
         )}
       </main>
