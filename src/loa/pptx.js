@@ -2054,6 +2054,137 @@ export function exportarPPTXHistoricoExec(d) {
   baixarPacote(d, montarSlidesHistoricoExec(d), 'execucao loa historico')
 }
 
+// ==========================================================================
+// EMENDAS POR ESTADO — a subaba "Emendas LOA" em TABELAS (modelo do arquivo de
+// referência): emendas impositivas do Exército, por C Mil A → Estado →
+// modalidade. Um baralho de slides de tabela, sem gráficos.
+// ==========================================================================
+// Tabela com alinhamento por coluna (o `tabela()` genérico alinha só a 1ª à
+// esquerda; aqui OM/OBJETO/Parlamentar também vão à esquerda).
+function tabelaLivre({ id, x, y, w, larguras, aligns, cabecalho, linhas }) {
+  const grid = larguras.map((c) => `<a:gridCol w="${cm(c)}"/>`).join('')
+  const cab = `<a:tr h="${cm(0.5)}">` +
+    cabecalho.map((t, i) => celula(t, { algn: aligns[i], b: true, sz: 850, cor: FRACA })).join('') +
+    '</a:tr>'
+  const corpo = linhas.map((ln) =>
+    `<a:tr h="${cm(0.5)}">` +
+    ln.map((c, i) => {
+      const o = typeof c === 'object' && c !== null ? c : { t: c }
+      return celula(o.t == null ? '' : String(o.t), {
+        algn: o.algn || aligns[i], b: o.b, sz: o.sz || 850,
+        cor: o.cor || (i === 0 ? TINTA : TINTA_2), fundo: o.fundo,
+      })
+    }).join('') + '</a:tr>'
+  ).join('')
+  return (
+    `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="tabela"/>` +
+    '<p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/>' +
+    '</p:nvGraphicFramePr>' +
+    `<p:xfrm><a:off x="${cm(x)}" y="${cm(y)}"/><a:ext cx="${cm(w)}" cy="${cm(0.5)}"/></p:xfrm>` +
+    '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">' +
+    '<a:tbl><a:tblPr firstRow="1" bandRow="1"/>' +
+    `<a:tblGrid>${grid}</a:tblGrid>${cab}${corpo}</a:tbl>` +
+    '</a:graphicData></a:graphic></p:graphicFrame>'
+  )
+}
+
+const rsInt = (v) => (v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+const cortar = (s, n) => {
+  const t = String(s || '—').replace(/\s+/g, ' ').trim() || '—'
+  return t.length > n ? t.slice(0, n - 1) + '…' : t
+}
+
+function montarSlidesEmendasEstado(d) {
+  const agg = d.porEstado || { anos: [], grupos: [] }
+  const anosTxt = (agg.anos || []).join(', ')
+  const CY_TOP = 2.75, CY_BOT = 17.9
+  const H_ESTADO = 0.85, H_MOD = 0.6, H_CAB = 0.55, H_ROW = 0.55, GAP = 0.3
+  const larguras = [1.2, 6.6, 14.5, 3.7, 5.0]
+  const aligns = ['ctr', 'l', 'l', 'r', 'l']
+
+  const slides = []
+  const porCmila = new Map()
+  for (const g of agg.grupos) {
+    if (!porCmila.has(g.cmila)) porCmila.set(g.cmila, [])
+    porCmila.get(g.cmila).push(g)
+  }
+  if (!porCmila.size) {
+    return [slideCapaEmendas(`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''}`, d,
+      'Sem emendas impositivas do Exército para os filtros aplicados.')]
+  }
+
+  for (const [cmila, grupos] of porCmila) {
+    const titulo = `Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${grupos[0].cmilaNome} (${cmila})`
+    let corpo = [], y = CY_TOP, idc = 10
+    const flush = () => {
+      if (corpo.length) slides.push({ corpo: cabecalhoEmendas(titulo, d) + corpo.join('') })
+      corpo = []; y = CY_TOP; idc = 10
+    }
+    for (const g of grupos) {
+      if (y + H_ESTADO + H_MOD + H_CAB + H_ROW > CY_BOT) flush()
+      corpo.push(forma({
+        id: idc++, nome: 'Estado', x: 1.4, y, w: 31, h: H_ESTADO,
+        paragrafos: [{ runs: [{ t: `▸ ${g.ufNome}`, sz: 1300, b: true, cor: TINTA }] }],
+      }))
+      y += H_ESTADO
+      for (const t of g.tabelas) {
+        const linhas = [
+          ...t.linhas.map((l) => [String(l.ord), cortar(l.om, 42), cortar(l.objeto, 90), rsInt(l.valor), cortar(l.autor, 34)]),
+          ['', '', { t: 'TOTAL', b: true, algn: 'r' }, { t: rsInt(t.total), b: true }, ''],
+        ]
+        let i = 0, cont = 0
+        while (i < linhas.length) {
+          if (y + H_MOD + H_CAB + H_ROW > CY_BOT) flush()
+          const cap = Math.max(1, Math.floor((CY_BOT - y - H_MOD - H_CAB - GAP) / H_ROW))
+          const take = Math.min(cap, linhas.length - i)
+          const fatia = linhas.slice(i, i + take)
+          corpo.push(forma({
+            id: idc++, nome: 'Modalidade', x: 1.4, y, w: 31, h: H_MOD,
+            paragrafos: [{ runs: [{ t: t.rotulo + (cont ? ' (cont.)' : ''), sz: 1000, b: true, cor: ACENTO }] }],
+          }))
+          y += H_MOD
+          corpo.push(tabelaLivre({
+            id: idc++, x: 1.4, y, w: 31, larguras, aligns,
+            cabecalho: ['ORD', 'OM', 'OBJETO', 'VALOR (R$)', t.colAutor], linhas: fatia,
+          }))
+          y += H_CAB + fatia.length * H_ROW + GAP
+          i += take; cont++
+        }
+      }
+    }
+    flush()
+  }
+  return slides
+}
+
+// Cabeçalho comum das folhas de tabela: título (C Mil A) e a linha de recorte.
+function cabecalhoEmendas(titulo, d) {
+  return [
+    forma({ id: 2, nome: 'Faixa', x: 0, y: 0, w: 0.45, h: ALT, fundo: ACENTO }),
+    forma({
+      id: 3, nome: 'Título', x: 1.4, y: 0.85, w: 31, h: 1.2,
+      paragrafos: [{ runs: [{ t: titulo, sz: 2000, b: true, cor: TINTA }] }],
+    }),
+    forma({
+      id: 4, nome: 'Recorte', x: 1.4, y: 1.95, w: 31, h: 0.7,
+      paragrafos: [{ runs: [{ t: `${d.escopo} · ${d.recorte} · extraído em ${d.geradoEm}`, sz: 950, cor: FRACA }] }],
+    }),
+  ].join('')
+}
+
+function slideCapaEmendas(titulo, d, aviso) {
+  return {
+    corpo: cabecalhoEmendas(titulo, d) + forma({
+      id: 10, nome: 'Aviso', x: 1.4, y: 4, w: 31, h: 2,
+      paragrafos: [{ runs: [{ t: aviso, sz: 1400, cor: TINTA_2 }] }],
+    }),
+  }
+}
+
+export function exportarPPTXEmendasEstado(d) {
+  baixarPacote(d, montarSlidesEmendasEstado(d), 'emendas impositivas por estado')
+}
+
 // Um gráfico, um slide. `id` é o mesmo identificador usado na lista de painéis,
 // então o slide avulso sai idêntico ao do baralho. O prefixo do id diz de qual
 // das listas ele vem — é o que mantém as bases separadas sem precisar de um

@@ -1316,6 +1316,25 @@
 .loa-app .folha-pdf .matriz th.matriz-total, .loa-app .folha-pdf .matriz td.matriz-total { width: 15mm; }
 .loa-app .folha-pdf .matriz-celula { min-width: 0; }
 .loa-app .folha-pdf .matriz-seta { font-size: 0.5em; margin-right: 0.12em; }
+
+/* Emendas LOA — tabelas por estado (impositivas do Exército: C Mil A/UF/mod.) */
+.loa-app .folha-pdf .tab-estado {
+  margin: 3.5mm 0 1.5mm; font-size: 10pt; font-weight: 700; color: var(--tinta);
+}
+.loa-app .folha-pdf .tab-emendas-card { margin: 0 0 2.5mm; }
+.loa-app .folha-pdf .tab-emendas { width: 100%; table-layout: fixed; font-size: 7pt; }
+.loa-app .folha-pdf .tab-emendas th,
+.loa-app .folha-pdf .tab-emendas td {
+  padding: 0.6mm 1mm; vertical-align: top; text-align: left;
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.loa-app .folha-pdf .tab-emendas thead th { font-size: 6.4pt; letter-spacing: 0.02em; }
+.loa-app .folha-pdf .tab-emendas .c-ord { width: 8mm; text-align: center; }
+.loa-app .folha-pdf .tab-emendas .c-om { width: 34mm; }
+.loa-app .folha-pdf .tab-emendas .c-val { width: 22mm; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.loa-app .folha-pdf .tab-emendas .c-aut { width: 34mm; }
+.loa-app .folha-pdf .tab-emendas .tab-total td { font-weight: 700; border-top: 1.2px solid var(--tinta-2); }
+.loa-app .folha-pdf .pdf-vazio { font-size: 10pt; color: var(--tinta-2); margin: 6mm 0; }
 .loa-app .folha-pdf .matriz-sub { font-size: 5.8pt; }
 .loa-app .folha-pdf .matriz-trilho { margin-top: 0.4mm; height: 2px; }
 
