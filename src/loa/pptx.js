@@ -1840,11 +1840,227 @@ export function exportarPPTXHistoricoPLOA(d) {
   baixarPacote(d, montarSlidesHistoricoPLOA(d), 'historico do ploa por exercicio')
 }
 
+// ==========================================================================
+// EXECUÇÃO LOA — dotação (Dashboard LOA e Histórico LOA)
+// ==========================================================================
+// Base própria: a despesa por execução (Dotação Inicial × Autorizado), em
+// BILHÕES. Os painéis comparam Autorizado (barra) com a Dotação inicial (2ª
+// série cinza), reaproveitando os mesmos helpers de gráfico/tabela.
+const CINZA_INI = 'A9A9A2'
+const COR_FGRUPO_PPTX = { 1: AZUL, 3: LARANJA, 9: VIOLETA }
+const biv = (v) => (v || 0) / 1e9
+const biSeco = (v) => biv(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+// Painel de barras Autorizado × Dotação inicial (2 séries).
+function painelPar(id, titulo, sub, itens, { vertical = false, paginavel = false } = {}) {
+  const cats = itens.map((x) => x.rotulo)
+  const aut = itens.map((x) => x.valor || 0)
+  const ini = itens.map((x) => x.pl || 0)
+  const series = [
+    { nome: 'Autorizado', cor: AZUL, valores: aut.map(biv) },
+    { nome: 'Dotação inicial', cor: CINZA_INI, valores: ini.map(biv) },
+  ]
+  return {
+    id, titulo, sub, total: fmtBiTxt(aut.reduce((s, v) => s + v, 0)),
+    grafico: graficoBarras({ cats, series, vertical, legenda: true, formato: FMT_BI }),
+    planilha: planilha(cats, series),
+    ...(paginavel
+      ? { paginavel: { cats, series, construir: (c, s) => ({ grafico: graficoBarras({ cats: c, series: s, vertical, legenda: true, formato: FMT_BI }), planilha: planilha(c, s) }) } }
+      : {}),
+  }
+}
+
+function paineisExec(d) {
+  return [
+    painelPar('exec-rp', 'Por Identificador de Resultado Primário',
+      'Autorizado × dotação inicial, por RP', d.rps),
+    painelPar('exec-gnd', 'Valor por Grupo de Natureza da Despesa',
+      'Autorizado × dotação inicial, por GND', d.gnds),
+    painelPar('exec-uo', 'Valor por Unidade Orçamentária',
+      'Todas as UO do órgão 52000 · Autorizado × dotação inicial', d.uos, { paginavel: true }),
+    painelPar('exec-acao', 'Valor por Ação orçamentária',
+      'Autorizado × dotação inicial, por ação', d.acoes, { paginavel: true }),
+    painelPar('exec-forcas', 'Total por Força',
+      'Autorizado × dotação inicial, por Força · ignora o filtro de Órgão', d.forcas),
+    {
+      id: 'exec-iniaut', titulo: 'Dotação inicial vs. dotação autorizada',
+      sub: 'Por Força · ignora o filtro de Órgão',
+      total: fmtBiTxt(d.iniAut.reduce((s, a) => s + (a.aut || 0), 0)),
+      grafico: graficoBarras({
+        cats: d.iniAut.map((a) => a.rotulo), vertical: true, legenda: true, formato: FMT_BI,
+        series: [
+          { nome: 'Dotação inicial', cor: CINZA_INI, valores: d.iniAut.map((a) => biv(a.ini)) },
+          { nome: 'Autorizado', cor: AZUL, valores: d.iniAut.map((a) => biv(a.aut)) },
+        ],
+      }),
+      planilha: planilha(d.iniAut.map((a) => a.rotulo), [
+        { nome: 'Dotação inicial', valores: d.iniAut.map((a) => biv(a.ini)) },
+        { nome: 'Autorizado', valores: d.iniAut.map((a) => biv(a.aut)) },
+      ]),
+    },
+    painelPar('exec-fonte', 'Valor por Fonte (Cod/Desc)',
+      'Autorizado × dotação inicial, por fonte', d.fontes, { paginavel: true }),
+  ]
+}
+
+function slideCardsExec(d) {
+  const aut = fmtCompacto(d.totais.aut)
+  const ini = fmtCompacto(d.totais.ini)
+  const cont = fmtCompacto(d.totais.cont)
+  const varr = fmtCompacto(Math.abs(d.totais.variacao))
+  const sinal = d.totais.variacao >= 0 ? '+' : '−'
+  const corpo = [
+    forma({ id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
+      paragrafos: [{ runs: [{ t: 'Visão geral', sz: 2400, b: true, cor: TINTA }] }] }),
+    forma({ id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1,
+      paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }] }),
+    cartao(4, { x: 1.6, y: 4.2, w: 15.2, h: 12.4, algn: 'ctr', sz: 5400,
+      rotulo: 'Dotação autorizada', valor: `R$ ${aut.valor} ${aut.unidade}`.trim(),
+      nota: `${fmtBiTxt(d.totais.aut)} · ${fmtInt(d.qtdDotacoes)} dotações` }),
+    cartao(5, { x: 17.6, y: 4.2, w: 14.6, h: 3.8, algn: 'l',
+      rotulo: 'Dotação inicial', valor: `R$ ${ini.valor} ${ini.unidade}`.trim(),
+      nota: 'Dotação inicial da LOA' }),
+    cartao(6, { x: 17.6, y: 8.5, w: 14.6, h: 3.8, algn: 'l',
+      rotulo: 'Contenção de gastos', valor: `R$ ${cont.valor} ${cont.unidade}`.trim(),
+      nota: 'Total em contenção de gastos' }),
+    cartao(7, { x: 17.6, y: 12.8, w: 14.6, h: 3.8, algn: 'l',
+      rotulo: 'Variação das dotações', valor: `${sinal} R$ ${varr.valor} ${varr.unidade}`.trim(),
+      nota: 'Autorizado − inicial' }),
+    forma({ id: 8, nome: 'Fonte', x: 1.6, y: 17.1, w: 30.6, h: 1,
+      paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }] }),
+  ].join('')
+  return { corpo }
+}
+
+// -------- Histórico LOA (dotação por exercício) --------
+function matrizExec(id, titulo, sub, rotuloColuna, anos, series) {
+  const cab = [rotuloColuna, ...anos, 'Total']
+  const linhas = series.map((s) => [
+    s.rotulo, ...s.valores.map((v) => biSeco(v)), { t: biSeco(s.total), b: true },
+  ])
+  return {
+    id, titulo, sub, total: fmtBiTxt(series.reduce((a, s) => a + s.total, 0)),
+    tabela: { larguras: larguraTabela(cab.length), cabecalho: cab, linhas },
+  }
+}
+
+function colunasExec(id, titulo, sub, anos, series, opts = {}) {
+  const total = series.reduce((a, s) => a + (s.total ?? s.valores.reduce((x, v) => x + v, 0)), 0)
+  return {
+    id, titulo, sub, total: fmtBiTxt(total),
+    grafico: graficoBarras({
+      cats: anos, vertical: true, formato: FMT_BI, legenda: series.length > 1,
+      empilhado: opts.empilhado, proporcao: opts.proporcao, tendencia: opts.tendencia,
+      series: series.map((s) => ({ nome: s.rotulo, cor: s.cor, valores: s.valores.map(biv) })),
+    }),
+    planilha: planilha(anos, series.map((s) => ({ nome: s.rotulo, valores: s.valores.map(biv) }))),
+  }
+}
+
+function paineisHistoricoExec(d) {
+  const anos = d.anos
+  const corGnd = (s) => ({ ...s, cor: COR_GND_PPTX[s.chave] || AZUL })
+  const corRp = (s) => ({ ...s, cor: corSolida(corDoRP(s.chave)) })
+  const corForca = (s) => ({ ...s, cor: COR_AGREGADO[s.chave] || FRACA })
+  const corFg = (s) => ({ ...s, cor: COR_FGRUPO_PPTX[s.chave] || AQUA })
+  return [
+    colunasExec('hexec-total', 'Lei Orçamentária Anual por exercício',
+      'Somatório da dotação autorizada em cada exercício', anos,
+      [{ rotulo: 'Autorizado', cor: AZUL, valores: d.serieValor }], { tendencia: true }),
+    colunasExec('hexec-gnd', 'Composição por GND',
+      'Participação de cada GND no autorizado', anos, d.gnd.series.map(corGnd), { empilhado: true }),
+    matrizExec('hexec-uo', 'Unidades orçamentárias por exercício',
+      'Dotação autorizada · R$ bilhões', 'Unidade orçamentária', anos, d.uo.series),
+    colunasExec('hexec-rp', 'Composição por RP',
+      'Participação de cada RP no autorizado', anos, d.rp.series.map(corRp), { proporcao: true }),
+    {
+      id: 'hexec-iniaut', titulo: 'Dotação inicial vs. dotação autorizada por exercício',
+      sub: 'Dotação inicial × autorizado em cada exercício',
+      total: fmtBiTxt(d.serieValor.reduce((a, v) => a + v, 0)),
+      grafico: graficoBarras({
+        cats: anos, vertical: true, legenda: true, formato: FMT_BI,
+        series: [
+          { nome: 'Dotação inicial', cor: CINZA_INI, valores: d.serieIni.map(biv) },
+          { nome: 'Autorizado', cor: AZUL, valores: d.serieValor.map(biv) },
+        ],
+      }),
+      planilha: planilha(anos, [
+        { nome: 'Dotação inicial', valores: d.serieIni.map(biv) },
+        { nome: 'Autorizado', valores: d.serieValor.map(biv) },
+      ]),
+    },
+    matrizExec('hexec-acao', 'Ações orçamentárias por exercício',
+      'Dotação autorizada · R$ bilhões', 'Ação orçamentária', anos, d.acao.series),
+    colunasExec('hexec-forca', 'Por Força, ao longo dos exercícios',
+      'Dotação autorizada por Força · ignora o filtro de Órgão', anos, d.forca.series.map(corForca)),
+    colunasExec('hexec-fgrupo', 'Por Fonte Grupo (Cod/Desc)',
+      'Composição do autorizado por grupo de fonte', anos, d.fgrupo.series.map(corFg), { empilhado: true }),
+  ]
+}
+
+function slideAnosExec(d) {
+  const n = d.anos.length
+  const colunas = n <= 5 ? n : Math.ceil(n / 2)
+  const fileiras = Math.ceil(n / colunas)
+  const larg = Math.min(9.6, (31 - 0.6 * (colunas - 1)) / colunas)
+  const alt = fileiras === 1 ? 8.6 : 5.6
+  const apertado = larg < 6
+  const cartoes = d.anos.map((ano, i) => {
+    const c = fmtCompacto(d.serieValor[i])
+    const varia = i === 0
+      ? 'primeiro exercício da série'
+      : `${d.serieValor[i] >= d.serieValor[i - 1] ? '▲' : '▼'} ${fmtPct(
+          Math.abs(((d.serieValor[i] - d.serieValor[i - 1]) / (d.serieValor[i - 1] || 1)) * 100))} vs. ano anterior`
+    const saldo = d.serieValor[i] - d.serieIni[i]
+    const s = fmtCompacto(Math.abs(saldo))
+    const col = i % colunas
+    const fil = Math.floor(i / colunas)
+    return forma({
+      id: 10 + i, nome: `Ano ${ano}`,
+      x: 1.4 + col * (larg + 0.6), y: 4.6 + fil * (alt + 0.6), w: larg, h: alt,
+      fundo: CARTAO, borda: BORDA, raio: 4200, ancora: 'ctr', recuo: apertado ? 0.35 : 0.5,
+      paragrafos: [
+        { runs: [{ t: ano, sz: 1000, b: true, cor: FRACA, spc: 120 }] },
+        { antes: 200, runs: [{ t: `R$ ${c.valor} ${c.unidade}`.trim(), sz: apertado ? 1700 : 2200, b: true, cor: TINTA }] },
+        { antes: 200, runs: [{ t: varia, sz: apertado ? 800 : 950, b: true, cor: TINTA_2 }] },
+        { antes: 220, runs: [{ t: `Inicial ${fmtBiTxt(d.serieIni[i])}`, sz: apertado ? 800 : 950, cor: TINTA_2 }] },
+        { antes: 100, runs: [{ t: `Saldo ${saldo >= 0 ? '+' : '−'} R$ ${s.valor} ${s.unidade}`.trim() + ` · ${fmtInt(d.serieDot[i])} dotações`, sz: apertado ? 800 : 950, cor: TINTA_2 }] },
+      ],
+    })
+  })
+  const corpo = [
+    forma({ id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
+      paragrafos: [{ runs: [{ t: 'Comparativo por exercício', sz: 2400, b: true, cor: TINTA }] }] }),
+    forma({ id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1.4,
+      paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }] }),
+    ...cartoes,
+    forma({ id: 40, nome: 'Fonte', x: 1.6, y: 17.1, w: 30.6, h: 1,
+      paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }] }),
+  ].join('')
+  return { corpo }
+}
+
+function montarSlidesExec(d) {
+  return [slideCapa(d), slideCardsExec(d), ...paineisExec(d).flatMap((o) => slideGrafico(d, o))]
+}
+function montarSlidesHistoricoExec(d) {
+  return [slideCapa(d), slideAnosExec(d), ...paineisHistoricoExec(d).flatMap((o) => slideGrafico(d, o))]
+}
+
+export function exportarPPTXExec(d) {
+  baixarPacote(d, montarSlidesExec(d), 'execucao loa dashboard')
+}
+export function exportarPPTXHistoricoExec(d) {
+  baixarPacote(d, montarSlidesHistoricoExec(d), 'execucao loa historico')
+}
+
 // Um gráfico, um slide. `id` é o mesmo identificador usado na lista de painéis,
 // então o slide avulso sai idêntico ao do baralho. O prefixo do id diz de qual
-// das quatro listas ele vem — é o que mantém as duas bases separadas sem
-// precisar de um parâmetro extra em cada botão da tela.
+// das listas ele vem — é o que mantém as bases separadas sem precisar de um
+// parâmetro extra em cada botão da tela.
 const LISTAS_DE_PAINEIS = [
+  ['hexec-', paineisHistoricoExec],
+  ['exec-', paineisExec],
   ['hploa-', paineisHistoricoPLOA],
   ['ploa-', paineisPLOA],
   ['hist-', paineisHistorico],

@@ -4,6 +4,7 @@ import {
   fmtBRL, fmtCompacto, fmtInt, fmtMilhoes, fmtPct,
 } from '../dados.js'
 import BotaoPNG from './BotaoPNG.jsx'
+import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoPizza from './GraficoPizza.jsx'
 import GraficoBarras from './GraficoBarras.jsx'
 import GraficoBarrasSimples from './GraficoBarrasSimples.jsx'
@@ -13,7 +14,7 @@ import GraficoPartidos from './GraficoPartidos.jsx'
 // da seção RESULTADO LEXOR, mas sobre as EMENDAS DA EXECUÇÃO (valor = Autorizado).
 // Reaproveita as agregações de dados.js — os registros têm o mesmo formato das
 // emendas apresentadas. Exportação por PNG (sem PPTX nesta etapa).
-export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto }) {
+export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto, onExportarSlide }) {
   const stats = useMemo(() => resumo(registros), [registros])
   const porRP = useMemo(() => valorPorRP(registros), [registros])
   const impositivas = useMemo(() => valorImpositivas(registros), [registros])
@@ -76,6 +77,7 @@ export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto 
               <p className="painel-sub">Valor autorizado por identificador de resultado primário (RP)</p>
             </div>
             <span className="painel-total">{fmtMilhoes(stats.valorTotal)}</span>
+            <BotaoPPTX titulo="Emendas parlamentares — autorizado" onExportar={() => onExportarSlide('rp')} />
             <BotaoPNG titulo="Emendas parlamentares — autorizado" contexto={contexto} />
           </div>
           <GraficoPizza dados={porRP} total={stats.valorTotal} />
@@ -88,6 +90,7 @@ export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto 
               <p className="painel-sub">RP6 por tipo de autor · RP7 por bancada</p>
             </div>
             <span className="painel-total">{fmtMilhoes(totalImpositivas)}</span>
+            <BotaoPPTX titulo="Emendas impositivas" onExportar={() => onExportarSlide('impositivas')} />
             <BotaoPNG titulo="Emendas impositivas" contexto={contexto} />
           </div>
           <GraficoPizza dados={impositivas} total={totalImpositivas} />
@@ -100,6 +103,7 @@ export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto 
               <p className="painel-sub">Somente UO do Exército (Comando do Exército, IMBEL e Fundo do Exército)</p>
             </div>
             <span className="painel-total">{fmtMilhoes(totalCMilA)}</span>
+            <BotaoPPTX titulo="Impositivas por C Mil A" onExportar={() => onExportarSlide('cmila')} />
             <BotaoPNG titulo="Impositivas por C Mil A" contexto={contexto} />
           </div>
           <GraficoBarras dados={impCMilA} />
@@ -115,6 +119,7 @@ export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto 
               {fmtMilhoes(totalAutores)}
               <span className="painel-total-nota"> ({fmtPct(pctAutoresRP6)} do RP6)</span>
             </span>
+            <BotaoPPTX titulo="10 maiores autores" onExportar={() => onExportarSlide('autores')} />
             <BotaoPNG titulo="10 maiores autores" contexto={contexto} />
           </div>
           <GraficoBarrasSimples dados={autoresTop} />
@@ -127,6 +132,7 @@ export default function AbaDashboardEmendasExec({ registros, contexto, anoTexto 
               <p className="painel-sub">Exclui comissões e bancadas (sem partido)</p>
             </div>
             <span className="painel-total">{fmtMilhoes(totalPartidos)}</span>
+            <BotaoPPTX titulo="Emendas por partido" onExportar={() => onExportarSlide('partidos')} />
             <BotaoPNG titulo="Emendas por partido" contexto={contexto} />
           </div>
           <GraficoPartidos dados={partidos} />

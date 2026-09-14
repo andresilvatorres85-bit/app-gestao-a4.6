@@ -5,6 +5,7 @@ import {
   somaTotais, porRP, porGND, porUO, acoesOrdenadas, porForca, iniVsAutorizado, porFonte,
 } from '../execucao.js'
 import BotaoPNG from './BotaoPNG.jsx'
+import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoBarrasExec from './GraficoBarrasExec.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
 
@@ -13,7 +14,7 @@ import GraficoColunasAno from './GraficoColunasAno.jsx'
 // dotações já filtradas; `registrosTodasForcas` é o mesmo recorte SEM o filtro
 // de Órgão — os painéis que comparam Forças precisam das quatro, não de uma só.
 export default function AbaExecucao({
-  registros, registrosTodasForcas, anos, contexto,
+  registros, registrosTodasForcas, anos, contexto, onExportarSlide,
 }) {
   const todasForcas = registrosTodasForcas ?? registros
   const totais = useMemo(() => somaTotais(registros), [registros])
@@ -122,6 +123,7 @@ export default function AbaExecucao({
               <p className="painel-sub">Autorizado por RP · barra = autorizado, traço = dotação inicial</p>
             </div>
             <span className="painel-total">{fmtBi(totalAut)}</span>
+            <BotaoPPTX titulo="Por Identificador de Resultado Primário" onExportar={() => onExportarSlide('exec-rp')} />
             <BotaoPNG titulo="Por Identificador de Resultado Primário" contexto={contexto} />
           </div>
           <GraficoBarrasExec
@@ -138,6 +140,7 @@ export default function AbaExecucao({
               <p className="painel-sub">Composição por GND · barra = autorizado, traço = dotação inicial</p>
             </div>
             <span className="painel-total">{fmtBi(totalAut)}</span>
+            <BotaoPPTX titulo="Valor por Grupo de Natureza da Despesa" onExportar={() => onExportarSlide('exec-gnd')} />
             <BotaoPNG titulo="Valor por Grupo de Natureza da Despesa" contexto={contexto} />
           </div>
           <GraficoBarrasExec
@@ -158,6 +161,7 @@ export default function AbaExecucao({
               <p className="painel-sub">Todas as UO do órgão 52000 · barra = autorizado, traço = dotação inicial</p>
             </div>
             <span className="painel-total">{fmtBi(totalAut)}</span>
+            <BotaoPPTX titulo="Valor por Unidade Orçamentária" onExportar={() => onExportarSlide('exec-uo')} />
             <BotaoPNG titulo="Valor por Unidade Orçamentária" contexto={contexto} />
           </div>
           <GraficoBarrasExec
@@ -182,6 +186,7 @@ export default function AbaExecucao({
               </p>
             </div>
             <span className="painel-total">{fmtBi(totalAut)}</span>
+            <BotaoPPTX titulo="Valor por Ação orçamentária" onExportar={() => onExportarSlide('exec-acao')} />
             <BotaoPNG titulo="Valor por Ação orçamentária" contexto={contexto} />
           </div>
           <GraficoBarrasExec
@@ -208,6 +213,7 @@ export default function AbaExecucao({
               </p>
             </div>
             <span className="painel-total">{fmtBi(totalAutForcas)}</span>
+            <BotaoPPTX titulo="Total por Força" onExportar={() => onExportarSlide('exec-forcas')} />
             <BotaoPNG titulo="Total por Força" contexto={contexto} />
           </div>
           <GraficoBarrasExec
@@ -232,6 +238,7 @@ export default function AbaExecucao({
             <span className="painel-total">
               {`${deltaForcas >= 0 ? '+' : '−'} ${fmtBi(Math.abs(deltaForcas))}`}
             </span>
+            <BotaoPPTX titulo="Dotação inicial vs. dotação autorizada" onExportar={() => onExportarSlide('exec-iniaut')} />
             <BotaoPNG titulo="Dotação inicial vs. dotação autorizada" contexto={contexto} />
           </div>
           <div className="rolagem-x">
@@ -284,6 +291,7 @@ export default function AbaExecucao({
               </p>
             </div>
             <span className="painel-total">{fmtBi(totalAut)}</span>
+            <BotaoPPTX titulo="Valor por Fonte" onExportar={() => onExportarSlide('exec-fonte')} />
             <BotaoPNG titulo="Valor por Fonte" contexto={contexto} />
           </div>
           <GraficoBarrasExec

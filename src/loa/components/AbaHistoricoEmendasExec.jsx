@@ -5,6 +5,7 @@ import {
   fmtBRL, fmtCompacto, fmtInt, fmtMilhoes, fmtPct,
 } from '../dados.js'
 import BotaoPNG from './BotaoPNG.jsx'
+import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
 import MatrizAnos from './MatrizAnos.jsx'
 
@@ -23,7 +24,7 @@ function Variacao({ pct }) {
   )
 }
 
-export default function AbaHistoricoEmendasExec({ registros, registrosTodasForcas, contexto }) {
+export default function AbaHistoricoEmendasExec({ registros, registrosTodasForcas, contexto, onExportarSlide }) {
   const anosResumo = useMemo(() => resumoPorAno(registros), [registros])
   const rp = useMemo(() => rpPorAno(registros), [registros])
   const modalidade = useMemo(() => modalidadePorAno(registros), [registros])
@@ -96,6 +97,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
               <p className="painel-sub">Total autorizado das emendas em cada exercício</p>
             </div>
             <span className="painel-total">{fmtMilhoes(totalPeriodo)}</span>
+            <BotaoPPTX titulo="Valor autorizado por ano" onExportar={() => onExportarSlide('hist-valor')} />
             <BotaoPNG titulo="Valor autorizado por ano" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -116,6 +118,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
               </p>
             </div>
             <span className="painel-total">{fmtInt(emendasPeriodo)} emendas</span>
+            <BotaoPPTX titulo="Emendas e parlamentares por ano" onExportar={() => onExportarSlide('hist-contagem')} />
             <BotaoPNG titulo="Emendas e parlamentares por ano" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -138,6 +141,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
             <span className="painel-total">
               {fmtMilhoes(anosResumo.reduce((s, a) => s + a.impositivo, 0))}
             </span>
+            <BotaoPPTX titulo="Emendas impositivas por ano" onExportar={() => onExportarSlide('hist-impositivas')} />
             <BotaoPNG titulo="Emendas impositivas por ano" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -157,6 +161,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
               <h2>Composição por RP</h2>
               <p className="painel-sub">Participação de cada identificador de resultado primário no ano</p>
             </div>
+            <BotaoPPTX titulo="Composição por RP" onExportar={() => onExportarSlide('hist-rp')} />
             <BotaoPNG titulo="Composição por RP" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -175,6 +180,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
               <h2>Composição por modalidade</h2>
               <p className="painel-sub">Individual, bancada estadual e comissão — participação no ano</p>
             </div>
+            <BotaoPPTX titulo="Composição por modalidade" onExportar={() => onExportarSlide('hist-modalidade')} />
             <BotaoPNG titulo="Composição por modalidade" contexto={contexto} />
           </div>
           <GraficoColunasAno
@@ -195,6 +201,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
                 Valor autorizado por Força, consolidando as UO de cada uma · ignora o filtro de Órgão
               </p>
             </div>
+            <BotaoPPTX titulo="Histórico por Força" onExportar={() => onExportarSlide('hist-forca')} />
             <BotaoPNG titulo="Histórico por Força" contexto={contexto} />
           </div>
           <MatrizAnos anos={forca.anos} linhas={forca.series} formatar={fmtMilhoes} rotuloColuna="Força" />
@@ -206,6 +213,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
               <h2>Impositivas por C Mil A</h2>
               <p className="painel-sub">RP6 + RP7 nas UO do Exército, por Comando Militar de Área</p>
             </div>
+            <BotaoPPTX titulo="Histórico das impositivas por C Mil A" onExportar={() => onExportarSlide('hist-cmila')} />
             <BotaoPNG titulo="Histórico das impositivas por C Mil A" contexto={contexto} />
           </div>
           <MatrizAnos
@@ -223,6 +231,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
               <h2>Partidos por ano</h2>
               <p className="painel-sub">12 maiores no período · exclui comissões e bancadas</p>
             </div>
+            <BotaoPPTX titulo="Histórico por partido" onExportar={() => onExportarSlide('hist-partidos')} />
             <BotaoPNG titulo="Histórico por partido" contexto={contexto} />
           </div>
           <MatrizAnos anos={partidos.anos} linhas={partidos.series} formatar={fmtMilhoes} rotuloColuna="Partido" />
@@ -236,6 +245,7 @@ export default function AbaHistoricoEmendasExec({ registros, registrosTodasForca
                 Parlamentares ordenados por número de exercícios com emenda e, em seguida, por valor
               </p>
             </div>
+            <BotaoPPTX titulo="Autores recorrentes" onExportar={() => onExportarSlide('hist-autores')} />
             <BotaoPNG titulo="Autores recorrentes" contexto={contexto} />
           </div>
           <MatrizAnos
