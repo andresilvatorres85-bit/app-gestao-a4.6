@@ -18,6 +18,10 @@ import GraficoPizza from './GraficoPizza.jsx'
 import GraficoBarras from './GraficoBarras.jsx'
 import GraficoBarrasSimples from './GraficoBarrasSimples.jsx'
 import GraficoPartidos from './GraficoPartidos.jsx'
+import { Fragment } from 'react'
+import { emendasImpositivasPorEstado } from '../emendasEstado.js'
+
+const rsInt = (v) => (v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
 
 // ==========================================================================
 // Folhas A4 (retrato) para o "Exportar PDF" das quatro subabas com gráficos da
@@ -566,6 +570,87 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
             vazio="Sem parlamentares (Deputado/Senador) para os filtros aplicados." />
         </CardPDF>
       </div>
+    </>
+  )
+}
+
+// ============================================ Emendas LOA — tabelas por estado
+// Modelo do arquivo de referência: impositivas do Exército (RP6+RP7), por
+// C Mil A → Estado → modalidade. Uma página por C Mil A; tabelas longas quebram
+// linha a linha (pdf.js pagina `table.matriz tbody`).
+export function FolhaEmendasEstado({ registros, filtrosTexto }) {
+  const agg = emendasImpositivasPorEstado(registros)
+  const anosTxt = agg.anos.join(', ')
+
+  if (!agg.grupos.length) {
+    return (
+      <div className="pdf-pagina">
+        <Cabeca titulo={`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''}`} valor={filtrosTexto} />
+        <p className="pdf-vazio">Sem emendas impositivas do Exército para os filtros aplicados.</p>
+      </div>
+    )
+  }
+
+  // Agrupa por C Mil A (cada comando abre uma página nova).
+  const porCmila = []
+  for (const g of agg.grupos) {
+    const ult = porCmila[porCmila.length - 1]
+    if (ult && ult.cmila === g.cmila) ult.grupos.push(g)
+    else porCmila.push({ cmila: g.cmila, cmilaNome: g.cmilaNome, grupos: [g] })
+  }
+
+  return (
+    <>
+      {porCmila.map((bloco, bi) => (
+        <div className={`pdf-pagina${bi > 0 ? ' pdf-pagina-nova' : ''}`} key={bloco.cmila}>
+          <Cabeca
+            titulo={`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${bloco.cmilaNome} (${bloco.cmila})`}
+            valor={filtrosTexto}
+            sec="Emendas impositivas do Exército (RP 6 individual e RP 7 de bancada) · valor = autorizado" />
+          {bloco.grupos.map((g) => (
+            <Fragment key={g.uf}>
+              <h3 className="tab-estado">▸ {g.ufNome}</h3>
+              {g.tabelas.map((t) => (
+                <section className="pdf-card pdf-card-fluido tab-emendas-card" key={t.rp}>
+                  <div className="pdf-card-cab">
+                    <div className="pdf-card-txt"><h2>{t.rotulo}</h2></div>
+                    <span className="pdf-card-total">Total R$ {rsInt(t.total)}</span>
+                  </div>
+                  <table className="matriz tab-emendas">
+                    <thead>
+                      <tr>
+                        <th className="c-ord">ORD</th>
+                        <th className="c-om">OM</th>
+                        <th className="c-obj">OBJETO</th>
+                        <th className="c-val">VALOR (R$)</th>
+                        <th className="c-aut">{t.colAutor}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {t.linhas.map((l) => (
+                        <tr key={l.ord}>
+                          <td className="c-ord">{l.ord}</td>
+                          <td className="c-om">{l.om || '—'}</td>
+                          <td className="c-obj">{l.objeto || '—'}</td>
+                          <td className="c-val">{rsInt(l.valor)}</td>
+                          <td className="c-aut">{l.autor}</td>
+                        </tr>
+                      ))}
+                      <tr className="tab-total">
+                        <td className="c-ord" />
+                        <td className="c-om" />
+                        <td className="c-obj">TOTAL</td>
+                        <td className="c-val">{rsInt(t.total)}</td>
+                        <td className="c-aut" />
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      ))}
     </>
   )
 }

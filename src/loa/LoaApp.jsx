@@ -34,8 +34,9 @@ import { useUrlState } from './useUrlState.js'
 import {
   exportarPPTX, exportarPPTXHistorico, exportarSlidePPTX,
   exportarPPTXPLOA, exportarPPTXHistoricoPLOA,
-  exportarPPTXExec, exportarPPTXHistoricoExec,
+  exportarPPTXExec, exportarPPTXHistoricoExec, exportarPPTXEmendasEstado,
 } from './pptx.js'
+import { emendasImpositivasPorEstado } from './emendasEstado.js'
 import { exportarFolhaPDF } from './pdf.js'
 import MultiSelect from './components/MultiSelect.jsx'
 import BotaoPNG from './components/BotaoPNG.jsx'
@@ -655,6 +656,19 @@ export default function LoaApp() {
   const baixarPPTXEmHistExec = () => exportarPPTXHistorico(cargaEmHistExec())
   const baixarSlideEmHistExec = (id) => exportarSlidePPTX(cargaEmHistExec(), id)
 
+  // "Emendas LOA" em tabelas por estado (modelo do arquivo de referência):
+  // impositivas do Exército por C Mil A → Estado → modalidade (ver pptx.js /
+  // emendasEstado.js). Um baralho de tabelas, sem gráficos.
+  const cargaEmendasEstado = () => ({
+    titulo: 'EMENDAS IMPOSITIVAS POR ESTADO',
+    escopo: escopoExec,
+    recorte: recorteExecEm,
+    geradoEm: new Date().toLocaleString('pt-BR'),
+    fonte: dados.fonte,
+    porEstado: emendasImpositivasPorEstado(execEmFiltrados),
+  })
+  const baixarPPTXEmendasEstado = () => exportarPPTXEmendasEstado(cargaEmendasEstado())
+
   // "Exportar PDF": gera o arquivo DIRETO (sem abrir o diálogo de impressão) a
   // partir da folha A4 da subaba em tela — ver pdf.js. Sem window.print(), o
   // navegador não injeta cabeçalho/endereço/data no papel; o rodapé com a data e
@@ -677,6 +691,7 @@ export default function LoaApp() {
   const ABAS_COM_PDF = new Set([
     'ploa-dashboard', 'ploa-historico',
     'exec-dashboard', 'exec-historico', 'exec-emendas-dashboard', 'exec-emendas-historico',
+    'exec-emendas',
   ])
   const TITULO_PDF = {
     'ploa-dashboard': 'Análise PLOA',
@@ -685,6 +700,7 @@ export default function LoaApp() {
     'exec-historico': 'Análise Histórico LOA',
     'exec-emendas-dashboard': 'Análise Emendas Execução LOA',
     'exec-emendas-historico': 'Análise Histórico Emendas Execução LOA',
+    'exec-emendas': 'Emendas Impositivas por Estado',
   }
 
   // Abas que exportam o baralho inteiro (as demais exportam só por gráfico).
@@ -697,6 +713,7 @@ export default function LoaApp() {
     'exec-historico': { acao: baixarPPTXHistExec, dica: 'Baixar o Histórico LOA em PowerPoint editável com os filtros atuais' },
     'exec-emendas-dashboard': { acao: baixarPPTXEmExec, dica: 'Baixar o Dashboard Emendas em PowerPoint editável com os filtros atuais' },
     'exec-emendas-historico': { acao: baixarPPTXEmHistExec, dica: 'Baixar o Histórico Emendas em PowerPoint editável com os filtros atuais' },
+    'exec-emendas': { acao: baixarPPTXEmendasEstado, dica: 'Baixar as emendas impositivas do Exército em tabelas por estado (C Mil A → UF)' },
   }
 
   // Filtros exibidos na barra: só os que existem na base da seção ativa (ver
@@ -1007,6 +1024,7 @@ export default function LoaApp() {
             registros={execEmFiltrados}
             detalhe={detalhe}
             abrirDetalhe={abrirDetalhe}
+            filtrosTexto={filtrosTextoDashExecEm}
           />
         )}
 
