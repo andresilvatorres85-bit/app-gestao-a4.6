@@ -1304,6 +1304,13 @@
 .loa-app .folha-pdf .pbar-codigo { font-size: 7.4pt; }
 .loa-app .folha-pdf .pbar-trilho { height: 6px; }
 
+/* Pizza (RP / impositivas) no papel: força a coluna (svg em cima, legenda
+   embaixo) e um tamanho de rosca compatível com o card de meia página — sem
+   isso a media query de tela deixa o svg em linha com a legenda e ele encolhe. */
+.loa-app .folha-pdf .pizza { flex-direction: column; gap: 3mm; }
+.loa-app .folha-pdf .pizza svg { width: 100%; max-width: 92mm; height: auto; }
+.loa-app .folha-pdf .pizza-legenda { max-width: 92mm; }
+
 /* MATRIZ no papel: todas as colunas de ano precisam caber na largura A4 — na
    tela a tabela rola na horizontal, mas no papel a rolagem seria um corte.
    `table-layout: fixed` + colunas estreitas fazem os 8 exercícios + total
@@ -1318,11 +1325,22 @@
 .loa-app .folha-pdf .matriz-seta { font-size: 0.5em; margin-right: 0.12em; }
 
 /* Emendas LOA — tabelas por estado (impositivas do Exército: C Mil A/UF/mod.) */
-.loa-app .folha-pdf .tab-estado {
-  margin: 3.5mm 0 1.5mm; font-size: 10pt; font-weight: 700; color: var(--tinta);
+/* O card é só um contêiner de paginação: sem moldura, para o cabeçalho-corrente
+   (título do comando) e a tabela saírem "soltos" na folha. */
+.loa-app .folha-pdf .tab-emendas-card {
+  margin: 0; padding: 0; border: none; background: transparent;
 }
-.loa-app .folha-pdf .tab-emendas-card { margin: 0 0 2.5mm; }
+.loa-app .folha-pdf .tab-emendas-card .pdf-cabeca { margin: 0 0 2.5mm; }
 .loa-app .folha-pdf .tab-emendas { width: 100%; table-layout: fixed; font-size: 7pt; }
+/* Linhas de seção da tabela: estado (UF) e modalidade (RP6/RP7). */
+.loa-app .folha-pdf .tab-emendas .tab-sec td {
+  font-size: 8.5pt; font-weight: 700; color: var(--tinta);
+  padding-top: 2mm; border-bottom: 1px solid var(--tinta-2);
+}
+.loa-app .folha-pdf .tab-emendas .tab-mod td {
+  font-weight: 700; color: var(--acento);
+  background: color-mix(in oklab, var(--acento) 8%, transparent);
+}
 .loa-app .folha-pdf .tab-emendas th,
 .loa-app .folha-pdf .tab-emendas td {
   padding: 0.6mm 1mm; vertical-align: top; text-align: left;
@@ -1335,6 +1353,13 @@
 .loa-app .folha-pdf .tab-emendas .c-aut { width: 34mm; }
 .loa-app .folha-pdf .tab-emendas .tab-total td { font-weight: 700; border-top: 1.2px solid var(--tinta-2); }
 .loa-app .folha-pdf .pdf-vazio { font-size: 10pt; color: var(--tinta-2); margin: 6mm 0; }
+
+/* Inconsistências: mesma base de tabela, colunas próprias (Emenda/Autor/UO/Regra/Valor) */
+.loa-app .folha-pdf .tab-incons .c-ord { width: 20mm; text-align: left; }
+.loa-app .folha-pdf .tab-incons .c-aut { width: 38mm; }
+.loa-app .folha-pdf .tab-incons .c-om { width: auto; }
+.loa-app .folha-pdf .tab-incons .c-obj { width: 42mm; }
+.loa-app .folha-pdf .tab-incons .c-val { width: 28mm; }
 .loa-app .folha-pdf .matriz-sub { font-size: 5.8pt; }
 .loa-app .folha-pdf .matriz-trilho { margin-top: 0.4mm; height: 2px; }
 
