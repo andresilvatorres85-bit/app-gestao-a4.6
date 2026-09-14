@@ -242,7 +242,13 @@ export async function exportarFolhaPDF(folha, titulo) {
   const palco = document.createElement('div')
   palco.className = 'folha-pdf folha-render'
   palco.style.cssText = `position:fixed;left:-100000px;top:0;width:${CONT_W}px;background:#fff;`
-  document.body.appendChild(palco)
+  // O CSS da folha (e as variáveis de cor) é escopado sob `.loa-app`; se o palco
+  // ficar solto no <body> a folha sai SEM estilo. Por isso ele é ancorado dentro
+  // do próprio módulo. O fundo fotográfico do app (.app-bg) não é ancestral do
+  // palco e o `.loa-app` é transparente, então nada dele entra na folha — que
+  // ainda é rasterizada sobre a moldura branca de rasterizarPagina().
+  const raiz = folha.closest('.loa-app') || document.querySelector('.loa-app') || document.body
+  raiz.appendChild(palco)
 
   try {
     const paginas = paginar(folha, palco)
