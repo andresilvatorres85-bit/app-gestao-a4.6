@@ -56,6 +56,10 @@ import AbaDashboardEmendasExec from './components/AbaDashboardEmendasExec.jsx'
 import AbaEmendasExec from './components/AbaEmendasExec.jsx'
 import AbaHistoricoEmendasExec from './components/AbaHistoricoEmendasExec.jsx'
 import {
+  FolhaDashboardEmendasExec, FolhaHistoricoEmendasExec,
+  FolhaEmendasEstado, FolhaInconsistencias,
+} from './components/FolhaPDFExec.jsx'
+import {
   filtrarExecucao, opcoesExecucao, FILTROS_EXEC,
   somaTotais, porRP as execPorRP, porGND as execPorGND, porUO as execPorUO,
   acoesOrdenadas as execAcoes, porForca as execPorForca,
@@ -669,6 +673,18 @@ export default function LoaApp() {
   })
   const baixarPPTXEmendasEstado = () => exportarPPTXEmendasEstado(cargaEmendasEstado())
 
+  // A mesma exportação de tabelas por estado para a subaba "Emendas" do RESULTADO
+  // LEXOR — só que sobre as emendas APRESENTADAS (valor = solicitado).
+  const cargaEmendasEstadoLexor = () => ({
+    titulo: 'EMENDAS IMPOSITIVAS POR ESTADO',
+    escopo,
+    recorte,
+    geradoEm: new Date().toLocaleString('pt-BR'),
+    fonte: dados.fonte,
+    porEstado: emendasImpositivasPorEstado(filtrados),
+  })
+  const baixarPPTXEmendasEstadoLexor = () => exportarPPTXEmendasEstado(cargaEmendasEstadoLexor())
+
   // "Exportar PDF": gera o arquivo DIRETO (sem abrir o diálogo de impressão) a
   // partir da folha A4 da subaba em tela — ver pdf.js. Sem window.print(), o
   // navegador não injeta cabeçalho/endereço/data no papel; o rodapé com a data e
@@ -692,6 +708,7 @@ export default function LoaApp() {
     'ploa-dashboard', 'ploa-historico',
     'exec-dashboard', 'exec-historico', 'exec-emendas-dashboard', 'exec-emendas-historico',
     'exec-emendas',
+    'dashboard', 'emendas', 'historico', 'inconsistencias',
   ])
   const TITULO_PDF = {
     'ploa-dashboard': 'Análise PLOA',
@@ -701,11 +718,16 @@ export default function LoaApp() {
     'exec-emendas-dashboard': 'Análise Emendas Execução LOA',
     'exec-emendas-historico': 'Análise Histórico Emendas Execução LOA',
     'exec-emendas': 'Emendas Impositivas por Estado',
+    dashboard: 'Análise Emendas ao PLOA',
+    emendas: 'Emendas Impositivas por Estado (apresentadas)',
+    historico: 'Análise Histórico Emendas ao PLOA',
+    inconsistencias: 'Análise de Inconsistências',
   }
 
   // Abas que exportam o baralho inteiro (as demais exportam só por gráfico).
   const ABAS_COM_BARALHO = {
     dashboard: { acao: baixarPPTX, dica: 'Baixar o Dashboard em PowerPoint editável com os filtros atuais' },
+    emendas: { acao: baixarPPTXEmendasEstadoLexor, dica: 'Baixar as emendas impositivas do Exército em tabelas por estado (C Mil A → UF)' },
     historico: { acao: baixarPPTXHistorico, dica: 'Baixar a aba Histórico em PowerPoint editável com os filtros atuais' },
     'ploa-dashboard': { acao: baixarPPTXPLOA, dica: 'Baixar o Dashboard PLOA em PowerPoint editável com os filtros atuais' },
     'ploa-historico': { acao: baixarPPTXHistPLOA, dica: 'Baixar o Histórico PLOA em PowerPoint editável com os filtros atuais' },
@@ -924,24 +946,41 @@ export default function LoaApp() {
                 <GraficoPartidos dados={partidos} />
               </section>
             </div>
+
+            {/* Folha A4 do PDF (revelada só na exportação) — mesmos painéis. */}
+            <div className="folha-pdf" aria-hidden>
+              <FolhaDashboardEmendasExec
+                registros={filtrados}
+                base="lexor"
+                filtrosTexto={filtrosTextoDashExecEm}
+                anoTexto={anoTexto}
+              />
+            </div>
           </>
         )}
 
         {aba === 'emendas' && (
-          <section aria-label="Emendas">
-            <p className="contagem">{fmtInt(grupos.length)} emenda(s)</p>
-            <div className="grade">
-              {grupos.map((g) => (
-                <CartaoEmenda
-                  key={g.emenda}
-                  grupo={g}
-                  aberto={detalhe === g.emenda}
-                  onToggle={() => abrirDetalhe(g.emenda)}
-                />
-              ))}
+          <>
+            <section aria-label="Emendas">
+              <p className="contagem">{fmtInt(grupos.length)} emenda(s)</p>
+              <div className="grade">
+                {grupos.map((g) => (
+                  <CartaoEmenda
+                    key={g.emenda}
+                    grupo={g}
+                    aberto={detalhe === g.emenda}
+                    onToggle={() => abrirDetalhe(g.emenda)}
+                  />
+                ))}
+              </div>
+              {grupos.length === 0 && <p className="vazio">Nenhuma emenda para os filtros aplicados.</p>}
+            </section>
+
+            {/* PDF/PPTX: tabelas por estado (impositivas do Exército). */}
+            <div className="folha-pdf" aria-hidden>
+              <FolhaEmendasEstado registros={filtrados} filtrosTexto={filtrosTextoDashExecEm} base="lexor" />
             </div>
-            {grupos.length === 0 && <p className="vazio">Nenhuma emenda para os filtros aplicados.</p>}
-          </section>
+          </>
         )}
 
         {aba === 'historico' && (
@@ -952,15 +991,28 @@ export default function LoaApp() {
               contexto={contextoHistorico}
               onExportarSlide={baixarSlideHistorico}
             />
+            <div className="folha-pdf" aria-hidden>
+              <FolhaHistoricoEmendasExec
+                registros={semAno}
+                registrosTodasForcas={semAnoNemOrgao}
+                base="lexor"
+                filtrosTexto={filtrosTextoHistExecEm}
+              />
+            </div>
           </section>
         )}
 
         {aba === 'inconsistencias' && (
-          <AbaInconsistencias
-            registros={filtrados}
-            detalhe={detalhe}
-            abrirDetalhe={abrirDetalhe}
-          />
+          <>
+            <AbaInconsistencias
+              registros={filtrados}
+              detalhe={detalhe}
+              abrirDetalhe={abrirDetalhe}
+            />
+            <div className="folha-pdf" aria-hidden>
+              <FolhaInconsistencias registros={filtrados} filtrosTexto={filtrosTextoDashExecEm} />
+            </div>
+          </>
         )}
 
         {aba === 'ploa-dashboard' && (

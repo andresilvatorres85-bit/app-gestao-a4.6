@@ -2,6 +2,7 @@ import {
   resumo, valorPorRP, valorImpositivas, impositivasPorCMilA, topAutores, valorPorPartido,
   resumoPorAno, rpPorAno, modalidadePorAno, impositivasPorAno,
   forcaPorAno, cmilaPorAno, partidosPorAno, autoresRecorrentes,
+  registrosInconsistentes, agruparInconsistencias, resumoInconsistencias, INCONS_TIPOS,
   fmtCompacto, fmtBRL, fmtInt, fmtMilhoes, fmtPct,
 } from '../dados.js'
 import { fmtBi, fmtBiSeco } from '../ploa.js'
@@ -18,7 +19,6 @@ import GraficoPizza from './GraficoPizza.jsx'
 import GraficoBarras from './GraficoBarras.jsx'
 import GraficoBarrasSimples from './GraficoBarrasSimples.jsx'
 import GraficoPartidos from './GraficoPartidos.jsx'
-import { Fragment } from 'react'
 import { emendasImpositivasPorEstado } from '../emendasEstado.js'
 
 const rsInt = (v) => (v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
@@ -364,7 +364,27 @@ export function FolhaHistoricoExec({ registros, registrosTodasForcas, filtrosTex
 }
 
 // ================================================== Dashboard Emendas (execução)
-export function FolhaDashboardEmendasExec({ registros, filtrosTexto, anoTexto }) {
+// Serve às duas bases de EMENDAS: a execução (valor = Autorizado) e o RESULTADO
+// LEXOR (emendas apresentadas, valor = Solicitado). Só a terminologia muda —
+// os painéis, agregações e componentes são os mesmos. `base` escolhe os rótulos.
+const ROTULOS_DASH = {
+  exec: {
+    titulo: 'Análise Emendas — Execução LOA', noun: 'valor = autorizado',
+    hero: 'Valor total autorizado',
+    rpTit: 'Emendas parlamentares — autorizado',
+    rpSub: 'Valor autorizado por identificador de resultado primário (RP)',
+    autoresSub: 'por valor autorizado',
+  },
+  lexor: {
+    titulo: 'Análise Emendas ao PLOA', noun: 'valor = solicitado',
+    hero: 'Valor total solicitado',
+    rpTit: 'Emendas parlamentares ao PLOA',
+    rpSub: 'Valor solicitado por identificador de resultado primário (RP)',
+    autoresSub: 'por valor total',
+  },
+}
+export function FolhaDashboardEmendasExec({ registros, filtrosTexto, anoTexto, base = 'exec' }) {
+  const L = ROTULOS_DASH[base] || ROTULOS_DASH.exec
   const stats = resumo(registros)
   const porRPd = valorPorRP(registros)
   const impositivas = valorImpositivas(registros)
@@ -386,12 +406,12 @@ export function FolhaDashboardEmendasExec({ registros, filtrosTexto, anoTexto })
     <>
       {/* página 1: cards, RP + Impositivas */}
       <div className="pdf-pagina">
-        <Cabeca titulo="Análise Emendas — Execução LOA" valor={filtrosTexto}
-          sec={`${anoTexto} · valor = autorizado`} />
+        <Cabeca titulo={L.titulo} valor={filtrosTexto}
+          sec={`${anoTexto} · ${L.noun}`} />
 
         <div className="pdf-topo">
           <section className="pdf-mini pdf-mini-heroi">
-            <p className="pdf-mini-rot">Valor total autorizado</p>
+            <p className="pdf-mini-rot">{L.hero}</p>
             <p className="pdf-mini-val">
               R$ {heroi.valor}{heroi.unidade && <span className="pdf-mini-un">{heroi.unidade}</span>}
             </p>
@@ -417,8 +437,8 @@ export function FolhaDashboardEmendasExec({ registros, filtrosTexto, anoTexto })
         </div>
 
         <div className="pdf-linha-2">
-          <CardPDF titulo="Emendas parlamentares — autorizado"
-            sub="Valor autorizado por identificador de resultado primário (RP)" total={fmtMilhoes(stats.valorTotal)}>
+          <CardPDF titulo={L.rpTit}
+            sub={L.rpSub} total={fmtMilhoes(stats.valorTotal)}>
             <GraficoPizza dados={porRPd} total={stats.valorTotal} />
           </CardPDF>
           <CardPDF titulo="Emendas impositivas"
@@ -435,7 +455,7 @@ export function FolhaDashboardEmendasExec({ registros, filtrosTexto, anoTexto })
           <GraficoBarras dados={impCMilA} />
         </CardPDF>
         <CardPDF titulo="10 maiores autores"
-          sub={`Deputados Federais e Senadores, por valor autorizado · ${fmtPct(pctAutoresRP6)} do RP6`}
+          sub={`Deputados Federais e Senadores, ${L.autoresSub} · ${fmtPct(pctAutoresRP6)} do RP6`}
           total={fmtMilhoes(totalAutores)}>
           <GraficoBarrasSimples dados={autoresTop} />
         </CardPDF>
@@ -459,7 +479,22 @@ function Variacao({ pct }) {
   return <span className={subiu ? 'var-sobe' : 'var-desce'}>{subiu ? '▲' : '▼'} {fmtPct(Math.abs(pct))} vs. ano anterior</span>
 }
 
-export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, filtrosTexto }) {
+const ROTULOS_HIST = {
+  exec: {
+    titulo: 'Análise Histórico Emendas — Execução LOA', noun: 'valor = autorizado',
+    serie: 'Valor autorizado', valorTit: 'Valor autorizado por ano',
+    valorSub: 'Total autorizado das emendas em cada exercício',
+    valorEixo: 'Valor autorizado em cada exercício',
+  },
+  lexor: {
+    titulo: 'Análise Histórico Emendas ao PLOA', noun: 'valor = solicitado',
+    serie: 'Valor apresentado', valorTit: 'Valor apresentado por ano',
+    valorSub: 'Total solicitado em cada exercício',
+    valorEixo: 'Valor solicitado em cada exercício',
+  },
+}
+export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, filtrosTexto, base = 'exec' }) {
+  const L = ROTULOS_HIST[base] || ROTULOS_HIST.exec
   const anosResumo = resumoPorAno(registros)
   const rp = rpPorAno(registros)
   const modalidade = modalidadePorAno(registros)
@@ -473,7 +508,7 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
   const totalPeriodo = anosResumo.reduce((s, a) => s + a.valor, 0)
   const emendasPeriodo = anosResumo.reduce((s, a) => s + a.qtdEmendas, 0)
 
-  const serieValor = [{ chave: 'valor', rotulo: 'Valor autorizado', cor: 'var(--serie-azul)', valores: anosResumo.map((a) => a.valor) }]
+  const serieValor = [{ chave: 'valor', rotulo: L.serie, cor: 'var(--serie-azul)', valores: anosResumo.map((a) => a.valor) }]
   const serieContagem = [
     { chave: 'emendas', rotulo: 'Emendas', cor: 'var(--serie-azul)', valores: anosResumo.map((a) => a.qtdEmendas) },
     { chave: 'parlamentares', rotulo: 'Parlamentares', cor: 'var(--serie-verde)', valores: anosResumo.map((a) => a.qtdParlamentares) },
@@ -483,8 +518,8 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
     <>
       {/* página 1: cards de exercício, valor por ano, emendas+parlamentares */}
       <div className="pdf-pagina">
-        <Cabeca titulo="Análise Histórico Emendas — Execução LOA" valor={filtrosTexto}
-          sec={`Comparativo dos exercícios ${anos.join(', ')} · ignora o filtro de Ano · valor = autorizado`} />
+        <Cabeca titulo={L.titulo} valor={filtrosTexto}
+          sec={`Comparativo dos exercícios ${anos.join(', ')} · ignora o filtro de Ano · ${L.noun}`} />
 
         <div className="pdf-anos">
           {anosResumo.map((a) => {
@@ -503,10 +538,10 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
           })}
         </div>
 
-        <CardPDF titulo="Valor autorizado por ano"
-          sub="Total autorizado das emendas em cada exercício" total={fmtMilhoes(totalPeriodo)}>
+        <CardPDF titulo={L.valorTit}
+          sub={L.valorSub} total={fmtMilhoes(totalPeriodo)}>
           <GraficoColunasAno anos={anos} series={serieValor} formatar={fmtBRL} formatarTotal={fmtMilhoes}
-            rotuloEixo="Valor autorizado em cada exercício" />
+            rotuloEixo={L.valorEixo} />
         </CardPDF>
 
         <CardPDF titulo="Emendas e parlamentares por ano"
@@ -576,9 +611,17 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
 
 // ============================================ Emendas LOA — tabelas por estado
 // Modelo do arquivo de referência: impositivas do Exército (RP6+RP7), por
-// C Mil A → Estado → modalidade. Uma página por C Mil A; tabelas longas quebram
-// linha a linha (pdf.js pagina `table.matriz tbody`).
-export function FolhaEmendasEstado({ registros, filtrosTexto }) {
+// C Mil A → Estado → modalidade. UMA página nova por C Mil A, e dentro dela um
+// ÚNICO card "fluido" com uma tabela só — o pdf.js quebra o <tbody> linha a
+// linha (repetindo o cabeçalho). Estado e modalidade viram linhas de seção
+// (colspan) dentro da mesma tabela; o cabeçalho (título do comando) fica no
+// card e se repete em cada folha do comando.
+const cortarTxt = (s, n) => {
+  const t = String(s || '—').replace(/\s+/g, ' ').trim() || '—'
+  return t.length > n ? t.slice(0, n - 1) + '…' : t
+}
+export function FolhaEmendasEstado({ registros, filtrosTexto, base = 'exec' }) {
+  const noun = base === 'lexor' ? 'valor = solicitado' : 'valor = autorizado'
   const agg = emendasImpositivasPorEstado(registros)
   const anosTxt = agg.anos.join(', ')
 
@@ -601,56 +644,165 @@ export function FolhaEmendasEstado({ registros, filtrosTexto }) {
 
   return (
     <>
-      {porCmila.map((bloco, bi) => (
-        <div className={`pdf-pagina${bi > 0 ? ' pdf-pagina-nova' : ''}`} key={bloco.cmila}>
-          <Cabeca
-            titulo={`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${bloco.cmilaNome} (${bloco.cmila})`}
-            valor={filtrosTexto}
-            sec="Emendas impositivas do Exército (RP 6 individual e RP 7 de bancada) · valor = autorizado" />
-          {bloco.grupos.map((g) => (
-            <Fragment key={g.uf}>
-              <h3 className="tab-estado">▸ {g.ufNome}</h3>
-              {g.tabelas.map((t) => (
-                <section className="pdf-card pdf-card-fluido tab-emendas-card" key={t.rp}>
-                  <div className="pdf-card-cab">
-                    <div className="pdf-card-txt"><h2>{t.rotulo}</h2></div>
-                    <span className="pdf-card-total">Total R$ {rsInt(t.total)}</span>
-                  </div>
-                  <table className="matriz tab-emendas">
-                    <thead>
-                      <tr>
-                        <th className="c-ord">ORD</th>
-                        <th className="c-om">OM</th>
-                        <th className="c-obj">OBJETO</th>
-                        <th className="c-val">VALOR (R$)</th>
-                        <th className="c-aut">{t.colAutor}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {t.linhas.map((l) => (
-                        <tr key={l.ord}>
-                          <td className="c-ord">{l.ord}</td>
-                          <td className="c-om">{l.om || '—'}</td>
-                          <td className="c-obj">{l.objeto || '—'}</td>
-                          <td className="c-val">{rsInt(l.valor)}</td>
-                          <td className="c-aut">{l.autor}</td>
-                        </tr>
-                      ))}
-                      <tr className="tab-total">
-                        <td className="c-ord" />
-                        <td className="c-om" />
-                        <td className="c-obj">TOTAL</td>
-                        <td className="c-val">{rsInt(t.total)}</td>
-                        <td className="c-aut" />
-                      </tr>
-                    </tbody>
-                  </table>
-                </section>
-              ))}
-            </Fragment>
+      {porCmila.map((bloco, bi) => {
+        const linhas = []
+        for (const g of bloco.grupos) {
+          linhas.push(
+            <tr className="tab-sec" key={`${g.uf}-sec`}><td colSpan={5}>▸ {g.ufNome}</td></tr>
+          )
+          for (const t of g.tabelas) {
+            linhas.push(
+              <tr className="tab-mod" key={`${g.uf}-${t.rp}-m`}>
+                <td colSpan={4}>{t.rotulo}</td><td className="c-val">{t.colAutor}</td>
+              </tr>
+            )
+            for (const l of t.linhas) {
+              linhas.push(
+                <tr key={`${g.uf}-${t.rp}-${l.ord}`}>
+                  <td className="c-ord">{l.ord}</td>
+                  <td className="c-om">{cortarTxt(l.om, 46)}</td>
+                  <td className="c-obj">{cortarTxt(l.objeto, 150)}</td>
+                  <td className="c-val">{rsInt(l.valor)}</td>
+                  <td className="c-aut">{l.autor}</td>
+                </tr>
+              )
+            }
+            linhas.push(
+              <tr className="tab-total" key={`${g.uf}-${t.rp}-tot`}>
+                <td className="c-ord" /><td className="c-om" />
+                <td className="c-obj">TOTAL</td>
+                <td className="c-val">{rsInt(t.total)}</td><td className="c-aut" />
+              </tr>
+            )
+          }
+        }
+        return (
+          <div className={`pdf-pagina pdf-pagina-fluida${bi > 0 ? ' pdf-pagina-nova' : ''}`} key={bloco.cmila}>
+            <section className="pdf-card pdf-card-fluido tab-emendas-card">
+              <Cabeca
+                titulo={`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${bloco.cmilaNome} (${bloco.cmila})`}
+                valor={filtrosTexto}
+                sec={`Emendas impositivas do Exército (RP 6 individual e RP 7 de bancada) · ${noun}`} />
+              <table className="matriz tab-emendas">
+                <thead>
+                  <tr>
+                    <th className="c-ord">ORD</th>
+                    <th className="c-om">OM</th>
+                    <th className="c-obj">OBJETO</th>
+                    <th className="c-val">VALOR (R$)</th>
+                    <th className="c-aut">PARLAMENTAR / BANCADA</th>
+                  </tr>
+                </thead>
+                <tbody>{linhas}</tbody>
+              </table>
+            </section>
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+// ============================================ Inconsistências (auditoria LEXOR)
+// Relatório A4 do cruzamento de dados: cards-resumo, ranking por UO e a lista
+// completa das emendas sinalizadas (ignora os sub-filtros da tela — exporta
+// todos os achados do recorte).
+const TIPO_ROTULO = Object.fromEntries(INCONS_TIPOS.map((t) => [t.id, t.rotulo]))
+
+export function FolhaInconsistencias({ registros, filtrosTexto }) {
+  const res = resumoInconsistencias(registros)
+  const grupos = agruparInconsistencias(registrosInconsistentes(registros))
+  const maxUO = Math.max(1, ...res.porUO.map((u) => u.qtd))
+
+  if (!res.qtdRegistros) {
+    return (
+      <div className="pdf-pagina">
+        <Cabeca titulo="Análise de Inconsistências — Emendas ao PLOA" valor={filtrosTexto} />
+        <p className="pdf-vazio">Nenhuma inconsistência detectada para os filtros aplicados.</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="pdf-pagina">
+        <Cabeca titulo="Análise de Inconsistências — Emendas ao PLOA" valor={filtrosTexto}
+          sec="Cruzamento de dados: Mod. Aplicação ≠ 90 e UO × Justificativa (OM de outra Força)" />
+
+        <div className="pdf-topo">
+          <section className="pdf-mini pdf-mini-heroi">
+            <p className="pdf-mini-rot">Registros inconsistentes</p>
+            <p className="pdf-mini-val">{fmtInt(res.qtdRegistros)}</p>
+            <p className="pdf-mini-nota">{fmtInt(res.qtdEmendas)} emenda(s) · {fmtMilhoes(res.valor)}</p>
+          </section>
+          {res.porTipo.map((t) => (
+            <section className="pdf-mini" key={t.id}>
+              <p className="pdf-mini-rot">{t.rotulo}</p>
+              <p className="pdf-mini-val">{fmtInt(t.qtd)}</p>
+              <p className="pdf-mini-nota">{fmtMilhoes(t.valor)}</p>
+            </section>
           ))}
         </div>
-      ))}
+
+        <CardPDF titulo="Inconsistências por unidade orçamentária"
+          sub="Quantidade de registros sinalizados e valor correspondente" total={fmtMilhoes(res.valor)}>
+          <figure className="ranking">
+            <ol className="ranking-lista">
+              {res.porUO.map((u) => (
+                <li className="ranking-item" key={u.chave}>
+                  <div className="ranking-topo">
+                    <span className="ranking-nome">
+                      <span className="ranking-autor">{u.uoCod} — {u.uo}</span>
+                      <span className="ranking-qtd">{fmtInt(u.qtd)} registro{u.qtd === 1 ? '' : 's'}</span>
+                    </span>
+                    <span className="ranking-valor">{fmtMilhoes(u.valor)}</span>
+                  </div>
+                  <span className="ranking-trilho">
+                    <span className="ranking-fill ranking-fill-alerta" style={{ width: `${(u.qtd / maxUO) * 100}%` }} />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </figure>
+        </CardPDF>
+      </div>
+
+      <div className="pdf-pagina pdf-pagina-nova pdf-pagina-fluida">
+        <section className="pdf-card pdf-card-fluido">
+          <div className="pdf-card-cab">
+            <div className="pdf-card-txt"><h2>Emendas sinalizadas</h2></div>
+            <span className="pdf-card-total">{fmtInt(grupos.length)} emenda(s)</span>
+          </div>
+          <table className="matriz tab-emendas tab-incons">
+            <thead>
+              <tr>
+                <th className="c-ord">EMENDA</th>
+                <th className="c-aut">PARLAMENTAR</th>
+                <th className="c-om">UNIDADE ORÇAMENTÁRIA</th>
+                <th className="c-obj">REGRA</th>
+                <th className="c-val">VALOR (R$)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {grupos.map((g) => (
+                <tr key={g.emenda}>
+                  <td className="c-ord">{g.emenda}</td>
+                  <td className="c-aut">
+                    {g.autor}{g.partido && g.partido !== '—' ? ` (${g.partido})` : ''}
+                    {g.autorUF && g.autorUF !== 'NA' ? ` · ${g.autorUF}` : ''}
+                  </td>
+                  <td className="c-om">{g.uoCod} — {g.uo}</td>
+                  <td className="c-obj">
+                    {g.tipos.map((t) => TIPO_ROTULO[t] || t).join(' · ')}
+                    {g.gravidade === 'alta' ? ' (confirmada)' : ' (a verificar)'}
+                  </td>
+                  <td className="c-val">{fmtBRL(g.valor)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </div>
     </>
   )
 }
