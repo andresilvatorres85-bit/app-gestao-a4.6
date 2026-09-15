@@ -5,6 +5,7 @@ import {
 import { Landmark, Users, BookUser, FileDown, Check } from "lucide-react";
 import { StatCard } from "./UI.jsx";
 import ChartCard from "./ChartCard.jsx";
+import PainelObjetoEmendas from "./PainelObjetoEmendas.jsx";
 import { MESES, PAPEL_LABEL_CURTO, ESP_LABEL, ESP_COR } from "../constants.js";
 import { todayParts } from "../helpers.js";
 import {
@@ -21,7 +22,7 @@ function useIsMobile() {
   return mobile;
 }
 
-export default function Dashboard({ allRecords, novos }) {
+export default function Dashboard({ allRecords, novos, objetoEmendas = [] }) {
   const isMobile = useIsMobile();
 
   const anosDisponiveis = useMemo(() => {
@@ -240,6 +241,8 @@ export default function Dashboard({ allRecords, novos }) {
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
+
+      <PainelObjetoEmendas itens={objetoEmendas} />
     </div>
   );
 }
