@@ -67,9 +67,9 @@ export default function AbaHistorico({ registros, registrosTodasForcas, contexto
   return (
     <>
       <p className="historico-intro">
-        Comparativo dos {anos.length} exercícios presentes na planilha ({anos.join(', ')}).
-        Esta aba <strong>ignora o filtro de Ano</strong> — é o que ela compara — mas respeita
-        todos os demais filtros da barra acima.
+        Comparativo dos {anos.length} exercícios selecionados ({anos.join(', ')}).
+        Esta aba <strong>responde ao filtro de Ano</strong> — todos marcados ao entrar; desmarque
+        exercícios para retirá-los da comparação — e respeita os demais filtros da barra acima.
       </p>
 
       <div className="historico-anos" role="region" aria-label="Resumo por exercício">

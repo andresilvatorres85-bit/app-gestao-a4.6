@@ -2014,6 +2014,16 @@ function paineisHistoricoExec(d) {
     },
     matrizExec('hexec-acao', 'Ações orçamentárias por exercício',
       'Dotação autorizada · R$ bilhões', 'Ação orçamentária', anos, d.acao.series),
+    colunasExec('hexec-contencao', 'Contenção de gastos por exercício',
+      'Bloqueio × Contingenciamento em cada exercício', anos, [
+        { rotulo: 'Bloqueio', cor: LARANJA, valores: d.contencao.series[0].valores },
+        { rotulo: 'Contingenciamento', cor: VIOLETA, valores: d.contencao.series[1].valores },
+      ], { empilhado: true }),
+    colunasExec('hexec-emcontencao', 'Contenção de gastos de emendas parlamentares',
+      'Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício', anos, [
+        { rotulo: 'Bloqueio', cor: LARANJA, valores: d.contEmendas.series[0].valores },
+        { rotulo: 'Contingenciamento', cor: VIOLETA, valores: d.contEmendas.series[1].valores },
+      ], { empilhado: true }),
     colunasExec('hexec-forca', 'Por Força, ao longo dos exercícios',
       'Dotação autorizada por Força · ignora o filtro de Órgão', anos, d.forca.series.map(corForca)),
     colunasExec('hexec-fgrupo', 'Por Fonte Grupo (Cod/Desc)',

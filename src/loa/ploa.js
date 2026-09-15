@@ -293,7 +293,7 @@ export function porGND(registros, fase = IDX_AUTOGRAFO) {
 }
 
 // ------------------------------------------------- séries por exercício -----
-// Usadas pela subaba "Histórico PLOA", que ignora o filtro de Ano.
+// Usadas pela subaba "Histórico PLOA", que responde ao filtro de Ano.
 
 export const anosPLOA = (registros) =>
   [...new Set(registros.map((r) => r.ano))].sort()

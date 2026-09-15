@@ -3,7 +3,7 @@ import { fmtCompacto, fmtInt, fmtPct } from '../dados.js'
 import { fmtBi, fmtBiSeco, fmtVar } from '../ploa.js'
 import {
   resumoPorAnoExec, forcaPorAnoExec, uoPorAnoExec, rpPorAnoExec, gndPorAnoExec,
-  acaoPorAnoExec, fonteGrupoPorAno,
+  acaoPorAnoExec, fonteGrupoPorAno, contencaoPorAnoExec, contencaoEmendasPorAno,
 } from '../execucao.js'
 import BotaoPNG from './BotaoPNG.jsx'
 import BotaoPPTX from './BotaoPPTX.jsx'
@@ -13,8 +13,9 @@ import { FolhaHistoricoExec } from './FolhaPDFExec.jsx'
 
 // Subaba "Histórico LOA" (seção EXECUÇÃO LOA). Mesma diagramação do Histórico
 // PLOA, mas sobre a base de EXECUÇÃO e consolidando o AUTORIZADO. Como o
-// Histórico PLOA, esta IGNORA o filtro de Ano (é o que ela compara) e respeita
-// os demais. Exportação por PNG (sem PPTX/PDF nesta etapa).
+// Histórico PLOA, esta RESPONDE ao filtro de Ano (todos marcados ao entrar;
+// desmarcar exercícios os retira dos cards, gráficos e tabelas) e respeita os
+// demais. Exportação por PNG, PPTX e PDF.
 
 function Variacao({ pct }) {
   if (pct === null || !Number.isFinite(pct)) {
@@ -28,7 +29,7 @@ function Variacao({ pct }) {
   )
 }
 
-export default function AbaHistoricoExec({ registros, registrosTodasForcas, contexto, onExportarSlide, filtrosTexto }) {
+export default function AbaHistoricoExec({ registros, registrosTodasForcas, emendas = [], contexto, onExportarSlide, filtrosTexto }) {
   const todasForcas = registrosTodasForcas ?? registros
   const anosResumo = useMemo(() => resumoPorAnoExec(registros), [registros])
   const forcas = useMemo(() => forcaPorAnoExec(todasForcas), [todasForcas])
@@ -39,6 +40,10 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
   const fgrupos = useMemo(() => fonteGrupoPorAno(registros), [registros])
 
   const anos = anosResumo.map((a) => a.ano)
+  const contencao = useMemo(() => contencaoPorAnoExec(registros, anos), [registros, anos])
+  const contEmendas = useMemo(() => contencaoEmendasPorAno(emendas, anos), [emendas, anos])
+  const totalCont = contencao.series.reduce((s, x) => s + x.valores.reduce((a, v) => a + v, 0), 0)
+  const totalContEm = contEmendas.series.reduce((s, x) => s + x.valores.reduce((a, v) => a + v, 0), 0)
   if (!anos.length) {
     return (
       <p className="vazio">
@@ -80,10 +85,11 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
       </header>
 
       <p className="historico-intro">
-        Comparativo dos {anos.length} exercícios presentes na planilha de execução
-        ({anos.join(', ')}). Esta subaba <strong>ignora o filtro de Ano</strong> — é o que ela
-        compara — mas respeita todos os demais filtros da barra acima. Os valores são os da
-        <strong> dotação autorizada</strong>, salvo onde o painel diz o contrário.
+        Comparativo dos {anos.length} exercício(s) selecionados ({anos.join(', ')}). Esta
+        subaba <strong>responde ao filtro de Ano</strong> — marque ou desmarque exercícios na
+        barra acima para incluí-los ou removê-los dos cards, gráficos e tabelas — e respeita
+        todos os demais filtros. Os valores são os da <strong>dotação autorizada</strong>,
+        salvo onde o painel diz o contrário.
       </p>
 
       <div className="historico-anos" role="region" aria-label="Resumo por exercício">
@@ -270,6 +276,50 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
           />
         </section>
 
+        {/* 6.1 — contenção de gastos por exercício */}
+        <section className="painel-grafico p-12">
+          <div className="painel-cab">
+            <div className="painel-cab-txt">
+              <h2>Contenção de gastos por exercício</h2>
+              <p className="painel-sub">Bloqueio × Contingenciamento em cada exercício</p>
+            </div>
+            <span className="painel-total">{fmtBi(totalCont)}</span>
+            <BotaoPPTX titulo="Contenção de gastos por exercício" onExportar={() => onExportarSlide('hexec-contencao')} />
+            <BotaoPNG titulo="Contenção de gastos por exercício" contexto={contexto} />
+          </div>
+          <GraficoColunasAno
+            anos={contencao.anos}
+            series={contencao.series}
+            empilhado
+            formatar={fmtBi}
+            formatarTotal={(v) => fmtBi(v)}
+            rotuloEixo="Bloqueio e Contingenciamento em cada exercício"
+            vazio="Sem contenção de gastos (Bloqueio/Contingenciamento) para os filtros aplicados."
+          />
+        </section>
+
+        {/* 6.2 — contenção de gastos das emendas parlamentares */}
+        <section className="painel-grafico p-12">
+          <div className="painel-cab">
+            <div className="painel-cab-txt">
+              <h2>Contenção de gastos de emendas parlamentares</h2>
+              <p className="painel-sub">Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício</p>
+            </div>
+            <span className="painel-total">{fmtBi(totalContEm)}</span>
+            <BotaoPPTX titulo="Contenção de gastos de emendas parlamentares" onExportar={() => onExportarSlide('hexec-emcontencao')} />
+            <BotaoPNG titulo="Contenção de gastos de emendas parlamentares" contexto={contexto} />
+          </div>
+          <GraficoColunasAno
+            anos={contEmendas.anos}
+            series={contEmendas.series}
+            empilhado
+            formatar={fmtBi}
+            formatarTotal={(v) => fmtBi(v)}
+            rotuloEixo="Bloqueio e Contingenciamento das emendas RP6/RP7 em cada exercício"
+            vazio="Sem contenção de gastos em emendas RP6/RP7 para os filtros aplicados."
+          />
+        </section>
+
         {/* 7 — por Força */}
         <section className="painel-grafico p-12">
           <div className="painel-cab">
@@ -324,6 +374,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, cont
       <FolhaHistoricoExec
         registros={registros}
         registrosTodasForcas={registrosTodasForcas}
+        emendas={emendas}
         filtrosTexto={filtrosTexto}
       />
     </div>
