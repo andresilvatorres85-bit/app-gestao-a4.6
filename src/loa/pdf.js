@@ -137,19 +137,22 @@ function paginar(folha, palco) {
   // Card longo (ações): monta a casca (cabeçalho + gráfico/tabela sem as linhas)
   // e injeta as linhas uma a uma, abrindo folha nova quando estoura. A casca é
   // repetida em cada folha, então o cabeçalho e o cabeçalho da tabela seguem.
+  // Lista paginável dentro de um card fluido: as barras horizontais
+  // (`.pbar-lista`), as barras empilhadas de contenção (`.cmila-lista`) ou o
+  // corpo de uma matriz (`table.matriz tbody`).
+  const LISTA = '.pbar-lista, .cmila-lista, table.matriz tbody'
   const encaixarFluido = (card) => {
-    const seletorLista = () => card.querySelector('.pbar-lista') || card.querySelector('table.matriz tbody')
-    const listaOrigem = seletorLista()
+    const listaOrigem = card.querySelector(LISTA)
     if (!listaOrigem) { encaixar(card.cloneNode(true)); return }
     const linhas = Array.from(listaOrigem.children)
 
     // casca = card sem as linhas (mantém cabeçalho, thead da tabela e legenda)
     const casca = card.cloneNode(true)
-    ;(casca.querySelector('.pbar-lista') || casca.querySelector('table.matriz tbody')).replaceChildren()
+    casca.querySelector(LISTA).replaceChildren()
 
     if (!vazia) novaPagina()
     let shell = casca.cloneNode(true)
-    let destino = shell.querySelector('.pbar-lista') || shell.querySelector('table.matriz tbody')
+    let destino = shell.querySelector(LISTA)
     atual.appendChild(shell); vazia = false
 
     for (const linha of linhas) {
@@ -158,7 +161,7 @@ function paginar(folha, palco) {
         destino.removeChild(destino.lastChild)
         novaPagina()
         shell = casca.cloneNode(true)
-        destino = shell.querySelector('.pbar-lista') || shell.querySelector('table.matriz tbody')
+        destino = shell.querySelector(LISTA)
         atual.appendChild(shell); vazia = false
         destino.appendChild(linha.cloneNode(true))
       }

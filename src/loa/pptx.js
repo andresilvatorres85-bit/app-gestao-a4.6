@@ -1870,6 +1870,25 @@ function painelPar(id, titulo, sub, itens, { vertical = false, paginavel = false
   }
 }
 
+// Painel de contenção de gastos: barras horizontais empilhadas Bloqueio +
+// Contingenciamento (por ação ou por emenda). Paginável — a lista pode ser
+// longa (dezenas de ações).
+function painelContencao(id, titulo, sub, itens) {
+  const cats = itens.map((x) => x.rotulo)
+  const series = [
+    { nome: 'Bloqueio', cor: LARANJA, valores: itens.map((x) => biv(x.bloq)) },
+    { nome: 'Contingenciamento', cor: VIOLETA, valores: itens.map((x) => biv(x.conting)) },
+  ]
+  const graf = (c, s) => graficoBarras({ cats: c, series: s, empilhado: true, legenda: true, formato: FMT_BI })
+  return {
+    id, titulo, sub,
+    total: fmtBiTxt(itens.reduce((s, x) => s + (x.total || 0), 0)),
+    grafico: graf(cats, series),
+    planilha: planilha(cats, series),
+    paginavel: { cats, series, construir: (c, s) => ({ grafico: graf(c, s), planilha: planilha(c, s) }) },
+  }
+}
+
 function paineisExec(d) {
   return [
     painelPar('exec-rp', 'Por Identificador de Resultado Primário',
@@ -1880,6 +1899,10 @@ function paineisExec(d) {
       'Todas as UO do órgão 52000 · Autorizado × dotação inicial', d.uos, { paginavel: true }),
     painelPar('exec-acao', 'Valor por Ação orçamentária',
       'Autorizado × dotação inicial, por ação', d.acoes, { paginavel: true }),
+    painelContencao('exec-contencao', 'Contenção de gastos',
+      'Bloqueio e/ou Contingenciamento por ação orçamentária', d.contencao || []),
+    painelContencao('exec-emcontencao', 'Emendas parlamentares — contenção de gastos',
+      'Emendas com valores Bloqueados ou Contingenciados', d.contEmendas || []),
     painelPar('exec-forcas', 'Total por Força',
       'Autorizado × dotação inicial, por Força · ignora o filtro de Órgão', d.forcas),
     {

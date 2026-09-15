@@ -3,11 +3,13 @@ import { fmtCompacto, fmtInt, fmtPct } from '../dados.js'
 import {
   AGREGADOS, fmtBi, fmtVar, variacao,
   somaTotais, porRP, porGND, porUO, acoesOrdenadas, porForca, iniVsAutorizado, porFonte,
+  contencaoPorAcao, emendasContencao,
 } from '../execucao.js'
 import BotaoPNG from './BotaoPNG.jsx'
 import BotaoPPTX from './BotaoPPTX.jsx'
 import GraficoBarrasExec from './GraficoBarrasExec.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
+import GraficoContencao from './GraficoContencao.jsx'
 import { FolhaDashboardExec } from './FolhaPDFExec.jsx'
 
 // Subaba "Dashboard LOA" (seção EXECUÇÃO LOA). Mesma diagramação do Dashboard
@@ -15,7 +17,7 @@ import { FolhaDashboardExec } from './FolhaPDFExec.jsx'
 // dotações já filtradas; `registrosTodasForcas` é o mesmo recorte SEM o filtro
 // de Órgão — os painéis que comparam Forças precisam das quatro, não de uma só.
 export default function AbaExecucao({
-  registros, registrosTodasForcas, anos, contexto, onExportarSlide, filtrosTexto,
+  registros, registrosTodasForcas, emendas = [], anos, contexto, onExportarSlide, filtrosTexto,
 }) {
   const todasForcas = registrosTodasForcas ?? registros
   const totais = useMemo(() => somaTotais(registros), [registros])
@@ -26,6 +28,10 @@ export default function AbaExecucao({
   const forcas = useMemo(() => porForca(todasForcas), [todasForcas])
   const iniAut = useMemo(() => iniVsAutorizado(todasForcas), [todasForcas])
   const fontes = useMemo(() => porFonte(registros), [registros])
+  const contAcoes = useMemo(() => contencaoPorAcao(registros), [registros])
+  const contEmendas = useMemo(() => emendasContencao(emendas), [emendas])
+  const totalContAcao = contAcoes.reduce((s, a) => s + a.total, 0)
+  const totalContEm = contEmendas.reduce((s, a) => s + a.total, 0)
 
   if (!registros.length) {
     return (
@@ -205,6 +211,57 @@ export default function AbaExecucao({
           />
         </section>
 
+        {/* Contenção de gastos por ação (Bloqueio/Contingenciamento) */}
+        <section className="painel-grafico p-12">
+          <div className="painel-cab">
+            <div className="painel-cab-txt">
+              <h2>Contenção de gastos</h2>
+              <p className="painel-sub">
+                Bloqueio e/ou Contingenciamento por ação orçamentária · {fmtInt(contAcoes.length)} ações com contenção
+              </p>
+            </div>
+            <span className="painel-total">{fmtBi(totalContAcao)}</span>
+            <BotaoPPTX titulo="Contenção de gastos" onExportar={() => onExportarSlide('exec-contencao')} />
+            <BotaoPNG titulo="Contenção de gastos" contexto={contexto} />
+          </div>
+          <GraficoContencao
+            dados={contAcoes.map((a) => ({
+              chave: a.acaoCod, codigo: a.acaoCod !== '—' ? a.acaoCod : null,
+              rotulo: a.acao || a.acaoCod, bloq: a.bloq, conting: a.conting, total: a.total,
+            }))}
+            limite={12}
+            passoExpansao={12}
+          />
+        </section>
+
+        {/* Emendas parlamentares com contenção */}
+        <section className="painel-grafico p-12">
+          <div className="painel-cab">
+            <div className="painel-cab-txt">
+              <h2>Emendas parlamentares — contenção de gastos</h2>
+              <p className="painel-sub">
+                Emendas com valores Bloqueados ou Contingenciados · {fmtInt(contEmendas.length)} emenda(s)
+              </p>
+            </div>
+            <span className="painel-total">{fmtBi(totalContEm)}</span>
+            <BotaoPPTX titulo="Emendas parlamentares — contenção de gastos" onExportar={() => onExportarSlide('exec-emcontencao')} />
+            <BotaoPNG titulo="Emendas parlamentares — contenção de gastos" contexto={contexto} />
+          </div>
+          <GraficoContencao
+            dados={contEmendas.map((e) => ({
+              chave: e.emenda, codigo: e.emenda,
+              rotulo: [e.autor, e.partido && e.partido !== '—' ? `(${e.partido})` : '']
+                .filter(Boolean).join(' '),
+              sublinha: [e.modalidade, e.autorUF && e.autorUF !== 'NA' ? e.autorUF : '']
+                .filter(Boolean).join(' · '),
+              bloq: e.bloq, conting: e.conting, total: e.total,
+            }))}
+            limite={15}
+            passoExpansao={15}
+            vazio="Nenhuma emenda parlamentar com Bloqueio ou Contingenciamento no recorte."
+          />
+        </section>
+
         {/* Total por Força em largura cheia */}
         <section className="painel-grafico p-12">
           <div className="painel-cab">
@@ -319,6 +376,7 @@ export default function AbaExecucao({
       <FolhaDashboardExec
         registros={registros}
         registrosTodasForcas={todasForcas}
+        emendas={emendas}
         filtrosTexto={filtrosTexto}
       />
     </div>
