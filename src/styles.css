@@ -673,3 +673,58 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 }
+
+/* ============================ Objeto de emenda ============================ */
+/* Formulário: textarea, dois botões e a seção opcional do rodapé. */
+.textarea { min-height: 58px; line-height: 1.4; resize: vertical; font-family: inherit; }
+.form-actions-2 { justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.form-actions-2 .btn { flex: 0 0 auto; }
+
+.obj-rodape { margin: 4px 0 16px; border: 1px dashed var(--line-strong); border-radius: 10px; padding: 0 14px; }
+.obj-rodape > summary {
+  cursor: pointer; padding: 11px 2px; color: var(--muted); font-size: 12.8px; font-weight: 500;
+  list-style: none;
+}
+.obj-rodape > summary::-webkit-details-marker { display: none; }
+.obj-rodape[open] > summary { color: var(--ink); border-bottom: 1px solid var(--line); }
+.obj-rodape .form-grid { padding: 14px 0 4px; }
+
+.obj-lista { margin-top: 18px; }
+.obj-lista .panel-title { margin-bottom: 12px; }
+.obj-col { max-width: 320px; }
+.row-actions { display: inline-flex; gap: 2px; }
+.tbl .row-actions .icon-btn:hover { color: var(--brand-hi); }
+
+/* Consolidação no Painel: tabela "de documento" (cabeçalho verde, corpo claro),
+   fiel ao modelo de referência, mesmo no tema escuro do app. */
+.oe-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 13px;
+  padding: 18px 19px; margin-top: 4px;
+}
+.oe-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 13px; }
+.oe-count { font-size: 12px; color: var(--muted); }
+.oe-vazio { color: var(--muted); font-size: 13px; margin: 6px 2px 2px; }
+
+.oe-tabela {
+  width: 100%; border-collapse: collapse; min-width: 760px;
+  font-size: 12.8px; color: #23302a; background: #fff;
+  border: 1px solid #cfe0d2; border-radius: 8px; overflow: hidden;
+}
+.oe-tabela thead th {
+  background: linear-gradient(180deg, #5b9169 0%, #4e8a5e 100%);
+  color: #fff; font-weight: 600; text-align: center;
+  padding: 10px 12px; border: 1px solid #cfe0d2; letter-spacing: 0.01em;
+}
+.oe-tabela tbody td { padding: 9px 12px; border: 1px solid #cfe0d2; vertical-align: top; }
+.oe-tabela tbody tr:nth-child(even) td { background: #f1f6f2; }
+.oe-c-parl { font-weight: 600; text-align: center; white-space: nowrap; }
+.oe-c-part { text-align: center; font-family: var(--font-mono); white-space: nowrap; }
+.oe-c-obj { text-align: justify; }
+.oe-c-aj { text-align: center; }
+.oe-th-parl { width: 20%; }
+.oe-th-part { width: 12%; }
+.oe-th-aj { width: 22%; }
+
+@media (max-width: 680px) {
+  .form-actions-2 .btn { flex: 1 1 100%; justify-content: center; }
+}
