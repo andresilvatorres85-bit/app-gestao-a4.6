@@ -1255,6 +1255,8 @@ const FMT_BI = '#,##0.00&quot; bi&quot;'
 const bi = (v) => v / 1e9
 const fmtBiTxt = (v) =>
   `R$ ${bi(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bi`
+const fmtMiTxt = (v) =>
+  `R$ ${(v / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mi`
 const AQUA = '1BAF7A'
 const LARANJA = 'EB6834'
 // Cores institucionais das Forças (espelham as CSS --forca-*): MD cinza,
@@ -1849,6 +1851,7 @@ export function exportarPPTXHistoricoPLOA(d) {
 const CINZA_INI = 'A9A9A2'
 const COR_FGRUPO_PPTX = { 1: AZUL, 3: LARANJA, 9: VIOLETA }
 const biv = (v) => (v || 0) / 1e9
+const miv = (v) => (v || 0) / 1e6
 const biSeco = (v) => biv(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 // Painel de barras Autorizado × Dotação inicial (2 séries).
@@ -1969,14 +1972,18 @@ function matrizExec(id, titulo, sub, rotuloColuna, anos, series) {
 
 function colunasExec(id, titulo, sub, anos, series, opts = {}) {
   const total = series.reduce((a, s) => a + (s.total ?? s.valores.reduce((x, v) => x + v, 0)), 0)
+  // Alguns painéis (contenção de gastos) leem melhor em milhões de reais.
+  const esc = opts.milhoes ? miv : biv
+  const fmt = opts.milhoes ? FMT_MI : FMT_BI
+  const totalTxt = opts.milhoes ? fmtMiTxt : fmtBiTxt
   return {
-    id, titulo, sub, total: fmtBiTxt(total),
+    id, titulo, sub, total: totalTxt(total),
     grafico: graficoBarras({
-      cats: anos, vertical: true, formato: FMT_BI, legenda: series.length > 1,
+      cats: anos, vertical: true, formato: fmt, legenda: series.length > 1,
       empilhado: opts.empilhado, proporcao: opts.proporcao, tendencia: opts.tendencia,
-      series: series.map((s) => ({ nome: s.rotulo, cor: s.cor, valores: s.valores.map(biv) })),
+      series: series.map((s) => ({ nome: s.rotulo, cor: s.cor, valores: s.valores.map(esc) })),
     }),
-    planilha: planilha(anos, series.map((s) => ({ nome: s.rotulo, valores: s.valores.map(biv) }))),
+    planilha: planilha(anos, series.map((s) => ({ nome: s.rotulo, valores: s.valores.map(esc) }))),
   }
 }
 
@@ -2015,15 +2022,15 @@ function paineisHistoricoExec(d) {
     matrizExec('hexec-acao', 'Ações orçamentárias por exercício',
       'Dotação autorizada · R$ bilhões', 'Ação orçamentária', anos, d.acao.series),
     colunasExec('hexec-contencao', 'Contenção de gastos por exercício',
-      'Bloqueio × Contingenciamento em cada exercício', anos, [
+      'Bloqueio × Contingenciamento em cada exercício · R$ milhões', anos, [
         { rotulo: 'Bloqueio', cor: LARANJA, valores: d.contencao.series[0].valores },
         { rotulo: 'Contingenciamento', cor: VIOLETA, valores: d.contencao.series[1].valores },
-      ], { empilhado: true }),
+      ], { empilhado: true, milhoes: true }),
     colunasExec('hexec-emcontencao', 'Contenção de gastos de emendas parlamentares',
-      'Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício', anos, [
+      'Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício · R$ milhões', anos, [
         { rotulo: 'Bloqueio', cor: LARANJA, valores: d.contEmendas.series[0].valores },
         { rotulo: 'Contingenciamento', cor: VIOLETA, valores: d.contEmendas.series[1].valores },
-      ], { empilhado: true }),
+      ], { empilhado: true, milhoes: true }),
     colunasExec('hexec-forca', 'Por Força, ao longo dos exercícios',
       'Dotação autorizada por Força · ignora o filtro de Órgão', anos, d.forca.series.map(corForca)),
     colunasExec('hexec-fgrupo', 'Por Fonte Grupo (Cod/Desc)',

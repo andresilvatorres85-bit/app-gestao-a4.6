@@ -384,17 +384,17 @@ export function FolhaHistoricoExec({ registros, registrosTodasForcas, emendas = 
       {/* página: contenção de gastos por exercício (dotação e emendas) */}
       <div className="pdf-pagina pdf-pagina-nova">
         <CardPDF titulo="Contenção de gastos por exercício"
-          sub="Bloqueio × Contingenciamento em cada exercício" total={fmtBi(totalCont)}>
+          sub="Bloqueio × Contingenciamento em cada exercício · R$ milhões" total={fmtMilhoes(totalCont)}>
           <GraficoColunasAno anos={contencao.anos} series={contencao.series} empilhado
-            formatar={fmtBi} formatarTotal={(v) => fmtBi(v)}
-            rotuloEixo="Bloqueio e Contingenciamento em cada exercício"
+            formatar={fmtMilhoes} formatarTotal={(v) => fmtMilhoes(v)}
+            rotuloEixo="Bloqueio e Contingenciamento em cada exercício (R$ milhões)"
             vazio="Sem contenção de gastos para os filtros aplicados." />
         </CardPDF>
         <CardPDF titulo="Contenção de gastos de emendas parlamentares"
-          sub="Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício" total={fmtBi(totalContEm)}>
+          sub="Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício · R$ milhões" total={fmtMilhoes(totalContEm)}>
           <GraficoColunasAno anos={contEmendas.anos} series={contEmendas.series} empilhado
-            formatar={fmtBi} formatarTotal={(v) => fmtBi(v)}
-            rotuloEixo="Bloqueio e Contingenciamento das emendas RP6/RP7"
+            formatar={fmtMilhoes} formatarTotal={(v) => fmtMilhoes(v)}
+            rotuloEixo="Bloqueio e Contingenciamento das emendas RP6/RP7 (R$ milhões)"
             vazio="Sem contenção de gastos em emendas RP6/RP7 para os filtros aplicados." />
         </CardPDF>
       </div>

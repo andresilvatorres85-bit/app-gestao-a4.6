@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtCompacto, fmtInt, fmtPct } from '../dados.js'
+import { fmtCompacto, fmtInt, fmtPct, fmtMilhoes } from '../dados.js'
 import { fmtBi, fmtBiSeco, fmtVar } from '../ploa.js'
 import {
   resumoPorAnoExec, forcaPorAnoExec, uoPorAnoExec, rpPorAnoExec, gndPorAnoExec,
@@ -283,7 +283,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, emen
               <h2>Contenção de gastos por exercício</h2>
               <p className="painel-sub">Bloqueio × Contingenciamento em cada exercício</p>
             </div>
-            <span className="painel-total">{fmtBi(totalCont)}</span>
+            <span className="painel-total">{fmtMilhoes(totalCont)}</span>
             <BotaoPPTX titulo="Contenção de gastos por exercício" onExportar={() => onExportarSlide('hexec-contencao')} />
             <BotaoPNG titulo="Contenção de gastos por exercício" contexto={contexto} />
           </div>
@@ -291,9 +291,9 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, emen
             anos={contencao.anos}
             series={contencao.series}
             empilhado
-            formatar={fmtBi}
-            formatarTotal={(v) => fmtBi(v)}
-            rotuloEixo="Bloqueio e Contingenciamento em cada exercício"
+            formatar={fmtMilhoes}
+            formatarTotal={(v) => fmtMilhoes(v)}
+            rotuloEixo="Bloqueio e Contingenciamento em cada exercício (R$ milhões)"
             vazio="Sem contenção de gastos (Bloqueio/Contingenciamento) para os filtros aplicados."
           />
         </section>
@@ -305,7 +305,7 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, emen
               <h2>Contenção de gastos de emendas parlamentares</h2>
               <p className="painel-sub">Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício</p>
             </div>
-            <span className="painel-total">{fmtBi(totalContEm)}</span>
+            <span className="painel-total">{fmtMilhoes(totalContEm)}</span>
             <BotaoPPTX titulo="Contenção de gastos de emendas parlamentares" onExportar={() => onExportarSlide('hexec-emcontencao')} />
             <BotaoPNG titulo="Contenção de gastos de emendas parlamentares" contexto={contexto} />
           </div>
@@ -313,9 +313,9 @@ export default function AbaHistoricoExec({ registros, registrosTodasForcas, emen
             anos={contEmendas.anos}
             series={contEmendas.series}
             empilhado
-            formatar={fmtBi}
-            formatarTotal={(v) => fmtBi(v)}
-            rotuloEixo="Bloqueio e Contingenciamento das emendas RP6/RP7 em cada exercício"
+            formatar={fmtMilhoes}
+            formatarTotal={(v) => fmtMilhoes(v)}
+            rotuloEixo="Bloqueio e Contingenciamento das emendas RP6/RP7 em cada exercício (R$ milhões)"
             vazio="Sem contenção de gastos em emendas RP6/RP7 para os filtros aplicados."
           />
         </section>
