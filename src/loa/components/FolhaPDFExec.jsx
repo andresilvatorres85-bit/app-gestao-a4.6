@@ -10,9 +10,10 @@ import {
   AGREGADOS, fmtVar, variacao,
   somaTotais, porRP, porGND, porUO, acoesOrdenadas, porForca, iniVsAutorizado, porFonte,
   resumoPorAnoExec, forcaPorAnoExec, uoPorAnoExec, rpPorAnoExec, gndPorAnoExec,
-  acaoPorAnoExec, fonteGrupoPorAno,
+  acaoPorAnoExec, fonteGrupoPorAno, contencaoPorAcao, emendasContencao,
 } from '../execucao.js'
 import GraficoBarrasExec from './GraficoBarrasExec.jsx'
+import GraficoContencao from './GraficoContencao.jsx'
 import GraficoColunasAno from './GraficoColunasAno.jsx'
 import MatrizAnos from './MatrizAnos.jsx'
 import GraficoPizza from './GraficoPizza.jsx'
@@ -63,7 +64,7 @@ function CardPDF({ titulo, sub, total, fluido = false, children }) {
 }
 
 // ====================================================== Dashboard LOA (dotação)
-export function FolhaDashboardExec({ registros, registrosTodasForcas, filtrosTexto }) {
+export function FolhaDashboardExec({ registros, registrosTodasForcas, emendas = [], filtrosTexto }) {
   const todasForcas = registrosTodasForcas ?? registros
   const totais = somaTotais(registros)
   const rps = porRP(registros)
@@ -73,6 +74,8 @@ export function FolhaDashboardExec({ registros, registrosTodasForcas, filtrosTex
   const forcas = porForca(todasForcas)
   const iniAut = iniVsAutorizado(todasForcas)
   const fontes = porFonte(registros)
+  const contAcoes = contencaoPorAcao(registros)
+  const contEmendas = emendasContencao(emendas)
 
   const anosEmTela = [...new Set(registros.map((r) => r.ano))].sort()
   const heroi = fmtCompacto(totais.aut)
@@ -174,6 +177,37 @@ export function FolhaDashboardExec({ registros, registrosTodasForcas, filtrosTex
             dados={fontes.map((f) => ({ chave: f.fonteCod || f.fonte, rotulo: f.fonteCod ? f.fonte.replace(new RegExp(`^${f.fonteCod}\\s*-\\s*`), '') : f.fonte, codigo: f.fonteCod || null, valor: f.valor, pl: f.pl }))}
             corNumero="var(--serie-aqua)" mostrarPercentual
             rotuloGrafico="Autorizado por fonte (traço = dotação inicial)" />
+        </CardPDF>
+      </div>
+
+      {/* página: contenção de gastos (por ação e por emenda) */}
+      <div className="pdf-pagina pdf-pagina-nova pdf-pagina-fluida">
+        <CardPDF titulo="Contenção de gastos"
+          sub={`Bloqueio e/ou Contingenciamento por ação orçamentária · ${fmtInt(contAcoes.length)} ações`}
+          total={fmtBi(contAcoes.reduce((s, a) => s + a.total, 0))} fluido>
+          <GraficoContencao
+            dados={contAcoes.map((a) => ({
+              chave: a.acaoCod, codigo: a.acaoCod !== '—' ? a.acaoCod : null,
+              rotulo: a.acao || a.acaoCod, bloq: a.bloq, conting: a.conting, total: a.total,
+            }))}
+            limite={contAcoes.length} passoExpansao={contAcoes.length}
+          />
+        </CardPDF>
+      </div>
+      <div className="pdf-pagina pdf-pagina-nova pdf-pagina-fluida">
+        <CardPDF titulo="Emendas parlamentares — contenção de gastos"
+          sub={`Emendas com valores Bloqueados ou Contingenciados · ${fmtInt(contEmendas.length)} emenda(s)`}
+          total={fmtBi(contEmendas.reduce((s, a) => s + a.total, 0))} fluido>
+          <GraficoContencao
+            dados={contEmendas.map((e) => ({
+              chave: e.emenda, codigo: e.emenda,
+              rotulo: [e.autor, e.partido && e.partido !== '—' ? `(${e.partido})` : ''].filter(Boolean).join(' '),
+              sublinha: [e.modalidade, e.autorUF && e.autorUF !== 'NA' ? e.autorUF : ''].filter(Boolean).join(' · '),
+              bloq: e.bloq, conting: e.conting, total: e.total,
+            }))}
+            limite={contEmendas.length} passoExpansao={contEmendas.length}
+            vazio="Nenhuma emenda parlamentar com Bloqueio ou Contingenciamento no recorte."
+          />
         </CardPDF>
       </div>
 

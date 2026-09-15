@@ -1180,6 +1180,11 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                 "ini": _money(d.get("Dotação Inicial")),
                 "aut": aut,
                 "cont": _money(d.get("Contenção de Gastos")),
+                # Contenção de Gastos = Bloqueio + Contingenciamento (por
+                # exercício só um dos mecanismos é usado). Guardados à parte
+                # para o gráfico que os discrimina por ação.
+                "bloq": _money(d.get("Bloqueio")),
+                "conting": _money(d.get("Contingenciamento")),
             })
             n_dot += 1
 
@@ -1201,6 +1206,9 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                     "orgao": orgao,
                     "uoCod": uo_cod,
                     "uo": uo_nome,
+                    # Contenção de gastos da emenda (Bloqueio/Contingenciamento).
+                    "bloq": _money(d.get("Bloqueio")),
+                    "conting": _money(d.get("Contingenciamento")),
                 })
                 n_em += 1
         print(f"  EXEC {ano}: {n_dot} dotações do {ORGAO_COD} | {n_em} linhas de emenda")

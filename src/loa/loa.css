@@ -651,6 +651,9 @@
   font-size: 0.72rem; color: var(--tinta-2); font-variant-numeric: tabular-nums;
 }
 .loa-app .cmila-quebra span { display: inline-flex; align-items: center; gap: 0.32rem; }
+/* Sublinha opcional (modalidade · UF) da barra de contenção: separa do resto
+   com uma barra vertical e fica em tom mais fraco. */
+.loa-app .cmila-sub { color: var(--tinta-fraca); padding-right: 0.55rem; border-right: 1px solid var(--hairline); }
 .loa-app .cmila-ponto { width: 8px; height: 8px; border-radius: 2px; flex: none; }
 
 /* legenda compartilhada dos gráficos de barra */

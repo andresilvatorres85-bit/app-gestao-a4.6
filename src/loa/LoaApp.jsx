@@ -66,6 +66,7 @@ import {
   iniVsAutorizado as execIniAut, porFonte as execPorFonte,
   resumoPorAnoExec, forcaPorAnoExec, uoPorAnoExec, rpPorAnoExec,
   gndPorAnoExec, acaoPorAnoExec, fonteGrupoPorAno,
+  contencaoPorAcao, emendasContencao,
 } from './execucao.js'
 
 // Subabas de emenda da seção EXECUÇÃO LOA (usam a base execucao.emendas, com os
@@ -198,6 +199,11 @@ export default function LoaApp() {
   )
   const execSemAnoNemOrgao = useMemo(
     () => filtrarExecucao(execRegistros, filtros, ['ano', 'orgao']), [execRegistros, filtros]
+  )
+  // Emendas da execução no MESMO recorte do Dashboard LOA (filtros de dotação),
+  // para o gráfico de "Emendas parlamentares — contenção de gastos".
+  const execEmDash = useMemo(
+    () => filtrarExecucao(execucao.emendas ?? [], filtros), [execucao, filtros]
   )
 
   // Emendas da execução (base própria: execucao.emendas, no formato das emendas
@@ -566,6 +572,12 @@ export default function LoaApp() {
     forcas: execPorForca(execSemOrgao).map((a) => ({ rotulo: a.rotulo, valor: a.valor, pl: a.pl })),
     iniAut: execIniAut(execSemOrgao),
     fontes: execPorFonte(execFiltrados).map((f) => ({ rotulo: f.fonte, valor: f.valor, pl: f.pl })),
+    contencao: contencaoPorAcao(execFiltrados)
+      .map((a) => ({ rotulo: a.acao || a.acaoCod, bloq: a.bloq, conting: a.conting, total: a.total })),
+    contEmendas: emendasContencao(execEmDash).map((e) => ({
+      rotulo: [e.autor, e.partido && e.partido !== '—' ? `(${e.partido})` : ''].filter(Boolean).join(' '),
+      bloq: e.bloq, conting: e.conting, total: e.total,
+    })),
   })
   const cargaHistExec = () => {
     const porAno = resumoPorAnoExec(execSemAno)
@@ -1044,6 +1056,7 @@ export default function LoaApp() {
           <AbaExecucao
             registros={execFiltrados}
             registrosTodasForcas={execSemOrgao}
+            emendas={execEmDash}
             anos={execucao.anos ?? []}
             contexto={contextoExec}
             onExportarSlide={baixarSlideExec}

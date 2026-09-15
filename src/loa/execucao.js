@@ -142,6 +142,52 @@ export function porFonte(registros) {
   return [...mapa.values()].filter((f) => f.valor || f.pl).sort(ordValor)
 }
 
+// Contenção de gastos = Bloqueio + Contingenciamento (por exercício só um dos
+// mecanismos costuma ter valor). Discriminados para os gráficos abaixo.
+export const vBloq = (r) => r.bloq || 0
+export const vConting = (r) => r.conting || 0
+
+// 8) Contenção de gastos por ação orçamentária. Só as ações com Bloqueio ou
+//    Contingenciamento (> 0), maior → menor.
+export function contencaoPorAcao(registros) {
+  const mapa = new Map()
+  for (const r of registros) {
+    const b = vBloq(r), g = vConting(r)
+    if (!b && !g) continue
+    const k = r.acaoCod || '—'
+    if (!mapa.has(k)) mapa.set(k, { acaoCod: k, acao: r.acao || '', bloq: 0, conting: 0 })
+    const o = mapa.get(k)
+    o.bloq += b; o.conting += g
+  }
+  return [...mapa.values()]
+    .map((o) => ({ ...o, total: o.bloq + o.conting }))
+    .filter((o) => o.total > 0)
+    .sort((a, b) => b.total - a.total)
+}
+
+// 9) Emendas parlamentares com contenção (Bloqueio/Contingenciamento). Uma
+//    linha por emenda, com o rótulo do parlamentar/bancada. Recebe a base de
+//    emendas da execução (execucao.emendas).
+export function emendasContencao(emendas) {
+  const mapa = new Map()
+  for (const r of emendas) {
+    const b = vBloq(r), g = vConting(r)
+    if (!b && !g) continue
+    if (!mapa.has(r.emenda)) {
+      mapa.set(r.emenda, {
+        emenda: r.emenda, autor: r.autor, autorTipo: r.autorTipo, partido: r.partido,
+        autorUF: r.autorUF, modalidade: r.modalidade, rp: r.rp, bloq: 0, conting: 0,
+      })
+    }
+    const o = mapa.get(r.emenda)
+    o.bloq += b; o.conting += g
+  }
+  return [...mapa.values()]
+    .map((o) => ({ ...o, total: o.bloq + o.conting }))
+    .filter((o) => o.total > 0)
+    .sort((a, b) => b.total - a.total)
+}
+
 export const anosExec = (registros) => [...new Set(registros.map((r) => r.ano))].sort()
 
 // ------------------------------------------------- séries por exercício -----
