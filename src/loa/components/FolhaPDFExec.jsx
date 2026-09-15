@@ -11,6 +11,7 @@ import {
   somaTotais, porRP, porGND, porUO, acoesOrdenadas, porForca, iniVsAutorizado, porFonte,
   resumoPorAnoExec, forcaPorAnoExec, uoPorAnoExec, rpPorAnoExec, gndPorAnoExec,
   acaoPorAnoExec, fonteGrupoPorAno, contencaoPorAcao, emendasContencao,
+  contencaoPorAnoExec, contencaoEmendasPorAno,
 } from '../execucao.js'
 import GraficoBarrasExec from './GraficoBarrasExec.jsx'
 import GraficoContencao from './GraficoContencao.jsx'
@@ -255,7 +256,7 @@ export function FolhaDashboardExec({ registros, registrosTodasForcas, emendas = 
 }
 
 // ====================================================== Histórico LOA (dotação)
-export function FolhaHistoricoExec({ registros, registrosTodasForcas, filtrosTexto }) {
+export function FolhaHistoricoExec({ registros, registrosTodasForcas, emendas = [], filtrosTexto }) {
   const todasForcas = registrosTodasForcas ?? registros
   const anosResumo = resumoPorAnoExec(registros)
   const forcas = forcaPorAnoExec(todasForcas)
@@ -266,6 +267,10 @@ export function FolhaHistoricoExec({ registros, registrosTodasForcas, filtrosTex
   const fgrupos = fonteGrupoPorAno(registros)
 
   const anos = anosResumo.map((a) => a.ano)
+  const contencao = contencaoPorAnoExec(registros, anos)
+  const contEmendas = contencaoEmendasPorAno(emendas, anos)
+  const totalCont = contencao.series.reduce((s, x) => s + x.valores.reduce((a, v) => a + v, 0), 0)
+  const totalContEm = contEmendas.series.reduce((s, x) => s + x.valores.reduce((a, v) => a + v, 0), 0)
   const totalPeriodo = anosResumo.reduce((s, a) => s + a.aut, 0)
   const saldoTotal = anosResumo.reduce((s, a) => s + a.delta, 0)
   const CORES_ANO = [
@@ -284,7 +289,7 @@ export function FolhaHistoricoExec({ registros, registrosTodasForcas, filtrosTex
       {/* página 1: cards de exercício, LOA anual, GND, UO */}
       <div className="pdf-pagina">
         <Cabeca titulo="Análise Histórico LOA" valor={filtrosTexto}
-          sec={`Comparativo dos exercícios ${anos.join(', ')} · ignora o filtro de Ano · dotação autorizada`} />
+          sec={`Comparativo dos exercícios ${anos.join(', ')} · dotação autorizada`} />
 
         <div className="pdf-anos">
           {anosResumo.map((a) => {
@@ -373,6 +378,24 @@ export function FolhaHistoricoExec({ registros, registrosTodasForcas, filtrosTex
           total={fmtBi(acoes.series.reduce((s, l) => s + l.total, 0))} fluido>
           <MatrizAnos anos={acoes.anos} linhas={acoes.series} formatar={fmtBiSeco}
             rotuloColuna="Ação orçamentária" destaqueCodigo />
+        </CardPDF>
+      </div>
+
+      {/* página: contenção de gastos por exercício (dotação e emendas) */}
+      <div className="pdf-pagina pdf-pagina-nova">
+        <CardPDF titulo="Contenção de gastos por exercício"
+          sub="Bloqueio × Contingenciamento em cada exercício" total={fmtBi(totalCont)}>
+          <GraficoColunasAno anos={contencao.anos} series={contencao.series} empilhado
+            formatar={fmtBi} formatarTotal={(v) => fmtBi(v)}
+            rotuloEixo="Bloqueio e Contingenciamento em cada exercício"
+            vazio="Sem contenção de gastos para os filtros aplicados." />
+        </CardPDF>
+        <CardPDF titulo="Contenção de gastos de emendas parlamentares"
+          sub="Bloqueio × Contingenciamento das emendas RP6 e RP7, por exercício" total={fmtBi(totalContEm)}>
+          <GraficoColunasAno anos={contEmendas.anos} series={contEmendas.series} empilhado
+            formatar={fmtBi} formatarTotal={(v) => fmtBi(v)}
+            rotuloEixo="Bloqueio e Contingenciamento das emendas RP6/RP7"
+            vazio="Sem contenção de gastos em emendas RP6/RP7 para os filtros aplicados." />
         </CardPDF>
       </div>
 
@@ -553,7 +576,7 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
       {/* página 1: cards de exercício, valor por ano, emendas+parlamentares */}
       <div className="pdf-pagina">
         <Cabeca titulo={L.titulo} valor={filtrosTexto}
-          sec={`Comparativo dos exercícios ${anos.join(', ')} · ignora o filtro de Ano · ${L.noun}`} />
+          sec={`Comparativo dos exercícios ${anos.join(', ')} · responde ao filtro de Ano · ${L.noun}`} />
 
         <div className="pdf-anos">
           {anosResumo.map((a) => {

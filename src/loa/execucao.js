@@ -190,8 +190,39 @@ export function emendasContencao(emendas) {
 
 export const anosExec = (registros) => [...new Set(registros.map((r) => r.ano))].sort()
 
+// Contenção de gastos (Bloqueio × Contingenciamento) por exercício. Duas séries
+// para o gráfico de colunas por ano. `anosRef` força o eixo a um conjunto de
+// exercícios (para alinhar dois gráficos na mesma subaba); se omitido, usa os
+// anos presentes nos próprios registros.
+export function contencaoPorAnoExec(registros, anosRef = null) {
+  const anos = anosRef ?? anosExec(registros)
+  const idx = Object.fromEntries(anos.map((a, i) => [a, i]))
+  const bloq = anos.map(() => 0)
+  const conting = anos.map(() => 0)
+  for (const r of registros) {
+    const i = idx[r.ano]
+    if (i === undefined) continue
+    bloq[i] += vBloq(r)
+    conting[i] += vConting(r)
+  }
+  return {
+    anos,
+    series: [
+      { chave: 'bloq', rotulo: 'Bloqueio', cor: 'var(--serie-laranja)', valores: bloq },
+      { chave: 'conting', rotulo: 'Contingenciamento', cor: 'var(--serie-violeta)', valores: conting },
+    ],
+  }
+}
+
+// Contenção de gastos por exercício SOMENTE das emendas parlamentares (RP 6 e
+// RP 7). Recebe a base de emendas da execução (execucao.emendas).
+export function contencaoEmendasPorAno(emendas, anosRef = null) {
+  const rp = emendas.filter((r) => String(r.rp) === '6' || String(r.rp) === '7')
+  return contencaoPorAnoExec(rp, anosRef)
+}
+
 // ------------------------------------------------- séries por exercício -----
-// Usadas pela subaba "Histórico LOA", que ignora o filtro de Ano. Todas
+// Usadas pela subaba "Histórico LOA", que responde ao filtro de Ano. Todas
 // consolidam o AUTORIZADO (a leitura primária desta base).
 
 // Resumo por exercício: Autorizado, Dotação Inicial, saldo (Aut − Inicial) e a
