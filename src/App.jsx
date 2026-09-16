@@ -45,7 +45,7 @@ const ABAS = [
 const NAV = [
   { id: "dashboard", label: "Painel", icon: LayoutDashboard },
   { id: "novo", label: "Lançar", icon: Plus },
-  { id: "objeto", label: "Objeto Emenda", icon: FileSignature },
+  { id: "objeto", label: "Alteração emenda", icon: FileSignature },
   { id: "historico", label: "Histórico", icon: History },
   { id: "config", label: "Configurações", icon: Settings },
 ];

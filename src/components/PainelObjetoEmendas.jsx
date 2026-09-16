@@ -8,7 +8,7 @@ export default function PainelObjetoEmendas({ itens = [], onEditar, onExcluir })
       <h2 className="panel-title">Alterações em emendas parlamentares</h2>
       {itens.length === 0 ? (
         <p className="oe-vazio">
-          Nenhuma alteração registrada. Use o botão <strong>Objeto Emenda</strong> para gerar o
+          Nenhuma alteração registrada. Use o botão <strong>Alteração emenda</strong> para gerar o
           ofício e adicionar a mudança aqui.
         </p>
       ) : (
