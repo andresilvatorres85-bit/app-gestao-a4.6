@@ -728,3 +728,11 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 @media (max-width: 680px) {
   .form-actions-2 .btn { flex: 1 1 100%; justify-content: center; }
 }
+
+/* Edição de lançamento na aba "Objeto Emenda" */
+.obj-edit-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: rgba(201,169,106,0.14); border: 1px solid rgba(201,169,106,0.4);
+  color: var(--ink); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; font-size: 13px;
+}
+.btn-sm { padding: 5px 10px; font-size: 12.5px; }

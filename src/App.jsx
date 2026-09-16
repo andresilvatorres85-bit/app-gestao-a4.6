@@ -56,6 +56,7 @@ export default function App() {
   const headerRef = useRef(null);
   const subnavRef = useRef(null);
   const [view, setView] = useState("dashboard");
+  const [objetoEditando, setObjetoEditando] = useState(null);
   const [novos, setNovos] = useState([]);
   const [loadedNovos, setLoadedNovos] = useState(false);
   const [toast, setToast] = useState(null);
@@ -126,6 +127,11 @@ export default function App() {
     }
   }, []);
 
+  const editarObjeto = useCallback((registro) => {
+    setObjetoEditando(registro);
+    setView("objeto");
+  }, []);
+
   const allRecords = useMemo(() => {
     const hist = HISTORICO_DATA.map(r => ({ ...r, origem: "historico" }));
     const nov = novos.map(r => ({ ...r, origem: "novo" }));
@@ -193,11 +199,15 @@ export default function App() {
         ) : !loadedNovos || !partidosCarregados || !usuariosCarregados ? (
           <div className="loading-state">Carregando…</div>
         ) : view === "dashboard" ? (
-          <Dashboard allRecords={allRecords} novos={novos} objetoEmendas={objetoEmendas.itens} />
+          <Dashboard allRecords={allRecords} novos={novos} objetoEmendas={objetoEmendas.itens}
+            onEditarObjeto={editarObjeto} onExcluirObjeto={objetoEmendas.excluir} />
         ) : view === "novo" ? (
           <NovoRegistro onSaved={handleSaved} nextProtocolo={nextProtocolo} partidos={partidos} mapaEspectro={mapaEspectro} autorAtual={autorAtual} emailAtual={emailAtual} />
         ) : view === "objeto" ? (
-          <ObjetoEmenda itens={objetoEmendas.itens} inserir={objetoEmendas.inserir} excluir={objetoEmendas.excluir} partidos={partidos} autorAtual={autorAtual} emailAtual={emailAtual} />
+          <ObjetoEmenda itens={objetoEmendas.itens} inserir={objetoEmendas.inserir}
+            atualizar={objetoEmendas.atualizar} excluir={objetoEmendas.excluir}
+            editando={objetoEditando} onEditar={editarObjeto} onCancelarEdicao={() => setObjetoEditando(null)}
+            partidos={partidos} autorAtual={autorAtual} emailAtual={emailAtual} />
         ) : view === "historico" ? (
           <Historico allRecords={allRecords} onDelete={handleDelete} />
         ) : (

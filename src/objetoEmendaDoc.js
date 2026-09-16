@@ -1,9 +1,21 @@
 import JSZip from "jszip";
 import { MESES_LONGO } from "./constants.js";
-// O modelo é o próprio ofício anexo, com os campos variáveis trocados por
-// tokens [[...]] (ver src/modelos). O Vite copia o arquivo e devolve a URL final
-// (com o base path correto no GitHub Pages), então basta um fetch.
-import modeloUrl from "./modelos/oficio-objeto-emenda.docx?url";
+// Os modelos são os próprios ofícios anexos, com os campos variáveis trocados
+// por tokens [[...]] (ver src/modelos). O Vite copia os arquivos e devolve a URL
+// final (com o base path correto no GitHub Pages), então basta um fetch.
+// Há um modelo para a Câmara (Deputado) e outro para o Senado (Senador), com
+// papel timbrado, assinatura e rodapé próprios de cada casa.
+import modeloCamaraUrl from "./modelos/oficio-objeto-emenda.docx?url";
+import modeloSenadoUrl from "./modelos/oficio-objeto-emenda-senador.docx?url";
+
+// Escolhe o modelo pela casa legislativa, deduzida do cargo (Senador/Senadora
+// → Senado; Deputado/Deputada → Câmara).
+export function ehSenado(cargo) {
+  return /senador/i.test(cargo || "");
+}
+function modeloDoCargo(cargo) {
+  return ehSenado(cargo) ? modeloSenadoUrl : modeloCamaraUrl;
+}
 
 // Escapa o texto do operador para caber com segurança dentro do XML do .docx.
 function escXml(s) {
@@ -55,13 +67,18 @@ export async function gerarOficioDocx(d) {
     "[[EMAIL]]": (d.email || "").trim(),
   };
 
-  const buf = await fetch(modeloUrl).then((r) => {
+  const buf = await fetch(modeloDoCargo(d.cargo)).then((r) => {
     if (!r.ok) throw new Error("Não foi possível carregar o modelo do ofício.");
     return r.arrayBuffer();
   });
   const zip = await JSZip.loadAsync(buf);
 
-  for (const parte of ["word/document.xml", "word/footer1.xml"]) {
+  // O corpo tem os tokens; o rodapé varia de arquivo entre os modelos (footer1
+  // na Câmara, footer2 no Senado), então percorremos todos os rodapés.
+  const alvos = Object.keys(zip.files).filter(
+    (n) => n === "word/document.xml" || /^word\/footer\d*\.xml$/.test(n)
+  );
+  for (const parte of alvos) {
     const arquivo = zip.file(parte);
     if (!arquivo) continue;
     let xml = await arquivo.async("string");
