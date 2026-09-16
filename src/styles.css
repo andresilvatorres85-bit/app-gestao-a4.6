@@ -736,3 +736,19 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
   color: var(--ink); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; font-size: 13px;
 }
 .btn-sm { padding: 5px 10px; font-size: 12.5px; }
+
+/* Multi-seleção de tipos de ajuste (aba Alteração emenda) */
+.ajuste-chips { display: flex; flex-direction: column; gap: 6px; }
+.ajuste-chip {
+  display: inline-flex; align-items: center; gap: 8px; text-align: left;
+  padding: 8px 11px; border-radius: 9px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-hi); color: var(--ink);
+}
+.ajuste-chip:hover { border-color: var(--line-strong); }
+.ajuste-chip-on { background: var(--brand); border-color: var(--brand-hi); color: #fff; }
+.ajuste-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; font-size: 10.5px; font-weight: 700;
+  background: rgba(255,255,255,0.10); color: var(--muted);
+}
+.ajuste-chip-on .ajuste-num { background: rgba(255,255,255,0.22); color: #fff; }

@@ -1,24 +1,25 @@
 import { useState, useEffect, useMemo } from "react";
-import { FileText, Save, X } from "lucide-react";
+import { FileText, Save, X, Check } from "lucide-react";
 import { Field } from "./UI.jsx";
 import { UFS, MESES_LONGO } from "../constants.js";
 import { todayParts } from "../helpers.js";
 import { baixarOficioDocx, ehSenado } from "../objetoEmendaDoc.js";
-import { listarParlamentares, detalharParlamentar } from "../parlamentares.js";
+import { carregarEmendasExercito, parlamentaresDoAno, cargoDoParlamentar } from "../parlamentaresLexor.js";
 import ObjetoEmendasTabela from "./ObjetoEmendasTabela.jsx";
 
 const CARGOS = ["Deputado Federal", "Deputada Federal", "Senador", "Senadora"];
+// Lista de ajustes na ordem pedida; seleção múltipla.
 const AJUSTES = [
-  "Ampliação do objeto.",
-  "Alteração de objeto.",
-  "Alteração de objeto e de OM beneficiária.",
-  "Mudança de ação orçamentária (AO).",
-  "Alteração de OM beneficiária.",
+  "Ampliação do objeto",
+  "Alteração do objeto",
+  "Alteração de OM beneficiária",
+  "Mudança de Ação Orçamentária (AO)",
+  "Mudança de GND",
 ];
 
 const VAZIO = {
   parlamentar: "", cargo: "Deputado Federal", partido: "", uf: "",
-  oficioNr: "", emenda: "", objetoDe: "", objetoPara: "", ajuste: "",
+  oficioNr: "", emenda: "", objetoDe: "", objetoPara: "", ajustes: [],
   gabinete: "", telefone: "", email: "",
 };
 
@@ -33,58 +34,25 @@ export default function ObjetoEmenda({
   const [gerando, setGerando] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
-  // Lista de parlamentares em exercício (Câmara + Senado), buscada ao vivo no
-  // navegador. 'carregando' | 'ok' | 'erro'. Ao selecionar, autopreenche.
-  const [lista, setLista] = useState([]);
+  // Parlamentares que concederam emendas ao Exército (RESULTADO LEXOR → Emendas),
+  // vindos do próprio dados.json. A lista é filtrada pelo ano selecionado.
+  const [regsEx, setRegsEx] = useState([]);
   const [statusLista, setStatusLista] = useState("carregando");
-  const [preenchendo, setPreenchendo] = useState(false);
 
   useEffect(() => {
     let vivo = true;
-    listarParlamentares()
-      .then((l) => { if (vivo) { setLista(l); setStatusLista("ok"); } })
+    carregarEmendasExercito()
+      .then((rs) => { if (vivo) { setRegsEx(rs); setStatusLista("ok"); } })
       .catch(() => { if (vivo) setStatusLista("erro"); });
     return () => { vivo = false; };
   }, []);
 
+  const lista = useMemo(() => parlamentaresDoAno(regsEx, f.ano), [regsEx, f.ano]);
   const mapaNome = useMemo(() => {
     const m = new Map();
     for (const p of lista) if (!m.has(p.nome.toLowerCase())) m.set(p.nome.toLowerCase(), p);
     return m;
   }, [lista]);
-
-  async function selecionar(p) {
-    setPreenchendo(true);
-    try {
-      const d = await detalharParlamentar(p);
-      setF((s) => ({
-        ...s,
-        parlamentar: p.nome,
-        cargo: d.cargo || s.cargo,
-        partido: d.partido || s.partido,
-        uf: d.uf || s.uf,
-        gabinete: d.gabinete || s.gabinete,
-        telefone: d.telefone || s.telefone,
-        email: d.email || s.email,
-      }));
-    } finally {
-      setPreenchendo(false);
-    }
-  }
-
-  function onParlamentar(e) {
-    const v = e.target.value;
-    setF((s) => ({ ...s, parlamentar: v }));
-    setErro(""); setOk("");
-    const p = mapaNome.get(v.trim().toLowerCase());
-    if (p) selecionar(p);
-  }
-
-  const hintParlamentar =
-    preenchendo ? "Preenchendo dados do gabinete…"
-      : statusLista === "carregando" ? "Carregando parlamentares da Câmara e do Senado…"
-      : statusLista === "erro" ? "Não foi possível carregar a lista (a busca é feita no seu navegador). Digite manualmente."
-      : `${lista.length} parlamentares em exercício — selecione para autopreencher.`;
 
   // Ao acionar "editar" (aqui ou no Painel), carrega o lançamento no formulário.
   useEffect(() => {
@@ -94,13 +62,40 @@ export default function ObjetoEmenda({
       partido: editando.partido || "", uf: editando.uf || "",
       oficioNr: editando.oficioNr || "", dia: editando.dia || hoje.d, mes: editando.mes || hoje.m, ano: editando.ano || hoje.y,
       emenda: editando.emenda || "", objetoDe: editando.objetoDe || "", objetoPara: editando.objetoPara || "",
-      ajuste: editando.ajuste || "", gabinete: editando.gabinete || "", telefone: editando.telefone || "", email: editando.email || "",
+      ajustes: (editando.ajuste || "").split(/\s*;\s*/).map((s) => s.trim()).filter(Boolean),
+      gabinete: editando.gabinete || "", telefone: editando.telefone || "", email: editando.email || "",
     });
     setErro(""); setOk("");
     if (typeof window !== "undefined") window.scrollTo?.({ top: 0, behavior: "smooth" });
   }, [editando]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k) => (e) => { setF((s) => ({ ...s, [k]: e.target.value })); setErro(""); setOk(""); };
+
+  function selecionarParlamentar(p) {
+    setF((s) => ({
+      ...s,
+      parlamentar: p.nome,
+      cargo: cargoDoParlamentar(p) || s.cargo,
+      partido: p.partido || s.partido,
+      uf: p.uf || s.uf,
+    }));
+  }
+
+  function onParlamentar(e) {
+    const v = e.target.value;
+    setF((s) => ({ ...s, parlamentar: v }));
+    setErro(""); setOk("");
+    const p = mapaNome.get(v.trim().toLowerCase());
+    if (p) selecionarParlamentar(p);
+  }
+
+  function toggleAjuste(a) {
+    setF((s) => ({
+      ...s,
+      ajustes: s.ajustes.includes(a) ? s.ajustes.filter((x) => x !== a) : [...s.ajustes, a],
+    }));
+    setErro(""); setOk("");
+  }
 
   function limpar() {
     setF((s) => ({ ...VAZIO, cargo: s.cargo, dia: s.dia, mes: s.mes, ano: s.ano }));
@@ -110,9 +105,11 @@ export default function ObjetoEmenda({
     if (!f.parlamentar.trim()) return "Informe o nome do parlamentar.";
     if (!f.emenda.trim()) return "Informe o número da emenda.";
     if (!f.objetoPara.trim()) return "Informe o novo objeto (PARA).";
-    if (paraSalvar && !f.ajuste.trim()) return "Informe o tipo de ajuste (para a consolidação).";
+    if (paraSalvar && !f.ajustes.length) return "Selecione ao menos um tipo de ajuste (para a consolidação).";
     return "";
   }
+
+  const payloadSalvar = () => ({ ...f, ajuste: f.ajustes.join("; ") });
 
   async function gerar() {
     const v = validar(false);
@@ -132,16 +129,12 @@ export default function ObjetoEmenda({
     if (v) { setErro(v); return; }
     setSalvando(true);
     const res = editando
-      ? await atualizar(editando.id, f)
-      : await inserir({ ...f, autor: autorAtual || emailAtual || null });
+      ? await atualizar(editando.id, payloadSalvar())
+      : await inserir({ ...payloadSalvar(), autor: autorAtual || emailAtual || null });
     setSalvando(false);
     if (res.error) { setErro("Não foi possível salvar: " + res.error.message); return; }
-    if (editando) {
-      setOk("Lançamento atualizado.");
-      onCancelarEdicao?.();
-    } else {
-      setOk("Registro adicionado à consolidação (Painel).");
-    }
+    if (editando) { setOk("Lançamento atualizado."); onCancelarEdicao?.(); }
+    else { setOk("Registro adicionado à consolidação (Painel)."); }
     limpar();
   }
 
@@ -153,10 +146,15 @@ export default function ObjetoEmenda({
 
   const emEdicao = !!editando;
   const casaSenado = ehSenado(f.cargo);
+  const hintParlamentar =
+    statusLista === "carregando" ? "Carregando parlamentares do RESULTADO LEXOR…"
+      : statusLista === "erro" ? "Não foi possível carregar a base (dados.json). Digite manualmente."
+      : lista.length ? `${lista.length} parlamentares com emenda ao Exército em ${f.ano} — selecione para autopreencher.`
+      : `Nenhum parlamentar com emenda ao Exército em ${f.ano}. Escolha outro ano ou digite manualmente.`;
 
   return (
     <div className="view-pad">
-      <h1 className="page-title">Objeto de emenda</h1>
+      <h1 className="page-title">Alteração de emenda</h1>
       <p className="page-sub">
         Gere o ofício de autorização de troca/ampliação do objeto de uma emenda destinada ao
         Exército e registre a mudança na consolidação (aba <strong>Painel</strong>).
@@ -178,14 +176,14 @@ export default function ObjetoEmenda({
               placeholder="Selecione ou digite o nome do parlamentar" autoComplete="off" />
             <datalist id="parlamentares-list">
               {lista.map((p) => (
-                <option key={`${p.casa}-${p.id}`} value={p.nome}>
-                  {`${p.casa === "senado" ? "Senado" : "Câmara"} · ${[p.partido, p.uf].filter(Boolean).join("-")}`}
+                <option key={p.nome} value={p.nome}>
+                  {`${p.autorTipo === "SENADOR" ? "Senado" : "Câmara"} · ${[p.partido, p.uf].filter(Boolean).join("-")}`}
                 </option>
               ))}
             </datalist>
           </Field>
 
-          <Field label="Cargo" hint={casaSenado ? "Gera o ofício no modelo do Senado." : "Concorda o gênero do cabeçalho (do/da)."}>
+          <Field label="Cargo" hint={casaSenado ? "Gera o ofício no modelo do Senado. Confira o gênero." : "Confira o gênero (do/da). Preenchido pela seleção."}>
             <input className="input" list="cargos-list" value={f.cargo} onChange={set("cargo")}
               placeholder="Deputado Federal" />
             <datalist id="cargos-list">
@@ -193,7 +191,7 @@ export default function ObjetoEmenda({
             </datalist>
           </Field>
 
-          <Field label="Partido" hint="Vai para a tabela de consolidação.">
+          <Field label="Partido">
             <input className="input" list="obj-partidos-list" value={f.partido} onChange={set("partido")}
               placeholder="Ex: PL" />
             <datalist id="obj-partidos-list">
@@ -212,7 +210,7 @@ export default function ObjetoEmenda({
             <input className="input" value={f.oficioNr} onChange={set("oficioNr")} placeholder="____" />
           </Field>
 
-          <Field label="Data do ofício" required hint="O ano também identifica a LOA da emenda.">
+          <Field label="Data do ofício" required hint="O ano também filtra os parlamentares e identifica a LOA.">
             <div className="date-row">
               <select className="input" value={f.dia} onChange={set("dia")}>
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
@@ -230,14 +228,6 @@ export default function ObjetoEmenda({
             <input className="input" value={f.emenda} onChange={set("emenda")} placeholder="Ex: 27590005" inputMode="numeric" />
           </Field>
 
-          <Field label="Tipo de ajuste" hint="Escolha ou digite — vai para a coluna “Ajustes”.">
-            <input className="input" list="ajustes-list" value={f.ajuste} onChange={set("ajuste")}
-              placeholder="Ampliação do objeto." />
-            <datalist id="ajustes-list">
-              {AJUSTES.map((a) => <option key={a} value={a} />)}
-            </datalist>
-          </Field>
-
           <Field label="Objeto atual (DE)" hint="Como está hoje na emenda.">
             <textarea className="input textarea" rows={2} value={f.objetoDe} onChange={set("objetoDe")}
               placeholder="Ex: Ambulância tipo “B” — Suporte básico" />
@@ -246,6 +236,20 @@ export default function ObjetoEmenda({
           <Field label="Novo objeto (PARA)" required hint="Como deverá ficar.">
             <textarea className="input textarea" rows={2} value={f.objetoPara} onChange={set("objetoPara")}
               placeholder="Ex: Aquisição de viatura administrativa e bens…" />
+          </Field>
+
+          <Field label="Tipo de ajuste" required hint="Marque um ou mais — vão para a coluna “Ajuste”.">
+            <div className="ajuste-chips">
+              {AJUSTES.map((a, i) => {
+                const on = f.ajustes.includes(a);
+                return (
+                  <button type="button" key={a} className={`ajuste-chip ${on ? "ajuste-chip-on" : ""}`}
+                    onClick={() => toggleAjuste(a)} aria-pressed={on}>
+                    {on ? <Check size={14} /> : <span className="ajuste-num">{i + 1}</span>} {a}
+                  </button>
+                );
+              })}
+            </div>
           </Field>
         </div>
 
