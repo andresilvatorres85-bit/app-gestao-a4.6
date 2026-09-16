@@ -78,11 +78,35 @@ export function useObjetoEmendas(session) {
     return res;
   }, [recarregar]);
 
+  // Atualiza um registro existente (edição pelo Painel ou pela lista).
+  const atualizar = useCallback(async (id, d) => {
+    const rec = {
+      parlamentar: d.parlamentar?.trim() || null,
+      cargo: d.cargo?.trim() || null,
+      partido: d.partido?.trim() || null,
+      uf: d.uf?.trim() || null,
+      oficio_nr: d.oficioNr?.trim() || null,
+      dia: d.dia ? Number(d.dia) : null,
+      mes: d.mes ? Number(d.mes) : null,
+      ano: d.ano ? Number(d.ano) : null,
+      emenda: d.emenda?.trim() || null,
+      objeto_de: d.objetoDe?.trim() || null,
+      objeto_para: d.objetoPara?.trim() || null,
+      ajuste: d.ajuste?.trim() || null,
+      gabinete: d.gabinete?.trim() || null,
+      telefone: d.telefone?.trim() || null,
+      email: d.email?.trim() || null,
+    };
+    const res = await supabase.from("objeto_emendas").update(rec).eq("id", id).select().single();
+    if (!res.error) recarregar();
+    return res;
+  }, [recarregar]);
+
   const excluir = useCallback(async (id) => {
     const res = await supabase.from("objeto_emendas").delete().eq("id", id);
     if (!res.error) recarregar();
     return res;
   }, [recarregar]);
 
-  return { itens, carregado, erro, inserir, excluir, recarregar };
+  return { itens, carregado, erro, inserir, atualizar, excluir, recarregar };
 }

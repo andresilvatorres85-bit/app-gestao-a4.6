@@ -22,7 +22,7 @@ function useIsMobile() {
   return mobile;
 }
 
-export default function Dashboard({ allRecords, novos, objetoEmendas = [] }) {
+export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEditarObjeto, onExcluirObjeto }) {
   const isMobile = useIsMobile();
 
   const anosDisponiveis = useMemo(() => {
@@ -242,7 +242,7 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [] }) {
         </ResponsiveContainer>
       </ChartCard>
 
-      <PainelObjetoEmendas itens={objetoEmendas} />
+      <PainelObjetoEmendas itens={objetoEmendas} onEditar={onEditarObjeto} onExcluir={onExcluirObjeto} />
     </div>
   );
 }
