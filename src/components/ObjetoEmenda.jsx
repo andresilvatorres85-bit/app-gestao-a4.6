@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FileText, Save, X } from "lucide-react";
 import { Field } from "./UI.jsx";
 import { UFS, MESES_LONGO } from "../constants.js";
 import { todayParts } from "../helpers.js";
 import { baixarOficioDocx, ehSenado } from "../objetoEmendaDoc.js";
+import { listarParlamentares, detalharParlamentar } from "../parlamentares.js";
 import ObjetoEmendasTabela from "./ObjetoEmendasTabela.jsx";
 
 const CARGOS = ["Deputado Federal", "Deputada Federal", "Senador", "Senadora"];
@@ -31,6 +32,59 @@ export default function ObjetoEmenda({
   const [ok, setOk] = useState("");
   const [gerando, setGerando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+
+  // Lista de parlamentares em exercício (Câmara + Senado), buscada ao vivo no
+  // navegador. 'carregando' | 'ok' | 'erro'. Ao selecionar, autopreenche.
+  const [lista, setLista] = useState([]);
+  const [statusLista, setStatusLista] = useState("carregando");
+  const [preenchendo, setPreenchendo] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    listarParlamentares()
+      .then((l) => { if (vivo) { setLista(l); setStatusLista("ok"); } })
+      .catch(() => { if (vivo) setStatusLista("erro"); });
+    return () => { vivo = false; };
+  }, []);
+
+  const mapaNome = useMemo(() => {
+    const m = new Map();
+    for (const p of lista) if (!m.has(p.nome.toLowerCase())) m.set(p.nome.toLowerCase(), p);
+    return m;
+  }, [lista]);
+
+  async function selecionar(p) {
+    setPreenchendo(true);
+    try {
+      const d = await detalharParlamentar(p);
+      setF((s) => ({
+        ...s,
+        parlamentar: p.nome,
+        cargo: d.cargo || s.cargo,
+        partido: d.partido || s.partido,
+        uf: d.uf || s.uf,
+        gabinete: d.gabinete || s.gabinete,
+        telefone: d.telefone || s.telefone,
+        email: d.email || s.email,
+      }));
+    } finally {
+      setPreenchendo(false);
+    }
+  }
+
+  function onParlamentar(e) {
+    const v = e.target.value;
+    setF((s) => ({ ...s, parlamentar: v }));
+    setErro(""); setOk("");
+    const p = mapaNome.get(v.trim().toLowerCase());
+    if (p) selecionar(p);
+  }
+
+  const hintParlamentar =
+    preenchendo ? "Preenchendo dados do gabinete…"
+      : statusLista === "carregando" ? "Carregando parlamentares da Câmara e do Senado…"
+      : statusLista === "erro" ? "Não foi possível carregar a lista (a busca é feita no seu navegador). Digite manualmente."
+      : `${lista.length} parlamentares em exercício — selecione para autopreencher.`;
 
   // Ao acionar "editar" (aqui ou no Painel), carrega o lançamento no formulário.
   useEffect(() => {
@@ -119,9 +173,16 @@ export default function ObjetoEmenda({
 
       <form className="panel form" onSubmit={(e) => { e.preventDefault(); salvar(); }}>
         <div className="form-grid">
-          <Field label="Parlamentar" required>
-            <input className="input" value={f.parlamentar} onChange={set("parlamentar")}
-              placeholder="Nome do parlamentar (como assina)" />
+          <Field label="Parlamentar" required hint={hintParlamentar}>
+            <input className="input" list="parlamentares-list" value={f.parlamentar} onChange={onParlamentar}
+              placeholder="Selecione ou digite o nome do parlamentar" autoComplete="off" />
+            <datalist id="parlamentares-list">
+              {lista.map((p) => (
+                <option key={`${p.casa}-${p.id}`} value={p.nome}>
+                  {`${p.casa === "senado" ? "Senado" : "Câmara"} · ${[p.partido, p.uf].filter(Boolean).join("-")}`}
+                </option>
+              ))}
+            </datalist>
           </Field>
 
           <Field label="Cargo" hint={casaSenado ? "Gera o ofício no modelo do Senado." : "Concorda o gênero do cabeçalho (do/da)."}>
