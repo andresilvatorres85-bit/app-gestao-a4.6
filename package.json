@@ -11,6 +11,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "html-to-image": "^1.11.11",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "jszip": "^3.10.2",
     "lucide-react": "^0.383.0",
     "pptxgenjs": "^3.12.0",

@@ -16,6 +16,7 @@ import {
   podeJuntar, proximoNumero, montarConsolidada, autorSugerido,
 } from "../lexorConsolidar.js";
 import { exportarWord } from "../lexorExport.js";
+import { exportarTabelaLexorPdf } from "../lexorPdf.js";
 
 const PAGE_SIZE = 30;
 
@@ -203,6 +204,16 @@ export default function Lexor() {
   const prospectadas = useMemo(
     () => filtradas.filter(p => situacaoDe(p) === "prospectada").length, [filtradas]);
 
+  function exportarPdf() {
+    const escopo = [];
+    if (uf !== "Todas") escopo.push(`Estado: ${uf}`);
+    if (tipo !== "Todos") escopo.push(`Tipo: ${tipo}`);
+    if (acao !== "Todas") escopo.push(`Ação: ${acao}`);
+    if (cmdo !== "Todos") escopo.push(`C Mil A: ${cmdo}`);
+    if (busca.trim()) escopo.push(`Busca: “${busca.trim()}”`);
+    exportarTabelaLexorPdf(filtradas, situacao, { escopo });
+  }
+
   function alternar(nr) {
     setSelecionadas(prev => {
       const s = new Set(prev);
@@ -326,6 +337,11 @@ export default function Lexor() {
             <input className="input" type="number" min="2020" max="2099" value={exercicio}
               onChange={e => setExercicio(Number(e.target.value))} />
           </label>
+          <button className="btn btn-ghost btn-sm" disabled={filtradas.length === 0}
+            onClick={exportarPdf}
+            title="Exporta a tabela filtrada em PDF (paisagem), com o título conforme a situação selecionada">
+            <FileDown size={15} /> Exportar PDF
+          </button>
           <button className="btn btn-primary btn-sm" disabled={selecionadas.size === 0}
             onClick={abrirSelecionadas}>
             <FileText size={15} /> Gerar espelhos
