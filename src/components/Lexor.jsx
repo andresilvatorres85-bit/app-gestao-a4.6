@@ -18,6 +18,7 @@ import {
 import { exportarWord } from "../lexorExport.js";
 import { exportarTabelaLexorPdf } from "../lexorPdf.js";
 import { casaDoParlamentar, ROTULO_CASA } from "../lexorCasas.js";
+import { carregarIndiceCasa } from "../parlamentaresRoster.js";
 
 const PAGE_SIZE = 30;
 
@@ -29,6 +30,7 @@ export default function Lexor() {
   const [tipo, setTipo] = useState("Todos");
   const [situacao, setSituacao] = useState("Todas");
   const [casa, setCasa] = useState("Todas"); // 'Todas' | 'camara' | 'senado'
+  const [indiceCasa, setIndiceCasa] = useState(null); // nome→casa das listas oficiais
   const [statusLexor, setStatusLexor] = useState({});   // { nr: 'Confeccionado' }
   const [salvando, setSalvando] = useState(null);
   const [erroStatus, setErroStatus] = useState(false);
@@ -166,6 +168,15 @@ export default function Lexor() {
     }, 600);
   }, []);
 
+  // Classificação da casa (Deputado/Senador) pelas listas oficiais da Câmara e
+  // do Senado, buscadas no navegador. Enquanto não chega (ou se falhar), o
+  // filtro usa a reserva curada em lexorCasas.js.
+  useEffect(() => {
+    let vivo = true;
+    carregarIndiceCasa().then((m) => { if (vivo) setIndiceCasa(m); }).catch(() => {});
+    return () => { vivo = false; };
+  }, []);
+
   const opcoes = useMemo(() => {
     const ufs = new Set(), acoes = new Set(), cmdos = new Set(), tipos = new Set();
     for (const p of PROPOSTAS_LEXOR) {
@@ -191,12 +202,12 @@ export default function Lexor() {
       if (cmdo !== "Todos" && p.cmdo !== cmdo) return false;
       if (tipo !== "Todos" && p.tipo !== tipo) return false;
       if (situacao !== "Todas" && situacaoDe(p) !== situacao) return false;
-      if (casa !== "Todas" && casaDoParlamentar(p) !== casa) return false;
+      if (casa !== "Todas" && casaDoParlamentar(p, indiceCasa) !== casa) return false;
       if (!termo) return true;
       return [p.nr, p.beneficiario, p.cidade, p.objeto, p.proponente, p.parlamentar, p.acao]
         .some(c => (c || "").toString().toLowerCase().includes(termo));
     });
-  }, [busca, uf, acao, cmdo, tipo, situacao, casa, desconsiderada]);
+  }, [busca, uf, acao, cmdo, tipo, situacao, casa, indiceCasa, desconsiderada]);
 
   useEffect(() => { setPagina(1); setPaginaDesc(1); }, [busca, uf, acao, cmdo, tipo, situacao, casa]);
 
