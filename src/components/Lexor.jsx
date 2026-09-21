@@ -17,6 +17,7 @@ import {
 } from "../lexorConsolidar.js";
 import { exportarWord } from "../lexorExport.js";
 import { exportarTabelaLexorPdf } from "../lexorPdf.js";
+import { casaDoParlamentar, ROTULO_CASA } from "../lexorCasas.js";
 
 const PAGE_SIZE = 30;
 
@@ -27,6 +28,7 @@ export default function Lexor() {
   const [cmdo, setCmdo] = useState("Todos");
   const [tipo, setTipo] = useState("Todos");
   const [situacao, setSituacao] = useState("Todas");
+  const [casa, setCasa] = useState("Todas"); // 'Todas' | 'camara' | 'senado'
   const [statusLexor, setStatusLexor] = useState({});   // { nr: 'Confeccionado' }
   const [salvando, setSalvando] = useState(null);
   const [erroStatus, setErroStatus] = useState(false);
@@ -189,13 +191,14 @@ export default function Lexor() {
       if (cmdo !== "Todos" && p.cmdo !== cmdo) return false;
       if (tipo !== "Todos" && p.tipo !== tipo) return false;
       if (situacao !== "Todas" && situacaoDe(p) !== situacao) return false;
+      if (casa !== "Todas" && casaDoParlamentar(p) !== casa) return false;
       if (!termo) return true;
       return [p.nr, p.beneficiario, p.cidade, p.objeto, p.proponente, p.parlamentar, p.acao]
         .some(c => (c || "").toString().toLowerCase().includes(termo));
     });
-  }, [busca, uf, acao, cmdo, tipo, situacao, desconsiderada]);
+  }, [busca, uf, acao, cmdo, tipo, situacao, casa, desconsiderada]);
 
-  useEffect(() => { setPagina(1); setPaginaDesc(1); }, [busca, uf, acao, cmdo, tipo, situacao]);
+  useEffect(() => { setPagina(1); setPaginaDesc(1); }, [busca, uf, acao, cmdo, tipo, situacao, casa]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE));
   const pageItems = filtradas.slice((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE);
@@ -210,6 +213,7 @@ export default function Lexor() {
     if (tipo !== "Todos") escopo.push(`Tipo: ${tipo}`);
     if (acao !== "Todas") escopo.push(`Ação: ${acao}`);
     if (cmdo !== "Todos") escopo.push(`C Mil A: ${cmdo}`);
+    if (casa !== "Todas") escopo.push(`Casa: ${ROTULO_CASA[casa]}`);
     if (busca.trim()) escopo.push(`Busca: “${busca.trim()}”`);
     exportarTabelaLexorPdf(filtradas, situacao, { escopo });
   }
@@ -317,6 +321,12 @@ export default function Lexor() {
           value={cmdo} onChange={e => setCmdo(e.target.value)}>
           <option value="Todos">C Mil A</option>
           {opcoes.cmdos.map(v => <option key={v}>{v}</option>)}
+        </select>
+        <select className={`input ${casa === "Todas" ? "input-marca" : ""}`}
+          value={casa} onChange={e => setCasa(e.target.value)}>
+          <option value="Todas">Casa</option>
+          <option value="camara">Deputados</option>
+          <option value="senado">Senadores</option>
         </select>
       </div>
 
