@@ -336,8 +336,8 @@ export default function Lexor() {
         <select className={`input ${casa === "Todas" ? "input-marca" : ""}`}
           value={casa} onChange={e => setCasa(e.target.value)}>
           <option value="Todas">Casa</option>
-          <option value="camara">Deputados</option>
-          <option value="senado">Senadores</option>
+          <option value="camara">Câmara de Deputados</option>
+          <option value="senado">Senado Federal</option>
         </select>
       </div>
 

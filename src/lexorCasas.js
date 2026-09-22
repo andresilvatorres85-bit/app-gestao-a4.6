@@ -28,4 +28,4 @@ export function casaDoParlamentar(p, indice = null) {
   return SENADORES.has(chave) ? "senado" : "camara";
 }
 
-export const ROTULO_CASA = { camara: "Deputados", senado: "Senadores" };
+export const ROTULO_CASA = { camara: "Câmara de Deputados", senado: "Senado Federal" };
