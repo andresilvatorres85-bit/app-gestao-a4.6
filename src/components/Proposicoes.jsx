@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search, Plus, Pencil, Trash2, X, ExternalLink, RefreshCw, Save, ClipboardList,
 } from "lucide-react";
@@ -11,9 +11,11 @@ import {
 import { lerTramitacao, podeAtualizar } from "../tramitacao.js";
 
 const VAZIO = {
-  proposicao: "", tipo: "PL", casa: "CD", status: "normal", autor: "", assessor: "",
+  proposicao: "", tipo: "PL", casa: "CD", status: "normal", autor: "", relator: "", assessor: "",
   link: "", ementa: "", impacto: "", tramitacao: "", atuacao: "", percepcao: "",
 };
+
+const PAGINA = 10; // proposições exibidas por vez ("Mostrar +")
 
 export default function Proposicoes({ itens = [], inserir, atualizar, excluir }) {
   const [busca, setBusca] = useState("");
@@ -22,6 +24,7 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
   const [fStatus, setFStatus] = useState("Todos");
   const [fAssessor, setFAssessor] = useState("Todos");
   const [edit, setEdit] = useState(null); // registro em edição/criação
+  const [visiveis, setVisiveis] = useState(PAGINA);
 
   const opcoes = useMemo(() => {
     const tipos = new Set(TIPOS), assessores = new Set();
@@ -41,6 +44,10 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
         .some((c) => (c || "").toLowerCase().includes(termo));
     });
   }, [itens, busca, fTipo, fCasa, fStatus, fAssessor]);
+
+  // Volta a 10 sempre que o recorte muda.
+  useEffect(() => { setVisiveis(PAGINA); }, [busca, fTipo, fCasa, fStatus, fAssessor]);
+  const mostradas = filtradas.slice(0, visiveis);
 
   const porStatus = useMemo(() => {
     const m = {}; for (const s of STATUS_ORDEM) m[s] = 0;
@@ -105,14 +112,19 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
 
       <div className="table-wrap">
         <table className="tbl tbl-prop">
+          <colgroup>
+            <col className="c-prop" /><col className="c-tipo" /><col className="c-casa" />
+            <col className="c-ementa" /><col className="c-tram" /><col className="c-autor" />
+            <col className="c-relator" /><col className="c-assessor" /><col className="c-status" /><col className="c-acoes" />
+          </colgroup>
           <thead>
             <tr>
               <th>Proposição</th><th>Tipo</th><th>Casa</th><th>Ementa</th>
-              <th>Tramitação</th><th>Autor</th><th>Assessor</th><th>Status</th><th></th>
+              <th>Tramitação</th><th>Autor</th><th>Relator</th><th>Assessor</th><th>Status</th><th></th>
             </tr>
           </thead>
           <tbody>
-            {filtradas.map((p) => {
+            {mostradas.map((p) => {
               const si = statusInfo(p.status);
               return (
                 <tr key={p.id}>
@@ -124,9 +136,10 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
                   </td>
                   <td className="mono">{p.tipo}</td>
                   <td className="mono" title={rotuloCasa(p.casa)}>{p.casa}</td>
-                  <td className="prop-ementa" title={p.ementa}>{p.ementa}</td>
-                  <td className="prop-tram-col" title={p.tramitacao}>{p.tramitacao || "—"}</td>
-                  <td className="prop-autor" title={p.autor}>{p.autor}</td>
+                  <td title={p.ementa}><div className="lc lc-3">{p.ementa}</div></td>
+                  <td className="prop-tram-col" title={p.tramitacao}><div className="lc lc-3">{p.tramitacao || "—"}</div></td>
+                  <td title={p.autor}><div className="lc lc-2">{p.autor}</div></td>
+                  <td title={p.relator}><div className="lc lc-2">{p.relator || "—"}</div></td>
                   <td className="prop-assessor">{p.assessor || "—"}</td>
                   <td><span className="prop-chip" style={{ color: si.cor, borderColor: si.cor }}>{si.rotulo}</span></td>
                   <td>
@@ -139,10 +152,21 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
               );
             })}
             {filtradas.length === 0 && (
-              <tr><td colSpan={9} className="empty-row">Nenhuma proposição para os filtros aplicados.</td></tr>
+              <tr><td colSpan={10} className="empty-row">Nenhuma proposição para os filtros aplicados.</td></tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="prop-mostrar">
+        <span className="page-info">
+          Mostrando {mostradas.length} de {filtradas.length.toLocaleString("pt-BR")}
+        </span>
+        {visiveis < filtradas.length && (
+          <button className="btn btn-ghost btn-sm" onClick={() => setVisiveis((v) => v + PAGINA)}>
+            Mostrar + {Math.min(PAGINA, filtradas.length - visiveis)}
+          </button>
+        )}
       </div>
 
       {edit && (
@@ -212,6 +236,9 @@ function ModalProposicao({ registro, onFechar, inserir, atualizar }) {
             </Field>
             <Field label="Autor">
               <input className="input" value={f.autor} onChange={set("autor")} placeholder="Nome (PARTIDO/UF)" />
+            </Field>
+            <Field label="Relator">
+              <input className="input" value={f.relator} onChange={set("relator")} placeholder="Ex: Dep. Fulano" />
             </Field>
             <Field label="Assessor designado">
               <input className="input" value={f.assessor} onChange={set("assessor")} placeholder="Ex: Maj Torres" />
