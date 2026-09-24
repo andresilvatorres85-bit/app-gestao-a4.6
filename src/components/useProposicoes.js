@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient.js";
 import { PROPOSICOES_SEED } from "../data/proposicoesSeed.js";
 
 const CAMPOS = [
-  "proposicao", "tipo", "casa", "ementa", "autor", "impacto",
+  "proposicao", "tipo", "casa", "ementa", "autor", "relator", "impacto",
   "tramitacao", "atuacao", "percepcao", "status", "assessor", "link",
 ];
 

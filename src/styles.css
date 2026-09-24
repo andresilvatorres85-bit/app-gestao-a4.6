@@ -758,26 +758,39 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .prop-legenda-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .prop-bolinha { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 
-.tbl-prop { min-width: 1360px; }
-.prop-tram-col {
-  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: normal;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-  font-size: 12px; color: var(--muted);
-}
+/* Largura fixa de colunas: sem isso os textos longos (ementa/tramitação) se
+   sobrepõem e desalinham as demais colunas. */
+.tbl-prop { min-width: 1340px; table-layout: fixed; }
+.tbl-prop .c-prop { width: 116px; }
+.tbl-prop .c-tipo { width: 52px; }
+.tbl-prop .c-casa { width: 64px; }
+.tbl-prop .c-ementa { width: 250px; }
+.tbl-prop .c-tram { width: 250px; }
+.tbl-prop .c-autor { width: 148px; }
+.tbl-prop .c-relator { width: 140px; }
+.tbl-prop .c-assessor { width: 118px; }
+.tbl-prop .c-status { width: 118px; }
+.tbl-prop .c-acoes { width: 84px; }
+/* As células continuam sendo table-cell; o corte multilinha vai numa div
+   interna (.lc) — pôr -webkit-box no próprio <td> quebra o table-layout. */
+.tbl-prop td, .tbl-prop th { overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+.tbl-prop td { word-break: break-word; }
+.tbl-prop th { white-space: nowrap; }
+.lc { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+.lc-2 { -webkit-line-clamp: 2; }
+.lc-3 { -webkit-line-clamp: 3; }
+
 .prop-nr { white-space: nowrap; }
 .prop-nr .prop-bolinha { margin-right: 7px; vertical-align: middle; }
 .prop-link { color: var(--brand-hi); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
 .prop-link:hover { text-decoration: underline; }
-.prop-ementa {
-  max-width: 400px; overflow: hidden; text-overflow: ellipsis;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal;
-}
-.prop-autor { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prop-assessor { white-space: nowrap; }
+.prop-tram-col { font-size: 12px; color: var(--muted); }
+.prop-assessor { white-space: normal; }
 .prop-chip {
   display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px;
   border: 1px solid; border-radius: 999px; white-space: nowrap;
 }
+.prop-mostrar { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 4px; }
 
 /* Modal de edição/criação */
 .modal-fundo {
