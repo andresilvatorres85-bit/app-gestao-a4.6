@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature } from "lucide-react";
+import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText } from "lucide-react";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
 import { useUsuarios, nomePorEmail } from "./components/useUsuarios.js";
 import { useObjetoEmendas } from "./components/useObjetoEmendas.js";
+import { useProposicoes } from "./components/useProposicoes.js";
 import ObjetoEmenda from "./components/ObjetoEmenda.jsx";
 import bgImage from "./bg.jpg";
 import brasao from "./brasao.png";
@@ -19,6 +20,8 @@ const Lexor = lazy(() => import("./components/Lexor.jsx"));
 const Loa = lazy(() => import("./components/Loa.jsx"));
 // A aba Cartilhas embute (ao vivo) o "Banco de Projetos de Emendas"; idem.
 const Cartilhas = lazy(() => import("./components/Cartilhas.jsx"));
+// A aba Proposições controla as proposições legislativas de interesse orçamentário.
+const Proposicoes = lazy(() => import("./components/Proposicoes.jsx"));
 
 // Converte uma linha da tabela "registros" (Supabase) para o formato interno
 // enxuto usado pelos componentes (mesmas chaves do histórico da planilha).
@@ -38,6 +41,7 @@ const ABAS = [
   { id: "metricas", label: "MÉTRICAS", icon: Gauge },
   { id: "lexor", label: "LEXOR", icon: FileText },
   { id: "loa", label: "LOA", icon: Landmark },
+  { id: "proposicoes", label: "Proposições", icon: ScrollText },
   { id: "cartilhas", label: "Cartilhas", icon: BookOpen },
 ];
 
@@ -65,6 +69,7 @@ export default function App() {
   const { partidos, mapaEspectro, carregado: partidosCarregados } = usePartidos(session);
   const { usuarios, carregado: usuariosCarregados } = useUsuarios(session);
   const objetoEmendas = useObjetoEmendas(session);
+  const proposicoes = useProposicoes(session);
 
   const emailAtual = session?.user?.email || null;
   const autorAtual = nomePorEmail(usuarios, emailAtual);
@@ -195,6 +200,11 @@ export default function App() {
         ) : aba === "lexor" ? (
           <Suspense fallback={<div className="loading-state">Carregando propostas…</div>}>
             <Lexor />
+          </Suspense>
+        ) : aba === "proposicoes" ? (
+          <Suspense fallback={<div className="loading-state">Carregando proposições…</div>}>
+            <Proposicoes itens={proposicoes.itens} inserir={proposicoes.inserir}
+              atualizar={proposicoes.atualizar} excluir={proposicoes.excluir} />
           </Suspense>
         ) : !loadedNovos || !partidosCarregados || !usuariosCarregados ? (
           <div className="loading-state">Carregando…</div>
