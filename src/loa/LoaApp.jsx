@@ -47,6 +47,7 @@ import GraficoBarrasSimples from './components/GraficoBarrasSimples.jsx'
 import GraficoPartidos from './components/GraficoPartidos.jsx'
 import CartaoEmenda from './components/CartaoEmenda.jsx'
 import AbaInconsistencias from './components/AbaInconsistencias.jsx'
+import AbaEstrategia from './components/AbaEstrategia.jsx'
 import AbaHistorico from './components/AbaHistorico.jsx'
 import AbaPLOA from './components/AbaPLOA.jsx'
 import AbaHistoricoPLOA from './components/AbaHistoricoPLOA.jsx'
@@ -93,6 +94,7 @@ const SECOES = [
     subabas: [
       { id: 'dashboard', rotulo: 'Dashboard' },
       { id: 'emendas', rotulo: 'Emendas' },
+      { id: 'estrategia', rotulo: 'Estratégia' },
       { id: 'historico', rotulo: 'Histórico' },
       { id: 'inconsistencias', rotulo: 'Inconsistências' },
     ],
@@ -1002,6 +1004,10 @@ export default function LoaApp() {
               <FolhaEmendasEstado registros={filtrados} filtrosTexto={filtrosTextoDashExecEm} base="lexor" />
             </div>
           </>
+        )}
+
+        {aba === 'estrategia' && (
+          <AbaEstrategia registros={registros} />
         )}
 
         {aba === 'historico' && (
