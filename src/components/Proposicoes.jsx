@@ -18,6 +18,10 @@ const VAZIO = {
 
 const PAGINA = 10; // proposições exibidas por vez ("Mostrar +")
 
+// Status de proposições ENCERRADAS: saem da tabela principal (em tramitação) e
+// vão para o card separado, mantendo o foco no que ainda tramita.
+const ENCERRADAS = new Set(["arquivada", "concluida"]);
+
 export default function Proposicoes({ itens = [], inserir, atualizar, excluir }) {
   const [busca, setBusca] = useState("");
   const [fTipo, setFTipo] = useState("Todos");
@@ -26,6 +30,7 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
   const [fAssessor, setFAssessor] = useState("Todos");
   const [edit, setEdit] = useState(null); // registro em edição/criação
   const [visiveis, setVisiveis] = useState(PAGINA);
+  const [visiveisEnc, setVisiveisEnc] = useState(PAGINA); // card das encerradas
 
   const opcoes = useMemo(() => {
     const tipos = new Set(TIPOS), assessores = new Set();
@@ -46,9 +51,15 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
     });
   }, [itens, busca, fTipo, fCasa, fStatus, fAssessor]);
 
+  // Separa o recorte filtrado: em tramitação (tabela principal) × encerradas
+  // (Arquivada/Concluída — card de baixo).
+  const emTramitacao = useMemo(() => filtradas.filter((p) => !ENCERRADAS.has(p.status)), [filtradas]);
+  const encerradas = useMemo(() => filtradas.filter((p) => ENCERRADAS.has(p.status)), [filtradas]);
+
   // Volta a 10 sempre que o recorte muda.
-  useEffect(() => { setVisiveis(PAGINA); }, [busca, fTipo, fCasa, fStatus, fAssessor]);
-  const mostradas = filtradas.slice(0, visiveis);
+  useEffect(() => { setVisiveis(PAGINA); setVisiveisEnc(PAGINA); }, [busca, fTipo, fCasa, fStatus, fAssessor]);
+  const mostradas = emTramitacao.slice(0, visiveis);
+  const mostradasEnc = encerradas.slice(0, visiveisEnc);
 
   const porStatus = useMemo(() => {
     const m = {}; for (const s of STATUS_ORDEM) m[s] = 0;
@@ -111,69 +122,111 @@ export default function Proposicoes({ itens = [], inserir, atualizar, excluir })
         </select>
       </div>
 
-      <div className="table-wrap">
-        <table className="tbl tbl-prop">
-          <colgroup>
-            <col className="c-prop" /><col className="c-tipo" /><col className="c-casa" />
-            <col className="c-ementa" /><col className="c-tram" /><col className="c-autor" />
-            <col className="c-relator" /><col className="c-assessor" /><col className="c-status" /><col className="c-acoes" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Proposição</th><th>Tipo</th><th>Casa</th><th>Ementa</th>
-              <th>Tramitação</th><th>Autor</th><th>Relator</th><th>Assessor</th><th>Status</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {mostradas.map((p) => {
-              const si = statusInfo(p.status);
-              return (
-                <tr key={p.id}>
-                  <td className="mono prop-nr">
-                    <span className="prop-bolinha" style={{ background: si.cor }} title={si.rotulo} />
-                    {p.link
-                      ? <a href={p.link} target="_blank" rel="noreferrer" className="prop-link">{p.proposicao} <ExternalLink size={12} /></a>
-                      : p.proposicao}
-                  </td>
-                  <td className="mono">{p.tipo}</td>
-                  <td className="mono" title={rotuloCasa(p.casa)}>{p.casa}</td>
-                  <td title={p.ementa}><div className="lc lc-3">{p.ementa}</div></td>
-                  <td className="prop-tram-col" title={p.tramitacao}><div className="lc lc-3">{p.tramitacao || "—"}</div></td>
-                  <td title={p.autor}><div className="lc lc-2">{p.autor}</div></td>
-                  <td title={p.relator}><div className="lc lc-2">{p.relator || "—"}</div></td>
-                  <td className="prop-assessor">{p.assessor || "—"}</td>
-                  <td><span className="prop-chip" style={{ color: si.cor, borderColor: si.cor }}>{si.rotulo}</span></td>
-                  <td>
-                    <div className="row-actions">
-                      <button className="icon-btn" title="Editar" onClick={() => setEdit(p)}><Pencil size={16} /></button>
-                      <button className="icon-btn" title="Excluir" onClick={() => { if (confirm(`Excluir a proposição ${p.proposicao}?`)) excluir(p.id); }}><Trash2 size={16} /></button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtradas.length === 0 && (
-              <tr><td colSpan={10} className="empty-row">Nenhuma proposição para os filtros aplicados.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TabelaProposicoes
+        linhas={mostradas}
+        vazioTexto="Nenhuma proposição em tramitação para os filtros aplicados."
+        onEditar={(p) => setEdit(p)}
+        onExcluir={excluir}
+      />
 
       <div className="prop-mostrar">
         <span className="page-info">
-          Mostrando {mostradas.length} de {filtradas.length.toLocaleString("pt-BR")}
+          Mostrando {mostradas.length} de {emTramitacao.length.toLocaleString("pt-BR")} em tramitação
         </span>
-        {visiveis < filtradas.length && (
+        {visiveis < emTramitacao.length && (
           <button className="btn btn-ghost btn-sm" onClick={() => setVisiveis((v) => v + PAGINA)}>
-            Mostrar + {Math.min(PAGINA, filtradas.length - visiveis)}
+            Mostrar + {Math.min(PAGINA, emTramitacao.length - visiveis)}
           </button>
         )}
       </div>
+
+      {/* Card separado: proposições Arquivadas/Concluídas (fora de tramitação). */}
+      {encerradas.length > 0 && (
+        <section className="panel prop-encerradas">
+          <div className="prop-encerradas-cab">
+            <h2 className="panel-title">Arquivadas e concluídas</h2>
+            <span className="prop-encerradas-n">{encerradas.length.toLocaleString("pt-BR")}</span>
+          </div>
+          <p className="page-sub prop-encerradas-sub">
+            Proposições encerradas (Arquivada ou Concluída), separadas para manter o foco nas que ainda tramitam.
+          </p>
+          <TabelaProposicoes
+            linhas={mostradasEnc}
+            vazioTexto="Nenhuma proposição arquivada ou concluída no filtro."
+            onEditar={(p) => setEdit(p)}
+            onExcluir={excluir}
+          />
+          <div className="prop-mostrar">
+            <span className="page-info">
+              Mostrando {mostradasEnc.length} de {encerradas.length.toLocaleString("pt-BR")}
+            </span>
+            {visiveisEnc < encerradas.length && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setVisiveisEnc((v) => v + PAGINA)}>
+                Mostrar + {Math.min(PAGINA, encerradas.length - visiveisEnc)}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {edit && (
         <ModalProposicao registro={edit} onFechar={() => setEdit(null)}
           inserir={inserir} atualizar={atualizar} />
       )}
+    </div>
+  );
+}
+
+// Tabela de proposições (mesmo layout para a lista em tramitação e para o card
+// das arquivadas/concluídas). Recebe as linhas já paginadas.
+function TabelaProposicoes({ linhas, vazioTexto, onEditar, onExcluir }) {
+  return (
+    <div className="table-wrap">
+      <table className="tbl tbl-prop">
+        <colgroup>
+          <col className="c-prop" /><col className="c-tipo" /><col className="c-casa" />
+          <col className="c-ementa" /><col className="c-tram" /><col className="c-autor" />
+          <col className="c-relator" /><col className="c-assessor" /><col className="c-status" /><col className="c-acoes" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Proposição</th><th>Tipo</th><th>Casa</th><th>Ementa</th>
+            <th>Tramitação</th><th>Autor</th><th>Relator</th><th>Assessor</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map((p) => {
+            const si = statusInfo(p.status);
+            return (
+              <tr key={p.id}>
+                <td className="mono prop-nr">
+                  <span className="prop-bolinha" style={{ background: si.cor }} title={si.rotulo} />
+                  {p.link
+                    ? <a href={p.link} target="_blank" rel="noreferrer" className="prop-link">{p.proposicao} <ExternalLink size={12} /></a>
+                    : p.proposicao}
+                </td>
+                <td className="mono">{p.tipo}</td>
+                <td className="mono" title={rotuloCasa(p.casa)}>{p.casa}</td>
+                <td title={p.ementa}><div className="lc lc-3">{p.ementa}</div></td>
+                <td className="prop-tram-col" title={p.tramitacao}><div className="lc lc-3">{p.tramitacao || "—"}</div></td>
+                <td title={p.autor}><div className="lc lc-2">{p.autor}</div></td>
+                <td title={p.relator}><div className="lc lc-2">{p.relator || "—"}</div></td>
+                <td className="prop-assessor">{p.assessor || "—"}</td>
+                <td><span className="prop-chip" style={{ color: si.cor, borderColor: si.cor }}>{si.rotulo}</span></td>
+                <td>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => onEditar(p)}><Pencil size={16} /></button>
+                    <button className="icon-btn" title="Excluir" onClick={() => { if (confirm(`Excluir a proposição ${p.proposicao}?`)) onExcluir(p.id); }}><Trash2 size={16} /></button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+          {linhas.length === 0 && (
+            <tr><td colSpan={10} className="empty-row">{vazioTexto}</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
