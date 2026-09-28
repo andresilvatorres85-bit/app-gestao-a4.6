@@ -845,6 +845,16 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 }
 .prop-mostrar { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 4px; }
 
+/* Card separado das proposições arquivadas/concluídas (abaixo da tabela) */
+.prop-encerradas { margin-top: 22px; }
+.prop-encerradas-cab { display: flex; align-items: center; gap: 10px; }
+.prop-encerradas-n {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px;
+  padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,0.08); color: var(--muted);
+}
+.prop-encerradas-sub { margin: 4px 0 14px; }
+
 /* Modal de edição/criação */
 .modal-fundo {
   position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.55);
