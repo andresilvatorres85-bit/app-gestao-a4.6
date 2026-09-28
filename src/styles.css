@@ -754,6 +754,58 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 }
 .ajuste-chip-on .ajuste-num { background: rgba(255,255,255,0.22); color: #fff; }
 
+/* "Tipo de ajuste" como lista suspensa (recolhida = uma linha) */
+.aj-drop { position: relative; }
+.aj-drop-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer;
+  text-align: left; padding-right: 10px;
+}
+.aj-drop-rotulo {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.aj-drop-vazio { color: var(--muted); }
+.aj-drop-seta { color: var(--muted); flex: none; transition: transform 0.15s ease; }
+.aj-drop-aberto .aj-drop-seta { transform: rotate(180deg); }
+.aj-drop-menu {
+  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
+  display: flex; flex-direction: column; gap: 4px; padding: 6px;
+  background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+.aj-drop-item {
+  display: inline-flex; align-items: center; gap: 8px; text-align: left;
+  padding: 8px 10px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--ink);
+}
+.aj-drop-item:hover { background: var(--surface-hi); }
+.aj-drop-item-on { background: var(--brand); border-color: var(--brand-hi); color: #fff; }
+.aj-drop-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; font-size: 10.5px; font-weight: 700;
+  background: rgba(255,255,255,0.10); color: var(--muted); flex: none;
+}
+.aj-drop-item-on .aj-drop-num { background: rgba(255,255,255,0.22); color: #fff; }
+
+/* Barra de controles da tabela "Últimos registros" (filtro + contagem) */
+.oe-tbl-toolbar {
+  display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin: 4px 0 12px;
+}
+.oe-filtro {
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.oe-filtro .input { min-width: 220px; text-transform: none; letter-spacing: normal; }
+.oe-tbl-contagem { margin-left: auto; color: var(--muted); font-size: 12px; }
+.oe-th-btn {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  background: none; border: 0; padding: 0; font: inherit; color: inherit;
+  text-transform: inherit; letter-spacing: inherit; font-weight: inherit;
+}
+.oe-th-btn:hover { color: var(--ink); }
+.oe-sort-ic { opacity: 0.5; }
+.oe-sort-on { opacity: 1; color: var(--gold); }
+
 /* ============================ Proposições ============================ */
 .prop-legenda { display: flex; flex-wrap: wrap; gap: 14px; margin: 2px 0 14px; }
 .prop-legenda-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }

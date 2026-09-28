@@ -70,6 +70,13 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEdi
     [allRecords, anosSel, mesesSel, todosMeses]
   );
 
+  // Alterações de emenda (objeto_emendas) no mesmo recorte de ano/mês do Painel,
+  // para o card "Alterações em emendas parlamentares" reagir aos filtros.
+  const objetoEmendasSel = useMemo(
+    () => objetoEmendas.filter(o => anosSel.includes(o.ano) && (todosMeses || mesesSel.has(o.mes))),
+    [objetoEmendas, anosSel, mesesSel, todosMeses]
+  );
+
   const totalGeral = allRecords.length;
   const totalPeriodo = registrosSel.length;
   const hoje = todayParts();
@@ -278,7 +285,7 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEdi
         </ResponsiveContainer>
       </ChartCard>
 
-      <PainelObjetoEmendas itens={objetoEmendas} onEditar={onEditarObjeto} onExcluir={onExcluirObjeto} />
+      <PainelObjetoEmendas itens={objetoEmendasSel} onEditar={onEditarObjeto} onExcluir={onExcluirObjeto} />
     </div>
   );
 }

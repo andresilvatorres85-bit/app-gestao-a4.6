@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { FileText, Save, X, Check } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { FileText, Save, X, Check, ChevronDown } from "lucide-react";
 import { Field } from "./UI.jsx";
 import { UFS, MESES_LONGO } from "../constants.js";
-import { todayParts } from "../helpers.js";
+import { todayParts, msgErroSalvar } from "../helpers.js";
 import { baixarOficioDocx, ehSenado } from "../objetoEmendaDoc.js";
 import { carregarEmendasExercito, parlamentaresDoAno, cargoDoParlamentar } from "../parlamentaresLexor.js";
 import ObjetoEmendasTabela from "./ObjetoEmendasTabela.jsx";
@@ -132,7 +132,7 @@ export default function ObjetoEmenda({
       ? await atualizar(editando.id, payloadSalvar())
       : await inserir({ ...payloadSalvar(), autor: autorAtual || emailAtual || null });
     setSalvando(false);
-    if (res.error) { setErro("Não foi possível salvar: " + res.error.message); return; }
+    if (res.error) { setErro(msgErroSalvar(res.error, editando)); return; }
     if (editando) { setOk("Lançamento atualizado."); onCancelarEdicao?.(); }
     else { setOk("Registro adicionado à consolidação (Painel)."); }
     limpar();
@@ -171,6 +171,14 @@ export default function ObjetoEmenda({
 
       <form className="panel form" onSubmit={(e) => { e.preventDefault(); salvar(); }}>
         <div className="form-grid">
+          <Field label="Tipo de ajuste" required hint="Marque um ou mais — vão para a coluna “Ajuste”.">
+            <AjusteDropdown opcoes={AJUSTES} selecionados={f.ajustes} onToggle={toggleAjuste} />
+          </Field>
+
+          <Field label="Nº da emenda" required>
+            <input className="input" value={f.emenda} onChange={set("emenda")} placeholder="Ex: 27590005" inputMode="numeric" />
+          </Field>
+
           <Field label="Parlamentar" required hint={hintParlamentar}>
             <input className="input" list="parlamentares-list" value={f.parlamentar} onChange={onParlamentar}
               placeholder="Selecione ou digite o nome do parlamentar" autoComplete="off" />
@@ -224,10 +232,6 @@ export default function ObjetoEmenda({
             </div>
           </Field>
 
-          <Field label="Nº da emenda" required>
-            <input className="input" value={f.emenda} onChange={set("emenda")} placeholder="Ex: 27590005" inputMode="numeric" />
-          </Field>
-
           <Field label="Objeto atual (DE)" hint="Como está hoje na emenda.">
             <textarea className="input textarea" rows={2} value={f.objetoDe} onChange={set("objetoDe")}
               placeholder="Ex: Ambulância tipo “B” — Suporte básico" />
@@ -236,20 +240,6 @@ export default function ObjetoEmenda({
           <Field label="Novo objeto (PARA)" required hint="Como deverá ficar.">
             <textarea className="input textarea" rows={2} value={f.objetoPara} onChange={set("objetoPara")}
               placeholder="Ex: Aquisição de viatura administrativa e bens…" />
-          </Field>
-
-          <Field label="Tipo de ajuste" required hint="Marque um ou mais — vão para a coluna “Ajuste”.">
-            <div className="ajuste-chips">
-              {AJUSTES.map((a, i) => {
-                const on = f.ajustes.includes(a);
-                return (
-                  <button type="button" key={a} className={`ajuste-chip ${on ? "ajuste-chip-on" : ""}`}
-                    onClick={() => toggleAjuste(a)} aria-pressed={on}>
-                    {on ? <Check size={14} /> : <span className="ajuste-num">{i + 1}</span>} {a}
-                  </button>
-                );
-              })}
-            </div>
           </Field>
         </div>
 
@@ -283,6 +273,43 @@ export default function ObjetoEmenda({
         <div className="panel obj-lista">
           <h2 className="panel-title">Últimos registros ({itens.length})</h2>
           <ObjetoEmendasTabela itens={itens} onEditar={onEditar} onExcluir={excluir} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// "Tipo de ajuste" como lista suspensa: recolhida ocupa uma única linha
+// (mostra os ajustes selecionados); ao clicar, expande a lista com seleção
+// múltipla (checkboxes). Fecha ao clicar fora.
+function AjusteDropdown({ opcoes, selecionados, onToggle }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e) => { if (ref.current && !ref.current.contains(e.target)) setAberto(false); };
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+  const rotulo = selecionados.length ? selecionados.join("; ") : "Selecione o(s) ajuste(s)…";
+  return (
+    <div className={`aj-drop ${aberto ? "aj-drop-aberto" : ""}`} ref={ref}>
+      <button type="button" className="input aj-drop-btn" onClick={() => setAberto((a) => !a)}
+        aria-haspopup="listbox" aria-expanded={aberto}>
+        <span className={`aj-drop-rotulo ${selecionados.length ? "" : "aj-drop-vazio"}`}>{rotulo}</span>
+        <ChevronDown size={16} className="aj-drop-seta" />
+      </button>
+      {aberto && (
+        <div className="aj-drop-menu" role="listbox">
+          {opcoes.map((a, i) => {
+            const on = selecionados.includes(a);
+            return (
+              <button type="button" key={a} role="option" aria-selected={on}
+                className={`aj-drop-item ${on ? "aj-drop-item-on" : ""}`} onClick={() => onToggle(a)}>
+                {on ? <Check size={14} /> : <span className="aj-drop-num">{i + 1}</span>} {a}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

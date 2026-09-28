@@ -9,6 +9,7 @@ import {
   normalizarProposicao, normalizarAutor,
 } from "../proposicoes.js";
 import { lerTramitacao, podeAtualizar } from "../tramitacao.js";
+import { msgErroSalvar } from "../helpers.js";
 
 const VAZIO = {
   proposicao: "", tipo: "PL", casa: "CD", status: "normal", autor: "", relator: "", assessor: "",
@@ -203,7 +204,7 @@ function ModalProposicao({ registro, onFechar, inserir, atualizar }) {
     setSalvando(true);
     const res = editando ? await atualizar(registro.id, dados) : await inserir(dados);
     setSalvando(false);
-    if (res.error) { setErro("Não foi possível salvar: " + res.error.message); return; }
+    if (res.error) { setErro(msgErroSalvar(res.error, editando)); return; }
     onFechar();
   }
 
