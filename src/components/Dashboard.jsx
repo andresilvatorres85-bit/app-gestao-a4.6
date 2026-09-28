@@ -46,10 +46,28 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEdi
 
   const anosOrd = useMemo(() => [...anosSel].sort((a, b) => a - b), [anosSel]);
 
-  // registros dentro dos anos selecionados
+  // Filtro de meses (switches Jan–Dez). Começa com todos ligados; desligue os
+  // que quiser excluir. Conjunto vazio ou completo = sem filtro de mês.
+  const MESES_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const [mesesSel, setMesesSel] = useState(() => new Set(MESES_NUMS));
+  const todosMeses = mesesSel.size === 0 || mesesSel.size === 12;
+  function toggleMes(m) {
+    setMesesSel(prev => {
+      // Sem filtro ativo (todos) → clicar num mês seleciona só ele.
+      if (prev.size === 0 || prev.size === 12) return new Set([m]);
+      const s = new Set(prev);
+      s.has(m) ? s.delete(m) : s.add(m);
+      return s; // vazio volta a significar "todos" (ver todosMeses)
+    });
+  }
+  const mesTexto = todosMeses
+    ? "Todos"
+    : [...mesesSel].sort((a, b) => a - b).map(m => MESES[m]).join(", ");
+
+  // registros dentro dos anos e meses selecionados
   const registrosSel = useMemo(
-    () => allRecords.filter(r => anosSel.includes(r.y)),
-    [allRecords, anosSel]
+    () => allRecords.filter(r => anosSel.includes(r.y) && (todosMeses || mesesSel.has(r.m))),
+    [allRecords, anosSel, mesesSel, todosMeses]
   );
 
   const totalGeral = allRecords.length;
@@ -113,14 +131,14 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEdi
       .map(([sigla, total]) => ({ sigla, total }));
   }, [registrosSel]);
 
-  const filtros = { anos: anosOrd, mes: "Todos", papel: "Todos" };
+  const filtros = { anos: anosOrd, mes: mesTexto, papel: "Todos" };
 
   async function exportarPainel() {
     setExportando(true);
     try {
       await exportarPainelPptx({
         registros: registrosSel,
-        anos: anosOrd, mes: "Todos", papel: "Todos",
+        anos: anosOrd, mes: mesTexto, papel: "Todos",
         resumo: { totalGeral, totalPeriodo, totalMes },
       });
     } catch (e) {
@@ -153,6 +171,24 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEdi
               className={`year-chip ${anosSel.includes(a) ? "year-chip-active" : ""}`}
               onClick={() => toggleAno(a)}>
               {anosSel.includes(a) && <Check size={12} />} {a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Filtro por mês (switches). "Todos" religa todos os meses. */}
+      <div className="year-selector mes-selector">
+        <span className="year-selector-label">Meses:</span>
+        <div className="year-chips">
+          <button className={`year-chip ${todosMeses ? "year-chip-active" : ""}`}
+            onClick={() => setMesesSel(new Set(MESES_NUMS))}>
+            {todosMeses && <Check size={12} />} Todos
+          </button>
+          {MESES_NUMS.map(m => (
+            <button key={m}
+              className={`year-chip ${!todosMeses && mesesSel.has(m) ? "year-chip-active" : ""}`}
+              onClick={() => toggleMes(m)}>
+              {!todosMeses && mesesSel.has(m) && <Check size={12} />} {MESES[m]}
             </button>
           ))}
         </div>
