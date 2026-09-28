@@ -1,0 +1,240 @@
+import { useMemo, useState } from 'react'
+import {
+  gerarDocumento, indicePorUFCasa, montarConfig,
+} from '../estrategia.js'
+import {
+  baixarDocx, baixarPdf, baixarZip,
+} from '../estrategiaDoc.js'
+import {
+  UFS, UF_NOME, CASAS, CATEGORIAS, TITULO, META, TUTORIAL_TITULO,
+  SELOS_LEGENDA, DISCLAIMER, NOTA_FECHAMENTO, LIMITACOES,
+  BANNER, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS,
+} from '../estrategiaConfig.js'
+
+const CH = '#'
+const cor = (h) => CH + h
+
+// Persistência local das listas de mandato editáveis (ESPEC §4/§13).
+const LS_KEY = 'estrategia.config.v1'
+const carregarConfigLocal = () => {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch { return null }
+}
+const listaDeTexto = (t) =>
+  t.split('\n').map((s) => s.trim().toUpperCase()).filter(Boolean)
+
+export default function AbaEstrategia({ registros }) {
+  const [uf, setUf] = useState('RJ')
+  const [casa, setCasa] = useState('camara')
+  const [cfgLocal, setCfgLocal] = useState(() => carregarConfigLocal())
+  const [editandoCfg, setEditandoCfg] = useState(false)
+  const [txtRemov, setTxtRemov] = useState(
+    (cfgLocal?.removidos ?? REMOVIDOS_MANDATO).join('\n'))
+  const [txtWhite, setTxtWhite] = useState(
+    (cfgLocal?.whitelist ?? WHITELIST_SEN_ATIVOS).join('\n'))
+  const [progresso, setProgresso] = useState(null) // {feito,total,formato} | null
+
+  const config = useMemo(
+    () => montarConfig(cfgLocal ? { removidos: cfgLocal.removidos, whitelist: cfgLocal.whitelist } : {}),
+    [cfgLocal])
+
+  const indice = useMemo(() => indicePorUFCasa(registros, config), [registros, config])
+  const documento = useMemo(
+    () => gerarDocumento(registros, { uf, casa, config }), [registros, uf, casa, config])
+
+  // Se a UF atual ficou sem dados na Casa escolhida, mantém a seleção (mostra o
+  // estado vazio) — o usuário escolheu de propósito.
+  const contUF = (u, c) => indice[c]?.[u]?.total ?? 0
+  const totalCasa = (c) => UFS.reduce((s, u) => s + contUF(u, c), 0)
+
+  const salvarCfg = () => {
+    const novo = { removidos: listaDeTexto(txtRemov), whitelist: listaDeTexto(txtWhite) }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(novo)) } catch { /* modo privado */ }
+    setCfgLocal(novo)
+    setEditandoCfg(false)
+  }
+  const restaurarCfg = () => {
+    try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
+    setCfgLocal(null)
+    setTxtRemov(REMOVIDOS_MANDATO.join('\n'))
+    setTxtWhite(WHITELIST_SEN_ATIVOS.join('\n'))
+    setEditandoCfg(false)
+  }
+
+  const baixarPacote = async (formato) => {
+    if (progresso) return
+    setProgresso({ feito: 0, total: 54, formato })
+    try {
+      await baixarZip(registros, {
+        formato,
+        configOver: cfgLocal ? { removidos: cfgLocal.removidos, whitelist: cfgLocal.whitelist } : {},
+        onProgresso: (feito, total) => setProgresso({ feito, total, formato }),
+      })
+    } catch (e) {
+      console.error('Falha ao gerar o pacote:', e)
+      alert('Não foi possível gerar o pacote: ' + (e?.message || e))
+    } finally {
+      setProgresso(null)
+    }
+  }
+
+  return (
+    <section className="estrategia" aria-label="Estratégia de captação de emendas">
+      {/* ---- controles ---- */}
+      <div className="estr-controles">
+        <div className="estr-casa" role="tablist" aria-label="Casa legislativa">
+          {Object.values(CASAS).map((c) => (
+            <button
+              key={c.id}
+              role="tab"
+              aria-selected={casa === c.id}
+              className={`estr-casa-btn${casa === c.id ? ' ativa' : ''}`}
+              style={casa === c.id ? { background: cor(c.corSubtitulo), borderColor: cor(c.corSubtitulo) } : undefined}
+              onClick={() => setCasa(c.id)}
+            >
+              {c.rotulo}
+              <span className="estr-casa-n">{totalCasa(c.id)}</span>
+            </button>
+          ))}
+        </div>
+
+        <label className="estr-uf-label">
+          Estado
+          <select className="estr-uf" value={uf} onChange={(e) => setUf(e.target.value)}>
+            {UFS.map((u) => (
+              <option key={u} value={u}>
+                {UF_NOME[u]} ({u}) — {contUF(u, casa)} parlamentar(es)
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="estr-export">
+          <button className="btn-docx" onClick={() => baixarDocx(documento)} title="Baixar este documento em DOCX (Word)">
+            DOCX
+          </button>
+          <button className="btn-pdf" onClick={() => baixarPdf(documento)} title="Baixar este documento em PDF">
+            PDF
+          </button>
+          <button
+            className="btn-pptx"
+            disabled={!!progresso}
+            onClick={() => baixarPacote('docx')}
+            title="Baixar os 54 documentos (27 UF × 2 Casas) em DOCX, zipados por Casa"
+          >
+            {progresso?.formato === 'docx' ? `DOCX ${progresso.feito}/${progresso.total}…` : 'Pacote DOCX'}
+          </button>
+          <button
+            className="btn-pptx"
+            disabled={!!progresso}
+            onClick={() => baixarPacote('pdf')}
+            title="Baixar os 54 documentos (27 UF × 2 Casas) em PDF, zipados por Casa"
+          >
+            {progresso?.formato === 'pdf' ? `PDF ${progresso.feito}/${progresso.total}…` : 'Pacote PDF'}
+          </button>
+        </div>
+      </div>
+
+      {progresso && (
+        <div className="estr-progresso" role="status">
+          <div className="estr-progresso-barra" style={{ width: `${(progresso.feito / progresso.total) * 100}%` }} />
+          <span>Gerando pacote {progresso.formato.toUpperCase()} — {progresso.feito} de {progresso.total} documentos…</span>
+        </div>
+      )}
+
+      {/* ---- prévia do documento (espelha o DOCX/PDF exportado) ---- */}
+      <article className="estr-doc" aria-label="Prévia do documento">
+        <header className="estr-banner" style={{ background: cor(BANNER.cor) }}>
+          <p className="estr-banner-1">{BANNER.linha1}</p>
+          <p className="estr-banner-2">{BANNER.linha2}</p>
+          <p className="estr-banner-3">{BANNER.linha3}</p>
+        </header>
+
+        <h1 className="estr-titulo" style={{ color: cor('1A3A5C') }}>{TITULO}</h1>
+        <h2 className="estr-subtitulo" style={{ color: cor(documento.corSubtitulo), borderColor: cor('1A3A5C') }}>
+          {documento.subtitulo}
+        </h2>
+
+        <p className="estr-meta">{META}</p>
+
+        <div className="estr-tutorial">
+          <p className="estr-tutorial-tit" style={{ color: cor('1A3A5C') }}>{TUTORIAL_TITULO}</p>
+          {CATEGORIAS.map((c) => (
+            <p key={c.id} className="estr-tutorial-item">
+              <strong style={{ color: cor(c.cor) }}>● {c.tutulo} </strong>
+              — {c.tutuloTexto}
+            </p>
+          ))}
+          <p className="estr-selos"><strong style={{ color: cor('1A3A5C') }}>Selos: </strong>{SELOS_LEGENDA}</p>
+        </div>
+
+        <p className="estr-disclaimer" style={{ background: cor('F2ECDD') }}>
+          <strong style={{ color: cor('B56A00') }}>Disclaimer: </strong>{DISCLAIMER}
+        </p>
+
+        {documento.vazio ? (
+          <p className="estr-vazio">{documento.textoVazio}</p>
+        ) : (
+          documento.secoes.map((s) => (
+            <section key={s.id} className="estr-secao">
+              <h3 className="estr-secao-cab" style={{ background: cor(s.cor) }}>{s.cabecalho}</h3>
+              {s.fichas.map((f) => (
+                <div key={f.autor} className="estr-ficha" style={{ borderColor: cor(s.cor) }}>
+                  <p className="estr-ficha-nome" style={{ color: cor(s.cor) }}>
+                    {f.nome}
+                    {f.selos.map((sel) => (
+                      <span key={sel} className="estr-selo" style={{ borderColor: cor(s.cor), color: cor(s.cor) }}>{sel}</span>
+                    ))}
+                  </p>
+                  <p className="estr-ficha-ident">{f.ident}</p>
+                  {f.campos.map((c) => (
+                    <p key={c.rotulo} className="estr-campo">
+                      <strong style={{ color: cor(s.cor) }}>{c.rotulo}: </strong>{c.texto}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </section>
+          ))
+        )}
+
+        <p className="estr-nota" style={{ borderColor: cor('1A3A5C'), color: cor('1A3A5C') }}>
+          <strong>Nota: </strong>{NOTA_FECHAMENTO}
+        </p>
+      </article>
+
+      {/* ---- configuração das listas de mandato (ESPEC §4) ---- */}
+      <details className="estr-cfg" open={editandoCfg} onToggle={(e) => setEditandoCfg(e.target.open)}>
+        <summary>Configuração das listas de mandato ativo (2026){cfgLocal ? ' · personalizada' : ''}</summary>
+        <div className="estr-cfg-corpo">
+          <p className="estr-cfg-ajuda">
+            Um nome por linha, em CAIXA ALTA, como aparece no campo Autor. Salvo neste navegador.
+          </p>
+          <div className="estr-cfg-grid">
+            <label>
+              Removidos do mandato (aparecem em 2024–2026, mas não estão mais em exercício)
+              <textarea rows={6} value={txtRemov} onChange={(e) => setTxtRemov(e.target.value)} />
+            </label>
+            <label>
+              Whitelist de senadores ativos (em exercício, sem emenda recente à Defesa)
+              <textarea rows={6} value={txtWhite} onChange={(e) => setTxtWhite(e.target.value)} />
+            </label>
+          </div>
+          <div className="estr-cfg-acoes">
+            <button className="btn-docx" onClick={salvarCfg}>Salvar</button>
+            <button className="limpar-tudo" onClick={restaurarCfg}>Restaurar padrão</button>
+          </div>
+        </div>
+      </details>
+
+      {/* ---- limitações conhecidas (ESPEC §14) ---- */}
+      <details className="estr-limit">
+        <summary>Limitações conhecidas deste módulo</summary>
+        <ul>{LIMITACOES.map((l, i) => <li key={i}>{l}</li>)}</ul>
+      </details>
+    </section>
+  )
+}
