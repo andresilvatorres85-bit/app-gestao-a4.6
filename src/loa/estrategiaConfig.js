@@ -5,11 +5,15 @@
 // (estrategiaDoc.js). Espelha a especificação modulo-captacao-emendas-ESPEC.md.
 // ---------------------------------------------------------------------------
 
-// Parâmetros de ciclo — mudam a cada PLOA. Mantidos como configuração para não
-// ficarem espalhados pelo código (ESPEC §13).
-export const ANO_CORRENTE = 2026
-export const JANELA_MANDATO = [2024, 2025, 2026] // legislatura 2023–2027 (57ª)
-export const PLOA_ALVO = 'PLOA 2027'
+// Parâmetros de ciclo — mudam a cada PLOA. O ano-corrente é DERIVADO da base
+// (o maior exercício presente no RESULTADO LEXOR): quando 2027 entrar na
+// planilha, o módulo passa a analisar 2027 sozinho (janela, categorias e o PLOA
+// alvo acompanham). Estes ficam apenas como reserva se a base vier sem anos.
+export const ANO_CORRENTE_PADRAO = 2026
+// Janela de mandato = o ano-corrente e os dois anteriores (legislatura de 4 anos).
+export const janelaDe = (ac) => [ac - 2, ac - 1, ac]
+// PLOA alvo = próximo exercício a elaborar.
+export const ploaAlvoDe = (ac) => `PLOA ${ac + 1}`
 
 // Remoções manuais: parlamentares que aparecem em 2024–2026 mas NÃO estão mais
 // em exercício (suplentes que retornaram, eleitos para o Executivo, ministros
@@ -64,15 +68,16 @@ export const PALETA = {
 }
 
 // Metadados das três categorias, na ordem de impressão (ESPEC §5/§10.6).
+// `cabecalho(n, ac)` e `tutuloTexto(ac)` recebem o ano-corrente derivado da base.
 export const CATEGORIAS = [
   {
     id: 'consolidado',
     rotulo: 'APOIO CONSOLIDADO',
     cor: PALETA.consolidado,
-    cabecalho: (n) => `APOIO CONSOLIDADO — apoiaram o Exército em 2026 (${n})`,
+    cabecalho: (n, ac) => `APOIO CONSOLIDADO — apoiaram o Exército em ${ac} (${n})`,
     tutulo: 'APOIO CONSOLIDADO',
-    tutuloTexto:
-      'destinaram emenda impositiva ao Exército em 2026. São a base de apoio da Força — '
+    tutuloTexto: (ac) =>
+      `destinaram emenda impositiva ao Exército em ${ac}. São a base de apoio da Força — `
       + 'o esforço aqui é de MANUTENÇÃO: agradecer, prestar contas e levar o próximo projeto '
       + 'no formato que já costumam indicar.',
   },
@@ -80,10 +85,10 @@ export const CATEGORIAS = [
     id: 'recuperar',
     rotulo: 'APOIO A RECUPERAR',
     cor: PALETA.recuperar,
-    cabecalho: (n) => `APOIO A RECUPERAR — apoiaram antes, migraram em 2026 (${n})`,
+    cabecalho: (n, ac) => `APOIO A RECUPERAR — apoiaram antes, migraram em ${ac} (${n})`,
     tutulo: 'APOIO A RECUPERAR',
-    tutuloTexto:
-      'já apoiaram o Exército em anos anteriores, mas NÃO em 2026 (migraram para a '
+    tutuloTexto: (ac) =>
+      `já apoiaram o Exército em anos anteriores, mas NÃO em ${ac} (migraram para a `
       + 'Marinha/Aeronáutica ou pausaram). O relacionamento já existe e é o de menor custo '
       + 'para reativar — abordar lembrando a parceria passada.',
   },
@@ -93,7 +98,7 @@ export const CATEGORIAS = [
     cor: PALETA.conquistar,
     cabecalho: (n) => `APOIO A CONQUISTAR — nunca apoiaram o Exército (${n})`,
     tutulo: 'APOIO A CONQUISTAR',
-    tutuloTexto:
+    tutuloTexto: () =>
       'nunca apoiaram o Exército, mas apoiam a Marinha e/ou a Aeronáutica. É o campo de '
       + 'abertura de novas relações — oferecer um projeto do Exército equivalente ao que já '
       + 'emendam para as outras Forças.',
@@ -101,18 +106,19 @@ export const CATEGORIAS = [
 ]
 export const CATEGORIA_POR_ID = Object.fromEntries(CATEGORIAS.map((c) => [c.id, c]))
 
-// Textos fixos do documento (ESPEC §10). Centralizados para revisão editorial.
-export const TITULO = `Ideias para a Captação de Emendas Parlamentares — ${PLOA_ALVO}`
+// Textos do documento (ESPEC §10). Parametrizados pelo ano-corrente (`ac`) e
+// pela janela histórica (`anoIni`–`anoFim`) derivados da base.
+export const tituloDe = (ac) => `Ideias para a Captação de Emendas Parlamentares — ${ploaAlvoDe(ac)}`
 
-export const META =
+export const metaDe = (ac, anoIni, anoFim) =>
   'Base: emendas impositivas (RP6 individual + RP7 bancada) apresentadas ao PLOA, '
-  + 'exercícios 2019–2026. Inclui apenas parlamentares com mandato ativo em 2026. '
+  + `exercícios ${anoIni}–${anoFim}. Inclui apenas parlamentares com mandato ativo em ${ac}. `
   + 'Valores em R$ milhares, solicitados na apresentação.'
 
 export const TUTORIAL_TITULO = 'Entenda as categorias deste relatório:'
 
-export const SELOS_LEGENDA =
-  '[NOVO] = estreou o apoio ao Exército em 2026, sem histórico anterior (merece consolidação).   '
+export const selosLegendaDe = (ac) =>
+  `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
   + '[ALTA VIABILIDADE] = banca ação que existe idêntica no Exército (transferência direta de UO).   '
   + '[BAIXA VIABILIDADE] = interesse temático específico de outra Força (baixa transferibilidade).'
 
@@ -122,9 +128,9 @@ export const DISCLAIMER =
   + 'política atual para verificar a viabilidade de aproximação com o gabinete de cada '
   + 'parlamentar, além de realizar as coordenações técnicas com os AsPar EB locais.'
 
-export const ESTADO_VAZIO =
+export const estadoVazioDe = (ac) =>
   'Sem registros de emendas individuais (RP6) à Defesa nesta Casa e neste estado no período '
-  + 'analisado, entre parlamentares com mandato ativo em 2026. Campo de prospecção a mapear '
+  + `analisado, entre parlamentares com mandato ativo em ${ac}. Campo de prospecção a mapear `
   + 'presencialmente.'
 
 export const NOTA_FECHAMENTO =
@@ -181,11 +187,10 @@ export const UFS = [
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ]
 
-// Cabeçalho institucional (substitui o banner-imagem header.jpg da referência:
-// o app não embarca a imagem, então desenhamos uma faixa equivalente — editável).
+// Banner institucional (header.jpg): imagem em src/loa/assets/header-banner.jpg,
+// inserida em sangria total no topo de cada página (ESPEC §10.1). A proporção é
+// usada para calcular a altura quando a largura = largura da página.
 export const BANNER = {
-  linha1: 'EXÉRCITO BRASILEIRO',
-  linha2: 'Ministério da Defesa · Assessoria Parlamentar — Subassessoria A4.6',
-  linha3: 'Captação de Emendas Parlamentares',
-  cor: PALETA.azulInstitucional,
+  aspecto: 2000 / 378, // largura / altura da imagem
+  alt: 'Subassessoria de Orçamento (A4.6)',
 }

@@ -8,14 +8,17 @@
 //
 // Mapeamento de campos (base do app → contrato da ESPEC):
 //   autorUF   → uf        autorTipo → tipo        orgao → forca
-//   subtitulo → objeto    acao/rp/valor/partido/ano/autor → diretos
+//   objeto    → objeto    acao/rp/valor/partido/ano/autor → diretos
 // A `forca` já vem pronta em `orgao` (EXÉRCITO/MARINHA/AERONÁUTICA/
-// MINISTÉRIO DA DEFESA = MD-Conjunto).
+// MINISTÉRIO DA DEFESA = MD-Conjunto). O ano-corrente é DERIVADO da base (maior
+// exercício presente), de modo que anos futuros no RESULTADO LEXOR mudam o
+// resultado sozinhos (janela de mandato, categorias e PLOA alvo acompanham).
 // ---------------------------------------------------------------------------
 import {
-  ANO_CORRENTE, JANELA_MANDATO, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS,
-  GEN_QUENTE, MAPA_AREA, CATEGORIA_POR_ID, CASAS, UF_NOME, UFS,
-  TITULO, META, ESTADO_VAZIO,
+  ANO_CORRENTE_PADRAO, janelaDe, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS,
+  GEN_QUENTE, MAPA_AREA, CATEGORIA_POR_ID, CATEGORIAS, CASAS, UF_NOME, UFS,
+  tituloDe, metaDe, selosLegendaDe, estadoVazioDe, TUTORIAL_TITULO,
+  DISCLAIMER, NOTA_FECHAMENTO,
 } from './estrategiaConfig.js'
 
 // --- helpers de texto ------------------------------------------------------
@@ -100,7 +103,9 @@ function agregar(registros) {
       a.valExHist += valor
       a.anosExAll.add(ano)
       if (r.acao) a.ex_ac.set(r.acao, (a.ex_ac.get(r.acao) || 0) + 1)
-      const obj = r.subtitulo // "objeto" da ESPEC (§11) → subtítulo da emenda
+      // "objeto" da ESPEC (§11): o objeto da emenda, presente nas emendas
+      // indicadas ao Exército (mesmo campo exibido na subaba "Emendas").
+      const obj = r.objeto
       if (obj && /[a-zA-ZÀ-ÿ]/.test(obj)) a.ex_obj.set(obj, (a.ex_obj.get(obj) || 0) + 1)
     } else if (forca === 'Marinha' || forca === 'Aeronáutica') {
       a.anosMaAe.add(ano)
@@ -113,22 +118,29 @@ function agregar(registros) {
   return porAutor
 }
 
-// --- §4 mandato ativo em 2026 ----------------------------------------------
-function ehAtivo(a, config) {
+// --- §4 mandato ativo em `ac` ----------------------------------------------
+function ehAtivo(a, cfg, ac) {
   const nome = a.autor
-  if (config.removidos.has(nome)) return false
-  for (const ano of config.janela) if (a.anos_all.has(String(ano))) return true
-  if (config.whitelist.has(nome)) return true
+  if (cfg.removidos.has(nome)) return false
+  for (const ano of janelaDe(ac)) if (a.anos_all.has(String(ano))) return true
+  if (cfg.whitelist.has(nome)) return true
   return false
 }
 
 const somaMap = (mapa) => [...mapa.values()].reduce((s, v) => s + v, 0)
 
+// §11 objetos recentes: transcrição literal de todos os objetos ao Exército,
+// por frequência desc, juntados por " - ". Ruído já foi filtrado na agregação.
+function objetosRecentes(ex_obj) {
+  const objs = [...ex_obj.entries()].sort((a, b) => b[1] - a[1]).map(([o]) => o.trim())
+  return objs.length ? objs.join(' - ') : ''
+}
+
 // --- §9 monta a ficha de um autor conforme a categoria ---------------------
-function fichaConsolidado(a) {
+function fichaConsolidado(a, ac) {
   const areas = topChaves(a.ex_ac, 3).map(areaDaAcao)
   const areasU = [...new Set(areas)]
-  const estreante = a.anosExAll.size === 1 && a.anosExAll.has(String(ANO_CORRENTE))
+  const estreante = a.anosExAll.size === 1 && a.anosExAll.has(String(ac))
   const campos = [
     { rotulo: 'Histórico com o Exército', texto: `${VF(a.valExHist)} — ${anosTxt(a.anosExAll)}.` },
     { rotulo: 'Perfil de indicação', texto: areasU.length ? `${areasU.join(', ')}.` : 'não detalhado.' },
@@ -144,16 +156,16 @@ function fichaConsolidado(a) {
   return { campos, selos: estreante ? ['NOVO'] : [] }
 }
 
-function fichaRecuperar(a) {
+function fichaRecuperar(a, ac) {
   const areas = [...new Set(topChaves(a.ex_ac, 2).map(areaDaAcao))]
-  const ma2026 = a.ma_by.get(String(ANO_CORRENTE)) || 0
-  const ae2026 = a.ae_by.get(String(ANO_CORRENTE)) || 0
+  const maAtual = a.ma_by.get(String(ac)) || 0
+  const aeAtual = a.ae_by.get(String(ac)) || 0
   let situacao
-  if (ma2026 > 0 || ae2026 > 0) {
+  if (maAtual > 0 || aeAtual > 0) {
     const partes = []
-    if (ma2026 > 0) partes.push(`Marinha ${M(ma2026)}`)
-    if (ae2026 > 0) partes.push(`Aeronáutica ${M(ae2026)}`)
-    situacao = `Apoiou o Exército em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); em ${ANO_CORRENTE} migrou para ${partes.join(' + ')}.`
+    if (maAtual > 0) partes.push(`Marinha ${M(maAtual)}`)
+    if (aeAtual > 0) partes.push(`Aeronáutica ${M(aeAtual)}`)
+    situacao = `Apoiou o Exército em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); em ${ac} migrou para ${partes.join(' + ')}.`
   } else {
     const somaMa = somaMap(a.ma_by)
     const somaAe = somaMap(a.ae_by)
@@ -161,7 +173,7 @@ function fichaRecuperar(a) {
     const by = forca === 'Marinha' ? a.ma_by : a.ae_by
     const ultimoAno = [...by.keys()].map(Number).sort((x, y) => y - x)[0]
     situacao = `Apoiou o Exército em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); migrou para ${forca} `
-      + `(último apoio em ${ultimoAno ?? '—'}, histórico ${M(somaMa + somaAe)}). Sem emenda ao Exército em ${ANO_CORRENTE}.`
+      + `(último apoio em ${ultimoAno ?? '—'}, histórico ${M(somaMa + somaAe)}). Sem emenda ao Exército em ${ac}.`
   }
   const campos = [
     { rotulo: 'Situação', texto: situacao },
@@ -176,18 +188,18 @@ function fichaRecuperar(a) {
   return { campos, selos: [] }
 }
 
-function fichaConquistar(a) {
+function fichaConquistar(a, ac) {
   const acoesTop = topChaves(a.maae_ac, 2)
   const areas = [...new Set(acoesTop.map(areaDaAcao))]
   const quente = areas.some((ar) => GEN_QUENTE.has(ar))
-  const ma2026 = a.ma_by.get(String(ANO_CORRENTE)) || 0
-  const ae2026 = a.ae_by.get(String(ANO_CORRENTE)) || 0
+  const maAtual = a.ma_by.get(String(ac)) || 0
+  const aeAtual = a.ae_by.get(String(ac)) || 0
   let linhaEmendas
-  if (ma2026 > 0 || ae2026 > 0) {
+  if (maAtual > 0 || aeAtual > 0) {
     const partes = []
-    if (ma2026 > 0) partes.push(`Marinha ${M(ma2026)}`)
-    if (ae2026 > 0) partes.push(`Aeronáutica ${M(ae2026)}`)
-    linhaEmendas = `${partes.join(' + ')} (${ANO_CORRENTE}).`
+    if (maAtual > 0) partes.push(`Marinha ${M(maAtual)}`)
+    if (aeAtual > 0) partes.push(`Aeronáutica ${M(aeAtual)}`)
+    linhaEmendas = `${partes.join(' + ')} (${ac}).`
   } else {
     const somaMa = somaMap(a.ma_by)
     const somaAe = somaMap(a.ae_by)
@@ -208,13 +220,7 @@ function fichaConquistar(a) {
   ]
   return { campos, selos: [quente ? 'ALTA VIABILIDADE' : 'BAIXA VIABILIDADE'] }
 }
-
-// §11 objetos recentes: transcrição literal de todos os objetos ao Exército,
-// por frequência desc, juntados por " - ". Ruído já foi filtrado na agregação.
-function objetosRecentes(ex_obj) {
-  const objs = [...ex_obj.entries()].sort((a, b) => b[1] - a[1]).map(([o]) => o.trim())
-  return objs.length ? objs.join(' - ') : ''
-}
+const FICHA_POR_CAT = { consolidado: fichaConsolidado, recuperar: fichaRecuperar, conquistar: fichaConquistar }
 
 // Linha de identificação da ficha: "{partidos} · {Cargo}[ · {selo}]".
 function identificacao(a, cargo, selos) {
@@ -224,14 +230,14 @@ function identificacao(a, cargo, selos) {
 }
 
 // --- §5 classifica os autores ativos de uma Casa em três categorias --------
-function classificar(porAutor, config) {
-  const ativos = [...porAutor.values()].filter((a) => ehAtivo(a, config))
+function classificar(porAutor, cfg, ac) {
+  const ativos = [...porAutor.values()].filter((a) => ehAtivo(a, cfg, ac))
   const consolidado = []
   const recuperar = []
   const conquistar = []
   for (const a of ativos) {
-    const emEx2026 = a.anosExAll.has(String(ANO_CORRENTE))
-    if (emEx2026) consolidado.push(a)
+    const emExAtual = a.anosExAll.has(String(ac))
+    if (emExAtual) consolidado.push(a)
     else if (a.anosExAll.size > 0) recuperar.push(a)
     else if (a.anosMaAe.size > 0) conquistar.push(a)
     // sem Exército e sem Marinha/Aero → não vira ficha.
@@ -242,13 +248,13 @@ function classificar(porAutor, config) {
   return { consolidado, recuperar, conquistar }
 }
 
-// Configuração efetiva (com sobrescritas opcionais vindas da tela).
+// Configuração efetiva (com sobrescritas opcionais vindas da tela). O
+// ano-corrente fica em `anoCorrente` (null = derivar da base).
 export function montarConfig(over = {}) {
   return {
-    anoCorrente: over.anoCorrente ?? ANO_CORRENTE,
-    janela: over.janela ?? JANELA_MANDATO,
-    removidos: new Set((over.removidos ?? REMOVIDOS_MANDATO).map((s) => s.trim())),
-    whitelist: new Set((over.whitelist ?? WHITELIST_SEN_ATIVOS).map((s) => s.trim())),
+    anoCorrente: over.anoCorrente ?? null,
+    removidos: new Set((over.removidos ?? REMOVIDOS_MANDATO).map((s) => s.trim().toUpperCase())),
+    whitelist: new Set((over.whitelist ?? WHITELIST_SEN_ATIVOS).map((s) => s.trim().toUpperCase())),
   }
 }
 
@@ -265,22 +271,28 @@ export function registrosEscopo(registros) {
   })
 }
 
-// --- documento por (UF, Casa) ----------------------------------------------
-const FICHA_POR_CAT = { consolidado: fichaConsolidado, recuperar: fichaRecuperar, conquistar: fichaConquistar }
+// Ano-corrente e janela histórica derivados do escopo (maior/menor exercício).
+export function anoInfo(escopo, cfg) {
+  const anos = [...new Set(escopo.map((r) => Number(r.ano)))].filter((n) => Number.isFinite(n)).sort((a, b) => a - b)
+  const anoFim = cfg?.anoCorrente ?? (anos.length ? anos[anos.length - 1] : ANO_CORRENTE_PADRAO)
+  const anoIni = anos.length ? anos[0] : anoFim
+  return { ac: anoFim, anoIni, anoFim }
+}
 
+// --- documento por (UF, Casa) ----------------------------------------------
 export function gerarDocumento(registros, { uf, casa, config } = {}) {
   const cfg = config || montarConfig()
   const casaDef = CASAS[casa]
-  const escopo = registrosEscopo(registros)
-    .filter((r) => r.autorUF === uf && r.autorTipo === casaDef.tipoAutor)
-  const grupos = classificar(agregar(escopo), cfg)
+  const escopoBase = registrosEscopo(registros)
+  const { ac, anoIni, anoFim } = anoInfo(escopoBase, cfg)
+  const escopo = escopoBase.filter((r) => r.autorUF === uf && r.autorTipo === casaDef.tipoAutor)
+  const grupos = classificar(agregar(escopo), cfg, ac)
 
-  const categorias = CATEGORIA_POR_ID
   const secoes = ['consolidado', 'recuperar', 'conquistar'].map((id) => {
     const autores = grupos[id]
-    const meta = categorias[id]
+    const meta = CATEGORIA_POR_ID[id]
     const fichas = autores.map((a) => {
-      const { campos, selos } = FICHA_POR_CAT[id](a)
+      const { campos, selos } = FICHA_POR_CAT[id](a, ac)
       return {
         autor: a.autor,
         nome: tituloBR(a.autor),
@@ -289,7 +301,7 @@ export function gerarDocumento(registros, { uf, casa, config } = {}) {
         campos,
       }
     })
-    return { id, rotulo: meta.rotulo, cor: meta.cor, cabecalho: meta.cabecalho(fichas.length), fichas }
+    return { id, rotulo: meta.rotulo, cor: meta.cor, cabecalho: meta.cabecalho(fichas.length, ac), fichas }
   }).filter((s) => s.fichas.length > 0)
 
   const total = secoes.reduce((s, sec) => s + sec.fichas.length, 0)
@@ -300,11 +312,18 @@ export function gerarDocumento(registros, { uf, casa, config } = {}) {
     casaRotulo: casaDef.rotulo,
     corSubtitulo: casaDef.corSubtitulo,
     subtitulo: `${casaDef.rotulo} — ${UF_NOME[uf] || uf} (${uf})`,
-    titulo: TITULO,
-    meta: META,
+    anoCorrente: ac,
+    // Textos resolvidos com o ano-corrente da base (tela e exportação leem daqui).
+    titulo: tituloDe(ac),
+    meta: metaDe(ac, anoIni, anoFim),
+    tutorialTitulo: TUTORIAL_TITULO,
+    tutorialItens: CATEGORIAS.map((c) => ({ tutulo: c.tutulo, cor: c.cor, texto: c.tutuloTexto(ac) })),
+    selosLegenda: selosLegendaDe(ac),
+    disclaimer: DISCLAIMER,
+    notaFechamento: NOTA_FECHAMENTO,
     secoes,
     vazio: total === 0,
-    textoVazio: ESTADO_VAZIO,
+    textoVazio: estadoVazioDe(ac),
     total,
   }
 }
@@ -313,22 +332,21 @@ export function gerarDocumento(registros, { uf, casa, config } = {}) {
 // quais das 27×2 combinações têm fichas. Uma passada só sobre a base.
 export function indicePorUFCasa(registros, config) {
   const cfg = config || montarConfig()
-  const escopo = registrosEscopo(registros)
-  const out = {}
+  const escopoBase = registrosEscopo(registros)
+  const { ac } = anoInfo(escopoBase, cfg)
+  const out = { anoCorrente: ac, camara: {}, senado: {} }
   for (const casa of ['camara', 'senado']) {
     const tipoAutor = CASAS[casa].tipoAutor
-    const porUf = {}
     for (const uf of UFS) {
-      const sub = escopo.filter((r) => r.autorUF === uf && r.autorTipo === tipoAutor)
-      const grupos = classificar(agregar(sub), cfg)
-      porUf[uf] = {
+      const sub = escopoBase.filter((r) => r.autorUF === uf && r.autorTipo === tipoAutor)
+      const grupos = classificar(agregar(sub), cfg, ac)
+      out[casa][uf] = {
         consolidado: grupos.consolidado.length,
         recuperar: grupos.recuperar.length,
         conquistar: grupos.conquistar.length,
         total: grupos.consolidado.length + grupos.recuperar.length + grupos.conquistar.length,
       }
     }
-    out[casa] = porUf
   }
   return out
 }

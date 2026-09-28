@@ -6,10 +6,10 @@ import {
   baixarDocx, baixarPdf, baixarZip,
 } from '../estrategiaDoc.js'
 import {
-  UFS, UF_NOME, CASAS, CATEGORIAS, TITULO, META, TUTORIAL_TITULO,
-  SELOS_LEGENDA, DISCLAIMER, NOTA_FECHAMENTO, LIMITACOES,
+  UFS, UF_NOME, CASAS, LIMITACOES,
   BANNER, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS,
 } from '../estrategiaConfig.js'
+import bannerUrl from '../assets/header-banner.jpg'
 
 const CH = '#'
 const cor = (h) => CH + h
@@ -147,32 +147,28 @@ export default function AbaEstrategia({ registros }) {
 
       {/* ---- prévia do documento (espelha o DOCX/PDF exportado) ---- */}
       <article className="estr-doc" aria-label="Prévia do documento">
-        <header className="estr-banner" style={{ background: cor(BANNER.cor) }}>
-          <p className="estr-banner-1">{BANNER.linha1}</p>
-          <p className="estr-banner-2">{BANNER.linha2}</p>
-          <p className="estr-banner-3">{BANNER.linha3}</p>
-        </header>
+        <img className="estr-banner-img" src={bannerUrl} alt={BANNER.alt} />
 
-        <h1 className="estr-titulo" style={{ color: cor('1A3A5C') }}>{TITULO}</h1>
+        <h1 className="estr-titulo" style={{ color: cor('1A3A5C') }}>{documento.titulo}</h1>
         <h2 className="estr-subtitulo" style={{ color: cor(documento.corSubtitulo), borderColor: cor('1A3A5C') }}>
           {documento.subtitulo}
         </h2>
 
-        <p className="estr-meta">{META}</p>
+        <p className="estr-meta">{documento.meta}</p>
 
         <div className="estr-tutorial">
-          <p className="estr-tutorial-tit" style={{ color: cor('1A3A5C') }}>{TUTORIAL_TITULO}</p>
-          {CATEGORIAS.map((c) => (
-            <p key={c.id} className="estr-tutorial-item">
+          <p className="estr-tutorial-tit" style={{ color: cor('1A3A5C') }}>{documento.tutorialTitulo}</p>
+          {documento.tutorialItens.map((c) => (
+            <p key={c.tutulo} className="estr-tutorial-item">
               <strong style={{ color: cor(c.cor) }}>● {c.tutulo} </strong>
-              — {c.tutuloTexto}
+              — {c.texto}
             </p>
           ))}
-          <p className="estr-selos"><strong style={{ color: cor('1A3A5C') }}>Selos: </strong>{SELOS_LEGENDA}</p>
+          <p className="estr-selos"><strong style={{ color: cor('1A3A5C') }}>Selos: </strong>{documento.selosLegenda}</p>
         </div>
 
         <p className="estr-disclaimer" style={{ background: cor('F2ECDD') }}>
-          <strong style={{ color: cor('B56A00') }}>Disclaimer: </strong>{DISCLAIMER}
+          <strong style={{ color: cor('B56A00') }}>Disclaimer: </strong>{documento.disclaimer}
         </p>
 
         {documento.vazio ? (
@@ -202,7 +198,7 @@ export default function AbaEstrategia({ registros }) {
         )}
 
         <p className="estr-nota" style={{ borderColor: cor('1A3A5C'), color: cor('1A3A5C') }}>
-          <strong>Nota: </strong>{NOTA_FECHAMENTO}
+          <strong>Nota: </strong>{documento.notaFechamento}
         </p>
       </article>
 
