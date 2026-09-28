@@ -266,28 +266,62 @@ const setCor = (doc, hex) => { const c = hexRGB(hex); doc.setTextColor(c.r, c.g,
 const setFill = (doc, hex) => { const c = hexRGB(hex); doc.setFillColor(c.r, c.g, c.b) }
 const pt2mm = (pt) => pt * 0.3528
 
-// Escreve um parágrafo (com wrap), devolve a altura consumida.
-function escreverPar(doc, fluxo, { texto, size, bold, italic, cor, align = 'left', indent = 0, antes = 0, depois = 1.5, prefixo = null }) {
+// Quebra de linha com PRIMEIRA linha de largura diferente (para acomodar um
+// rótulo em negrito à esquerda). Mede na fonte já ativa. Garante ao menos uma
+// palavra por linha (evita laço infinito com palavra maior que a largura).
+function wrapVar(doc, texto, primeira, resto) {
+  const palavras = String(texto).split(/\s+/).filter(Boolean)
+  if (!palavras.length) return ['']
+  const linhas = []
+  let cur = ''
+  for (const w of palavras) {
+    if (!cur) { cur = w; continue }
+    const allowed = linhas.length === 0 ? primeira : resto
+    if (doc.getTextWidth(cur + ' ' + w) <= allowed) cur += ' ' + w
+    else { linhas.push(cur); cur = w }
+  }
+  linhas.push(cur)
+  return linhas
+}
+
+// Escreve um parágrafo (com wrap). `prefixo` = rótulo em negrito colorido na
+// primeira linha; `bolinha` = cor de um marcador circular vetorial (evita o
+// caractere ● que não existe na fonte padrão do PDF), com recuo pendente.
+function escreverPar(doc, fluxo, { texto, size, bold, italic, cor, align = 'left', indent = 0, antes = 0, depois = 1.5, prefixo = null, bolinha = null }) {
   const { st, garantir } = fluxo
   st.y += antes
-  const x = MM.L + indent
-  const larg = LARG - indent
-  const lh = pt2mm(size) * 1.32
+  const bodyStyle = bold ? 'bold' : italic ? 'italic' : 'normal'
+  const lh = pt2mm(size) * 1.34
+  const gap = bolinha ? pt2mm(size) * 1.1 : 0 // espaço reservado ao marcador
+  const x = MM.L + indent + gap
+  const larg = LARG - indent - gap
+
   doc.setFontSize(size)
-  doc.setFont('helvetica', bold ? 'bold' : italic ? 'italic' : 'normal')
+
   if (prefixo) {
-    const linhas = doc.splitTextToSize(prefixo.texto + texto, larg)
-    garantir(lh)
-    doc.setFont('helvetica', 'bold'); setCor(doc, prefixo.cor)
-    doc.text(prefixo.texto, x, st.y + lh - 1)
-    const w = doc.getTextWidth(prefixo.texto)
-    doc.setFont('helvetica', bold ? 'bold' : italic ? 'italic' : 'normal'); setCor(doc, cor)
-    const resto = doc.splitTextToSize(linhas[0].slice(prefixo.texto.length), larg - w)
-    doc.text(resto[0] || '', x + w, st.y + lh - 1)
-    st.y += lh
-    for (const cl of [...resto.slice(1), ...linhas.slice(1)]) { garantir(lh); doc.text(cl, x, st.y + lh - 1); st.y += lh }
+    doc.setFont('helvetica', 'bold')
+    const prefixW = doc.getTextWidth(prefixo.texto)
+    doc.setFont('helvetica', bodyStyle)
+    const linhas = wrapVar(doc, texto, larg - prefixW, larg)
+    for (let i = 0; i < linhas.length; i++) {
+      garantir(lh)
+      const baseY = st.y + lh - 1
+      if (i === 0) {
+        if (bolinha) {
+          setFill(doc, bolinha)
+          doc.circle(MM.L + indent + pt2mm(size) * 0.45, baseY - pt2mm(size) * 0.32, pt2mm(size) * 0.3, 'F')
+        }
+        doc.setFont('helvetica', 'bold'); setCor(doc, prefixo.cor)
+        doc.text(prefixo.texto, x, baseY)
+        doc.setFont('helvetica', bodyStyle); setCor(doc, cor)
+        doc.text(linhas[0], x + prefixW, baseY)
+      } else {
+        doc.text(linhas[i], x, baseY)
+      }
+      st.y += lh
+    }
   } else {
-    setCor(doc, cor)
+    doc.setFont('helvetica', bodyStyle); setCor(doc, cor)
     const linhas = doc.splitTextToSize(texto, larg)
     for (const l of linhas) {
       garantir(lh)
@@ -363,7 +397,7 @@ export function documentoPdf(documento, banner, doc = null) {
   for (const item of documento.tutorialItens) {
     escreverPar(doc, fluxo, {
       texto: `— ${item.texto}`, size: 9.5, cor: PALETA.preto,
-      prefixo: { texto: `● ${item.tutulo} `, cor: item.cor }, depois: 1,
+      prefixo: { texto: `${item.tutulo} `, cor: item.cor }, bolinha: item.cor, depois: 1,
     })
   }
   escreverPar(doc, fluxo, {
