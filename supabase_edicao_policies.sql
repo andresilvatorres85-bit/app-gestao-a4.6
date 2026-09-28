@@ -6,6 +6,12 @@
 -- Execute este script inteiro no Supabase: painel do projeto > SQL Editor >
 -- New query > Run. É idempotente (pode rodar mais de uma vez sem problema) e
 -- não apaga nenhum dado — apenas (re)cria as políticas de acesso.
+--
+-- IMPORTANTE: rode com o app FECHADO. Durante a recriação das políticas há um
+-- instante sem policy de SELECT; com o app aberto (versão antiga), a leitura
+-- volta vazia e o app pode reinserir a semente, duplicando proposições. A
+-- versão atual do app já não faz isso. Se o app tiver duplicado proposições,
+-- rode depois o supabase_limpar_duplicatas_proposicoes.sql.
 
 -- ========== objeto_emendas (Alteração de emenda / Objeto Emenda) ==========
 alter table public.objeto_emendas enable row level security;
