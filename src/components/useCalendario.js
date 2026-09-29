@@ -13,6 +13,7 @@ function mapRow(r) {
     local: r.local || "",
     descricao: r.descricao || "",
     cor: r.cor || "azul",
+    recorrencia: r.recorrencia || "nao",
     criadoPor: r.criado_por || "",
   };
 }
@@ -27,23 +28,33 @@ function paraBanco(e) {
     local: (e.local || "").trim() || null,
     descricao: (e.descricao || "").trim() || null,
     cor: e.cor || "azul",
+    recorrencia: e.recorrencia || "nao",
   };
 }
 
 // Agenda compartilhada (tabela `calendario_eventos` do Supabase), em tempo real
-// — todos da A4.6 veem os mesmos compromissos. Mesmo padrão dos demais módulos.
+// — todos da A4.6 veem os mesmos compromissos. `agendas` guarda o NOME que a
+// equipe deu a cada cor/calendário (tabela `calendario_agendas`).
 export function useCalendario(session) {
   const [eventos, setEventos] = useState([]);
+  const [agendas, setAgendas] = useState({}); // { cor: nome }
   const [carregado, setCarregado] = useState(false);
   const [erro, setErro] = useState(null);
   const vivoRef = useRef(true);
 
   const recarregar = useCallback(async () => {
-    const { data, error } = await supabase.from("calendario_eventos").select("*");
+    const [ev, ag] = await Promise.all([
+      supabase.from("calendario_eventos").select("*"),
+      supabase.from("calendario_agendas").select("*"),
+    ]);
     if (!vivoRef.current) return;
-    if (error) { setErro(error); setCarregado(true); return; }
+    if (ev.error) { setErro(ev.error); setCarregado(true); return; }
     setErro(null);
-    setEventos((data || []).map(mapRow));
+    setEventos((ev.data || []).map(mapRow));
+    // a tabela de nomes é opcional; se não existir, apenas fica vazia
+    if (!ag.error) {
+      setAgendas(Object.fromEntries((ag.data || []).map((r) => [r.cor, r.nome])));
+    }
     setCarregado(true);
   }, []);
 
@@ -54,6 +65,7 @@ export function useCalendario(session) {
     const canal = supabase
       .channel("calendario-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "calendario_eventos" }, () => recarregar())
+      .on("postgres_changes", { event: "*", schema: "public", table: "calendario_agendas" }, () => recarregar())
       .subscribe();
     return () => { vivoRef.current = false; supabase.removeChannel(canal); };
   }, [session, recarregar]);
@@ -78,5 +90,12 @@ export function useCalendario(session) {
     return res;
   }, [recarregar]);
 
-  return { eventos, carregado, erro, inserir, atualizar, excluir };
+  // Renomeia um calendário (cor). Resposta imediata na tela + upsert no banco.
+  const renomearAgenda = useCallback(async (cor, nome) => {
+    setAgendas((prev) => ({ ...prev, [cor]: nome }));
+    await supabase.from("calendario_agendas")
+      .upsert({ cor, nome: (nome || "").trim() || null }, { onConflict: "cor" });
+  }, []);
+
+  return { eventos, agendas, carregado, erro, inserir, atualizar, excluir, renomearAgenda };
 }

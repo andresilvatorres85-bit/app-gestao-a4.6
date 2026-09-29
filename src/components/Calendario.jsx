@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft,
+  ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil,
 } from "lucide-react";
 
 // ---------------------------------------------------------------- utilidades
@@ -10,6 +10,16 @@ const MESES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "se
 const SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const H_ALTURA = 46; // px por hora nas visões Semana/Dia
+
+// Opções de repetição do evento.
+const RECORRENCIAS = [
+  ["nao", "Não se repete"],
+  ["diaria", "Todos os dias"],
+  ["semanal", "Toda semana"],
+  ["mensal", "Todo mês"],
+  ["anual", "Todo ano"],
+];
+const RECORRENCIA_ROT = Object.fromEntries(RECORRENCIAS);
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -21,14 +31,13 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const p2 = (n) => String(n).padStart(2, "0");
 const ymd = (d) => { const x = new Date(d); return `${x.getFullYear()}-${p2(x.getMonth() + 1)}-${p2(x.getDate())}`; };
 const hm = (ms) => { const d = new Date(ms); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
-// Junta "yyyy-mm-dd" + "hh:mm" num timestamp (ms) no fuso local.
 const combinar = (data, hora) => {
   const [y, m, d] = data.split("-").map(Number);
   const [hh, mm] = (hora || "00:00").split(":").map(Number);
   return new Date(y, m - 1, d, hh || 0, mm || 0, 0, 0).getTime();
 };
 
-// Paleta de cores dos eventos (rótulo + hex claro/escuro do texto/fundo).
+// Paleta de cores (= calendários). O NOME de cada cor é editável (agendas).
 export const CORES = {
   azul:     { nome: "Azul",     bg: "#3B6FB0", chip: "rgba(59,111,176,0.22)",  borda: "#3B6FB0" },
   verde:    { nome: "Verde",    bg: "#3F9D6B", chip: "rgba(63,157,107,0.22)",  borda: "#3F9D6B" },
@@ -39,9 +48,10 @@ export const CORES = {
   rosa:     { nome: "Rosa",     bg: "#C25A93", chip: "rgba(194,90,147,0.22)",  borda: "#C25A93" },
   cinza:    { nome: "Cinza",    bg: "#6C7A72", chip: "rgba(108,122,114,0.24)", borda: "#6C7A72" },
 };
+const CORES_IDS = Object.keys(CORES);
 const cor = (c) => CORES[c] || CORES.azul;
 
-// Eventos que ocorrem num dia (all-day ou cruzando o dia).
+// Eventos (já expandidos) que ocorrem num dia.
 function eventosDoDia(eventos, dia) {
   const ini = startOfDay(dia).getTime();
   const fim = ini + 86400000;
@@ -72,13 +82,62 @@ function layoutColunas(evs) {
   return postos;
 }
 
+// Expande eventos recorrentes em ocorrências dentro do intervalo [rIni, rFim].
+// Cada ocorrência mantém `_base` (o evento original) para a edição da série.
+function expandir(eventos, rIni, rFim) {
+  const passo = (d, rec) => {
+    const x = new Date(d);
+    if (rec === "diaria") x.setDate(x.getDate() + 1);
+    else if (rec === "semanal") x.setDate(x.getDate() + 7);
+    else if (rec === "mensal") x.setMonth(x.getMonth() + 1);
+    else if (rec === "anual") x.setFullYear(x.getFullYear() + 1);
+    else x.setDate(x.getDate() + 1);
+    return x;
+  };
+  const out = [];
+  for (const e of eventos) {
+    if (e.inicio == null) continue;
+    const rec = e.recorrencia || "nao";
+    const dur = (e.fim ?? e.inicio) - e.inicio;
+    if (rec === "nao") {
+      if ((e.fim ?? e.inicio) >= rIni && e.inicio <= rFim) out.push({ ...e, _base: e });
+      continue;
+    }
+    let cur = new Date(e.inicio);
+    let g = 0;
+    while (cur.getTime() + dur < rIni && g < 4000) { cur = passo(cur, rec); g++; }
+    while (cur.getTime() <= rFim && g < 4000) {
+      const ini = cur.getTime();
+      out.push({ ...e, inicio: ini, fim: ini + dur, _base: e });
+      cur = passo(cur, rec); g++;
+    }
+  }
+  return out;
+}
+
 // =========================================================================
-export default function Calendario({ eventos = [], inserir, atualizar, excluir, carregado, erro, vistaInicial = "mes" }) {
-  const [vista, setVista] = useState(vistaInicial); // 'mes' | 'semana' | 'dia'
+export default function Calendario({
+  eventos = [], agendas = {}, inserir, atualizar, excluir, renomearAgenda,
+  carregado, erro, vistaInicial = "semana",
+}) {
+  const [vista, setVista] = useState(vistaInicial);
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
-  const [modal, setModal] = useState(null); // evento em edição/criação, ou null
+  const [modal, setModal] = useState(null);
+  const [ocultos, setOcultos] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("cal.ocultos") || "[]")); } catch { return new Set(); }
+  });
 
   const hoje = startOfDay(new Date());
+  const nomeCal = (c) => (agendas[c] && agendas[c].trim()) || cor(c).nome;
+
+  function toggleCal(c) {
+    setOcultos((prev) => {
+      const s = new Set(prev);
+      s.has(c) ? s.delete(c) : s.add(c);
+      try { localStorage.setItem("cal.ocultos", JSON.stringify([...s])); } catch { /* ignore */ }
+      return s;
+    });
+  }
 
   function irHoje() { setCursor(startOfDay(new Date())); }
   function passo(dir) {
@@ -86,6 +145,25 @@ export default function Calendario({ eventos = [], inserir, atualizar, excluir, 
     else if (vista === "semana") setCursor((c) => addDays(c, dir * 7));
     else setCursor((c) => addDays(c, dir));
   }
+
+  // Intervalo visível (para expandir só o necessário) + eventos filtrados.
+  const [rIni, rFim] = useMemo(() => {
+    if (vista === "mes") {
+      const ini = startOfWeek(startOfMonth(cursor)).getTime();
+      return [ini, ini + 42 * 86400000];
+    }
+    if (vista === "semana") {
+      const ini = startOfWeek(cursor).getTime();
+      return [ini, ini + 7 * 86400000];
+    }
+    const ini = startOfDay(cursor).getTime();
+    return [ini, ini + 86400000];
+  }, [vista, cursor]);
+
+  const visiveis = useMemo(() => {
+    const filtrados = eventos.filter((e) => !ocultos.has(e.cor));
+    return expandir(filtrados, rIni, rFim);
+  }, [eventos, ocultos, rIni, rFim]);
 
   const titulo = useMemo(() => {
     if (vista === "mes") return cap(`${MESES[cursor.getMonth()]} de ${cursor.getFullYear()}`);
@@ -97,22 +175,22 @@ export default function Calendario({ eventos = [], inserir, atualizar, excluir, 
       : `${ini.getDate()} de ${MESES_CURTO[ini.getMonth()]} – ${fim.getDate()} de ${MESES_CURTO[fim.getMonth()]} de ${fim.getFullYear()}`;
   }, [vista, cursor]);
 
-  // Abre o modal para um NOVO evento num dia (e hora opcional).
   function novoEvento(dia, hora = null) {
     const base = startOfDay(dia);
     const h = hora != null ? hora : Math.min(new Date().getHours() + 1, 22);
     const ini = new Date(base); ini.setHours(h, 0, 0, 0);
     const fim = new Date(ini); fim.setHours(h + 1, 0, 0, 0);
     setModal({
-      id: null, titulo: "", diaInteiro: false,
+      id: null, titulo: "", diaInteiro: false, recorrencia: "nao",
       dataInicio: ymd(ini), horaInicio: hm(ini.getTime()),
       dataFim: ymd(fim), horaFim: hm(fim.getTime()),
       local: "", descricao: "", cor: "azul",
     });
   }
-  function editarEvento(e) {
+  function editarEvento(oc) {
+    const e = oc._base || oc; // edita a SÉRIE (âncora), não a ocorrência
     setModal({
-      id: e.id, titulo: e.titulo, diaInteiro: e.diaInteiro,
+      id: e.id, titulo: e.titulo, diaInteiro: e.diaInteiro, recorrencia: e.recorrencia || "nao",
       dataInicio: ymd(e.inicio), horaInicio: hm(e.inicio),
       dataFim: ymd(e.fim ?? e.inicio), horaFim: hm(e.fim ?? e.inicio),
       local: e.local || "", descricao: e.descricao || "", cor: e.cor || "azul",
@@ -148,22 +226,29 @@ export default function Calendario({ eventos = [], inserir, atualizar, excluir, 
         </div>
       )}
 
-      {!carregado ? (
-        <div className="loading-state">Carregando agenda…</div>
-      ) : vista === "mes" ? (
-        <VistaMes cursor={cursor} hoje={hoje} eventos={eventos}
-          aoDia={abrirDia} aoNovo={novoEvento} aoEditar={editarEvento} />
-      ) : vista === "semana" ? (
-        <VistaTempo dias={7} inicio={startOfWeek(cursor)} hoje={hoje} eventos={eventos}
-          aoDia={abrirDia} aoNovoHora={novoEvento} aoNovoDia={novoEvento} aoEditar={editarEvento} />
-      ) : (
-        <VistaTempo dias={1} inicio={startOfDay(cursor)} hoje={hoje} eventos={eventos}
-          aoDia={abrirDia} aoNovoHora={novoEvento} aoNovoDia={novoEvento} aoEditar={editarEvento} />
-      )}
+      <div className="cal-corpo">
+        <BarraCalendarios
+          ocultos={ocultos} onToggle={toggleCal} nomeCal={nomeCal}
+          onRenomear={renomearAgenda} />
+
+        <div className="cal-principal">
+          {!carregado ? (
+            <div className="loading-state">Carregando agenda…</div>
+          ) : vista === "mes" ? (
+            <VistaMes cursor={cursor} hoje={hoje} eventos={visiveis}
+              aoDia={abrirDia} aoNovo={novoEvento} aoEditar={editarEvento} />
+          ) : (
+            <VistaTempo dias={vista === "semana" ? 7 : 1}
+              inicio={vista === "semana" ? startOfWeek(cursor) : startOfDay(cursor)}
+              hoje={hoje} eventos={visiveis}
+              aoDia={abrirDia} aoNovoHora={novoEvento} aoEditar={editarEvento} />
+          )}
+        </div>
+      </div>
 
       {modal && (
         <ModalEvento
-          estado={modal}
+          estado={modal} nomeCal={nomeCal}
           onFechar={() => setModal(null)}
           onSalvar={async (e, dados) => {
             const payload = montarPayload(dados);
@@ -179,16 +264,52 @@ export default function Calendario({ eventos = [], inserir, atualizar, excluir, 
 }
 
 function montarPayload(d) {
+  const comum = { titulo: d.titulo, local: d.local, descricao: d.descricao, cor: d.cor, recorrencia: d.recorrencia || "nao" };
   if (d.diaInteiro) {
     const ini = combinar(d.dataInicio, "00:00");
-    const fimData = d.dataFim || d.dataInicio;
-    const fim = combinar(fimData, "23:59");
-    return { titulo: d.titulo, diaInteiro: true, inicio: ini, fim, local: d.local, descricao: d.descricao, cor: d.cor };
+    const fim = combinar(d.dataFim || d.dataInicio, "23:59");
+    return { ...comum, diaInteiro: true, inicio: ini, fim };
   }
   let ini = combinar(d.dataInicio, d.horaInicio);
   let fim = combinar(d.dataFim || d.dataInicio, d.horaFim || d.horaInicio);
-  if (fim <= ini) fim = ini + 3600000; // garante duração mínima de 1h
-  return { titulo: d.titulo, diaInteiro: false, inicio: ini, fim, local: d.local, descricao: d.descricao, cor: d.cor };
+  if (fim <= ini) fim = ini + 3600000;
+  return { ...comum, diaInteiro: false, inicio: ini, fim };
+}
+
+// ---------------------------------------------------- Barra de calendários
+function BarraCalendarios({ ocultos, onToggle, nomeCal, onRenomear }) {
+  const [editando, setEditando] = useState(null); // cor em edição de nome
+  const [rascunho, setRascunho] = useState("");
+  return (
+    <aside className="cal-cals">
+      <p className="cal-cals-tit">Meus calendários</p>
+      <ul className="cal-cals-lista">
+        {CORES_IDS.map((c) => {
+          const visivel = !ocultos.has(c);
+          return (
+            <li key={c} className="cal-cals-item">
+              <label className="cal-cals-chk" style={{ "--cc": cor(c).bg }}>
+                <input type="checkbox" checked={visivel} onChange={() => onToggle(c)} />
+                <span className="cal-cals-caixa" />
+              </label>
+              {editando === c ? (
+                <input className="input cal-cals-input" autoFocus value={rascunho}
+                  onChange={(e) => setRascunho(e.target.value)}
+                  onBlur={() => { onRenomear?.(c, rascunho); setEditando(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEditando(null); }} />
+              ) : (
+                <button className="cal-cals-nome" title="Renomear calendário"
+                  onClick={() => { setEditando(c); setRascunho(nomeCal(c)); }}>
+                  <span className="cal-cals-txt">{nomeCal(c)}</span>
+                  <Pencil size={12} className="cal-cals-lapis" />
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
+  );
 }
 
 // ------------------------------------------------------------- Visão de Mês
@@ -196,7 +317,7 @@ function VistaMes({ cursor, hoje, eventos, aoDia, aoNovo, aoEditar }) {
   const ini = startOfWeek(startOfMonth(cursor));
   const dias = Array.from({ length: 42 }, (_, i) => addDays(ini, i));
   const mesAtual = cursor.getMonth();
-  const MAX = 3; // eventos visíveis por célula antes do "+N"
+  const MAX = 3;
 
   return (
     <div className="cal-mes">
@@ -209,15 +330,12 @@ function VistaMes({ cursor, hoje, eventos, aoDia, aoNovo, aoEditar }) {
           const foraMes = dia.getMonth() !== mesAtual;
           const eHoje = sameDay(dia, hoje);
           return (
-            <div key={i} className={`cal-cel ${foraMes ? "cal-cel-fora" : ""}`}
-              onClick={() => aoNovo(dia)}>
+            <div key={i} className={`cal-cel ${foraMes ? "cal-cel-fora" : ""}`} onClick={() => aoNovo(dia)}>
               <button className={`cal-cel-num ${eHoje ? "cal-cel-hoje" : ""}`}
-                onClick={(ev) => { ev.stopPropagation(); aoDia(dia); }}>
-                {dia.getDate()}
-              </button>
+                onClick={(ev) => { ev.stopPropagation(); aoDia(dia); }}>{dia.getDate()}</button>
               <div className="cal-cel-evs">
-                {doDia.slice(0, MAX).map((e) => (
-                  <button key={e.id} className={`cal-ev ${e.diaInteiro ? "cal-ev-dia" : ""}`}
+                {doDia.slice(0, MAX).map((e, k) => (
+                  <button key={k} className={`cal-ev ${e.diaInteiro ? "cal-ev-dia" : ""}`}
                     style={e.diaInteiro
                       ? { background: cor(e.cor).bg, color: "#fff" }
                       : { background: cor(e.cor).chip, borderLeft: `3px solid ${cor(e.cor).borda}` }}
@@ -247,7 +365,6 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
   const scrollRef = useRef(null);
   const [agora, setAgora] = useState(Date.now());
 
-  // Rola até ~7h ao montar; atualiza a linha "agora" a cada minuto.
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 7 * H_ALTURA - 12;
     const t = setInterval(() => setAgora(Date.now()), 60000);
@@ -258,7 +375,6 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
 
   return (
     <div className="cal-tempo">
-      {/* cabeçalho dos dias */}
       <div className="cal-tempo-cab">
         <div className="cal-tempo-gutter" />
         {colDias.map((dia, i) => {
@@ -271,8 +387,8 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
                 <span className="cal-tempo-num">{dia.getDate()}</span>
               </button>
               <div className="cal-tempo-allday">
-                {daDia.map((e) => (
-                  <button key={e.id} className="cal-ev cal-ev-dia" style={{ background: cor(e.cor).bg, color: "#fff" }}
+                {daDia.map((e, k) => (
+                  <button key={k} className="cal-ev cal-ev-dia" style={{ background: cor(e.cor).bg, color: "#fff" }}
                     title={e.titulo} onClick={() => aoEditar(e)}>
                     <span className="cal-ev-tit">{e.titulo}</span>
                   </button>
@@ -283,7 +399,6 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
         })}
       </div>
 
-      {/* grade de horas */}
       <div className="cal-tempo-corpo" ref={scrollRef}>
         <div className="cal-tempo-grade" style={{ height: `${24 * H_ALTURA}px` }}>
           <div className="cal-tempo-horas">
@@ -304,7 +419,7 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
               <div key={i} className="cal-tempo-col"
                 onClick={(ev) => {
                   const rect = ev.currentTarget.getBoundingClientRect();
-                  const y = ev.clientY - rect.top + ev.currentTarget.scrollTop;
+                  const y = ev.clientY - rect.top;
                   const hora = Math.max(0, Math.min(23, Math.floor(y / H_ALTURA)));
                   aoNovoHora(dia, hora);
                 }}>
@@ -314,13 +429,13 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
                     <span className="cal-agora-bola" />
                   </div>
                 )}
-                {postos.map(({ e, col, cols }) => {
+                {postos.map(({ e, col, cols }, k) => {
                   const s = Math.max(e.inicio, ini);
                   const f = Math.min(e.fim ?? (e.inicio + 3600000), fimDia);
                   const top = ((s - ini) / 60000 / 60) * H_ALTURA;
                   const alt = Math.max(20, ((f - s) / 60000 / 60) * H_ALTURA - 2);
                   return (
-                    <button key={e.id} className="cal-ev-bloco"
+                    <button key={k} className="cal-ev-bloco"
                       style={{
                         top: `${top}px`, height: `${alt}px`,
                         left: `calc(${(col / cols) * 100}% + 2px)`, width: `calc(${100 / cols}% - 4px)`,
@@ -343,7 +458,7 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
 }
 
 // -------------------------------------------------------------- Modal de evento
-function ModalEvento({ estado, onFechar, onSalvar, onExcluir }) {
+function ModalEvento({ estado, nomeCal, onFechar, onSalvar, onExcluir }) {
   const [f, setF] = useState(estado);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -366,7 +481,7 @@ function ModalEvento({ estado, onFechar, onSalvar, onExcluir }) {
           <button type="button" className="icon-btn" onClick={onFechar}><X size={18} /></button>
         </div>
 
-        <div className="modal-corpo">
+        <div className="modal-corpo cal-modal-corpo">
           <input className="input cal-modal-titulo" autoFocus placeholder="Adicionar título"
             value={f.titulo} onChange={set("titulo")} />
 
@@ -376,39 +491,45 @@ function ModalEvento({ estado, onFechar, onSalvar, onExcluir }) {
             <span>Dia inteiro</span>
           </label>
 
-          <div className="cal-modal-datas">
-            <label className="field">
-              <span className="field-label"><Clock size={13} /> Início</span>
-              <div className="cal-dr">
-                <input className="input" type="date" value={f.dataInicio} onChange={set("dataInicio")} />
-                {!f.diaInteiro && <input className="input" type="time" value={f.horaInicio} onChange={set("horaInicio")} />}
-              </div>
-            </label>
-            <label className="field">
-              <span className="field-label">Término</span>
-              <div className="cal-dr">
-                <input className="input" type="date" value={f.dataFim} onChange={set("dataFim")} />
-                {!f.diaInteiro && <input className="input" type="time" value={f.horaFim} onChange={set("horaFim")} />}
-              </div>
-            </label>
+          <div className="cal-campo">
+            <span className="cal-campo-rot"><Clock size={13} /> Início</span>
+            <div className="cal-campo-lin">
+              <input className="input cal-in-data" type="date" value={f.dataInicio} onChange={set("dataInicio")} />
+              {!f.diaInteiro && <input className="input cal-in-hora" type="time" value={f.horaInicio} onChange={set("horaInicio")} />}
+            </div>
           </div>
 
-          <label className="field">
-            <span className="field-label"><MapPin size={13} /> Local</span>
+          <div className="cal-campo">
+            <span className="cal-campo-rot">Término</span>
+            <div className="cal-campo-lin">
+              <input className="input cal-in-data" type="date" value={f.dataFim} onChange={set("dataFim")} />
+              {!f.diaInteiro && <input className="input cal-in-hora" type="time" value={f.horaFim} onChange={set("horaFim")} />}
+            </div>
+          </div>
+
+          <div className="cal-campo">
+            <span className="cal-campo-rot"><Repeat size={13} /> Repetir</span>
+            <select className="input" value={f.recorrencia} onChange={set("recorrencia")}>
+              {RECORRENCIAS.map(([id, rot]) => <option key={id} value={id}>{rot}</option>)}
+            </select>
+          </div>
+
+          <div className="cal-campo">
+            <span className="cal-campo-rot"><MapPin size={13} /> Local</span>
             <input className="input" value={f.local} onChange={set("local")} placeholder="Opcional" />
-          </label>
+          </div>
 
-          <label className="field">
-            <span className="field-label"><AlignLeft size={13} /> Descrição</span>
+          <div className="cal-campo">
+            <span className="cal-campo-rot"><AlignLeft size={13} /> Descrição</span>
             <textarea className="input textarea" rows={3} value={f.descricao} onChange={set("descricao")} placeholder="Opcional" />
-          </label>
+          </div>
 
-          <div className="field">
-            <span className="field-label">Cor</span>
+          <div className="cal-campo">
+            <span className="cal-campo-rot">Calendário <strong className="cal-campo-cal">{nomeCal(f.cor)}</strong></span>
             <div className="cal-cores">
               {Object.entries(CORES).map(([id, c]) => (
                 <button type="button" key={id} className={`cal-cor ${f.cor === id ? "cal-cor-on" : ""}`}
-                  style={{ background: c.bg }} title={c.nome} aria-label={c.nome}
+                  style={{ background: c.bg }} title={nomeCal(id)} aria-label={nomeCal(id)}
                   onClick={() => setF((s) => ({ ...s, cor: id }))} />
               ))}
             </div>
