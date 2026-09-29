@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { resumoObjeto, baixarOficioDocx } from "../objetoEmendaDoc.js";
-import { baixarDocAo } from "../objetoEmendaAoDoc.js";
+import { baixarDocAo, baixarDocGnd } from "../objetoEmendaAoDoc.js";
 
 function fmtData(d) {
   if (!d.dia || !d.mes || !d.ano) return "—";
@@ -20,17 +20,30 @@ function chaveOrd(it, coluna) {
 const tiposDoAjuste = (s) => String(s || "").split(/\s*;\s*/).map((t) => t.trim()).filter(Boolean);
 
 const AJUSTE_AO = "Mudança de Ação Orçamentária (AO)";
+const AJUSTE_GND = "Mudança de GND";
 
-// Conteúdo da coluna "Alterações". Para "Mudança de Ação Orçamentária (AO)",
-// mostra a troca de ação orçamentária (De → Para) com os códigos em destaque;
-// nos demais tipos, mantém o resumo De/Para do objeto.
+// Conteúdo da coluna "Alterações":
+//  - AO  → "De “Ação Orçamentária 21A0” para “Ação Orçamentária 2000”"
+//  - GND → "De “GND 3” para “GND 4”"
+// (De = situação atual, Para = situação desejada; códigos em destaque)
+//  - demais tipos → resumo De/Para do objeto.
 function celulaAlteracoes(it) {
-  if (tiposDoAjuste(it.ajuste).includes(AJUSTE_AO)) {
+  const tipos = tiposDoAjuste(it.ajuste);
+  if (tipos.includes(AJUSTE_AO)) {
     const de = (it.aoDados?.aoDeAcao || "").trim();
     const para = (it.aoDados?.aoParaAcao || "").trim();
     if (de || para) {
       return (
         <>De “Ação Orçamentária <strong>{de || "—"}</strong>” para “Ação Orçamentária <strong>{para || "—"}</strong>”</>
+      );
+    }
+  }
+  if (tipos.includes(AJUSTE_GND)) {
+    const de = (it.aoDados?.gndDe || "").trim();
+    const para = (it.aoDados?.gndPara || "").trim();
+    if (de || para) {
+      return (
+        <>De “GND <strong>{de || "—"}</strong>” para “GND <strong>{para || "—"}</strong>”</>
       );
     }
   }
@@ -48,8 +61,11 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
 
   async function baixar(it) {
     try {
-      if (tiposDoAjuste(it.ajuste).includes(AJUSTE_AO)) {
+      const tipos = tiposDoAjuste(it.ajuste);
+      if (tipos.includes(AJUSTE_AO)) {
         await baixarDocAo({ ...it, ...(it.aoDados || {}) });
+      } else if (tipos.includes(AJUSTE_GND)) {
+        await baixarDocGnd({ ...it, ...(it.aoDados || {}) });
       } else {
         await baixarOficioDocx(it);
       }

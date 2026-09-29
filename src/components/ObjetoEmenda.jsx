@@ -4,7 +4,7 @@ import { Field } from "./UI.jsx";
 import { UFS, MESES_LONGO } from "../constants.js";
 import { todayParts, msgErroSalvar } from "../helpers.js";
 import { baixarOficioDocx, ehSenado } from "../objetoEmendaDoc.js";
-import { baixarDocAo } from "../objetoEmendaAoDoc.js";
+import { baixarDocAo, baixarDocGnd } from "../objetoEmendaAoDoc.js";
 import { carregarEmendasExercito, parlamentaresDoAno, cargoDoParlamentar } from "../parlamentaresLexor.js";
 import ObjetoEmendasTabela from "./ObjetoEmendasTabela.jsx";
 
@@ -23,11 +23,14 @@ const AJUSTES = [
   AJUSTE_GND,
 ];
 
-// Campos específicos do documento "AO" (guardados em ao_dados no banco).
+// Campos específicos dos documentos AO/GND (guardados em ao_dados no banco).
+// Os campos gerais (objeto, incorreção, beneficiário, janela, valor) são
+// compartilhados; AO usa a programática De/Para; GND usa gndDe/gndPara.
 const AO_KEYS = [
   "aoObjeto", "aoOm", "aoCnpj", "aoOrgaoBenef", "aoIncorrecao", "aoJanela", "aoValor",
   "aoDeFuncao", "aoDeSubfuncao", "aoDePrograma", "aoDeAcao", "aoDeSubtitulo",
   "aoParaFuncao", "aoParaSubfuncao", "aoParaPrograma", "aoParaAcao", "aoParaSubtitulo",
+  "gndDe", "gndPara",
 ];
 const AO_VAZIO = Object.fromEntries(AO_KEYS.map((k) => [k, ""]));
 
@@ -128,11 +131,13 @@ export default function ObjetoEmenda({
   }
 
   const ehAO = f.ajustes.includes(AJUSTE_AO);
+  const ehGND = f.ajustes.includes(AJUSTE_GND);
+  const tipoDoc = ehAO ? "ao" : ehGND ? "gnd" : null; // documento especial
 
   function validar(paraSalvar) {
     if (!f.parlamentar.trim()) return "Informe o nome do parlamentar.";
     if (!f.emenda.trim()) return "Informe o número da emenda.";
-    if (ehAO) {
+    if (tipoDoc) {
       if (!f.aoObjeto.trim()) return "Informe o objeto da emenda.";
     } else if (!f.objetoPara.trim()) {
       return "Informe o novo objeto (PARA).";
@@ -144,7 +149,7 @@ export default function ObjetoEmenda({
   const payloadSalvar = () => ({
     ...f,
     ajuste: f.ajustes.join("; "),
-    aoDados: ehAO ? Object.fromEntries(AO_KEYS.map((k) => [k, f[k] || ""])) : null,
+    aoDados: tipoDoc ? Object.fromEntries(AO_KEYS.map((k) => [k, f[k] || ""])) : null,
   });
 
   async function gerar() {
@@ -155,6 +160,9 @@ export default function ObjetoEmenda({
       if (ehAO) {
         await baixarDocAo(f);
         setOk("Documento (AO) gerado — verifique os downloads.");
+      } else if (ehGND) {
+        await baixarDocGnd(f);
+        setOk("Documento (GND) gerado — verifique os downloads.");
       } else {
         await baixarOficioDocx(f);
         setOk("Ofício gerado — verifique os downloads.");
@@ -272,7 +280,7 @@ export default function ObjetoEmenda({
             </div>
           </Field>
 
-          {!ehAO && (
+          {!tipoDoc && (
             <>
               <Field label="Objeto atual (DE)" hint="Como está hoje na emenda.">
                 <textarea className="input textarea" rows={2} value={f.objetoDe} onChange={set("objetoDe")}
@@ -287,7 +295,7 @@ export default function ObjetoEmenda({
           )}
         </div>
 
-        {ehAO && <SecaoAO f={f} set={set} />}
+        {tipoDoc && <SecaoAjuste tipo={tipoDoc} f={f} set={set} />}
 
         <details className="obj-rodape">
           <summary>Dados do gabinete (rodapé do ofício) — opcional</summary>
@@ -307,7 +315,7 @@ export default function ObjetoEmenda({
 
         <div className="form-actions form-actions-2">
           <button type="button" className="btn btn-ghost" onClick={gerar} disabled={gerando}>
-            <FileText size={16} /> {gerando ? "Gerando…" : ehAO ? "Gerar documento AO (.docx)" : "Gerar ofício (.docx)"}
+            <FileText size={16} /> {gerando ? "Gerando…" : ehAO ? "Gerar documento AO (.docx)" : ehGND ? "Gerar documento GND (.docx)" : "Gerar ofício (.docx)"}
           </button>
           <button type="submit" className="btn btn-primary" disabled={salvando}>
             <Save size={16} /> {salvando ? "Salvando…" : emEdicao ? "Atualizar lançamento" : "Salvar na consolidação"}
@@ -325,13 +333,15 @@ export default function ObjetoEmenda({
   );
 }
 
-// Campos específicos do documento "Mudança de Ação Orçamentária (AO)".
-// Aparecem no lugar do DE/PARA de objeto quando esse tipo de ajuste é marcado.
-function SecaoAO({ f, set }) {
+// Campos dos documentos "Mudança de Ação Orçamentária (AO)" e "Mudança de GND".
+// Aparecem no lugar do DE/PARA de objeto quando um desses tipos é marcado.
+// `tipo` = "ao" (programática De/Para) | "gnd" (GND De/Para).
+function SecaoAjuste({ tipo, f, set }) {
+  const ehGnd = tipo === "gnd";
   return (
     <div className="ao-secao">
-      <h3 className="ao-secao-tit">Mudança de Ação Orçamentária (AO)</h3>
-      <p className="ao-secao-sub">Campos do documento de necessidade de ajuste (AO). O documento sai com todo o texto em preto.</p>
+      <h3 className="ao-secao-tit">{ehGnd ? "Mudança de GND" : "Mudança de Ação Orçamentária (AO)"}</h3>
+      <p className="ao-secao-sub">Campos do documento de necessidade de ajuste ({ehGnd ? "GND" : "AO"}). O documento sai com todo o texto em preto.</p>
       <div className="form-grid">
         <Field label="Objeto" required hint="Objeto da emenda (item 3 do documento).">
           <textarea className="input textarea" rows={2} value={f.aoObjeto} onChange={set("aoObjeto")}
@@ -358,10 +368,23 @@ function SecaoAO({ f, set }) {
         </Field>
       </div>
 
-      <p className="ao-prog-tit">Programática — <strong>De</strong> <span>(situação atual)</span></p>
-      <ProgLinha pref="aoDe" f={f} set={set} />
-      <p className="ao-prog-tit">Programática — <strong>Para</strong> <span>(situação desejada)</span></p>
-      <ProgLinha pref="aoPara" f={f} set={set} />
+      {ehGnd ? (
+        <div className="form-grid">
+          <Field label="GND (De)" hint="Grupo de Natureza de Despesa atual. Ex: 3 (Custeio) ou 4 (Investimento).">
+            <input className="input" value={f.gndDe} onChange={set("gndDe")} placeholder="Ex: 3" />
+          </Field>
+          <Field label="GND (Para)" hint="Grupo de Natureza de Despesa desejado. Ex: 4 (Investimento).">
+            <input className="input" value={f.gndPara} onChange={set("gndPara")} placeholder="Ex: 4" />
+          </Field>
+        </div>
+      ) : (
+        <>
+          <p className="ao-prog-tit">Programática — <strong>De</strong> <span>(situação atual)</span></p>
+          <ProgLinha pref="aoDe" f={f} set={set} />
+          <p className="ao-prog-tit">Programática — <strong>Para</strong> <span>(situação desejada)</span></p>
+          <ProgLinha pref="aoPara" f={f} set={set} />
+        </>
+      )}
     </div>
   );
 }
