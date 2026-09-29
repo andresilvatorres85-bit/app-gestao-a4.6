@@ -71,6 +71,7 @@ export function montarConsolidada(registro, indice = null) {
 
   return {
     nr: registro.nr,
+    uid: registro.nr, // consolidadoras têm nr único → uid = nr
     consolidada: true,
     itens,
     origem: registro.propostas,
