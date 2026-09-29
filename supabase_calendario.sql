@@ -1,8 +1,8 @@
 -- Tabelas do módulo "CALENDÁRIO" (agenda compartilhada da A4.6).
 -- Execute no Supabase: painel do projeto > SQL Editor > New query > Run.
--- Idempotente (pode rodar mais de uma vez) e não apaga dados. Se você já rodou
--- a versão anterior, rodar de novo apenas acrescenta o que faltava (a coluna
--- de recorrência e a tabela de calendários).
+-- Idempotente (pode rodar mais de uma vez) e NÃO apaga dados: preserva os
+-- calendários e eventos já cadastrados. Rodar de novo só acrescenta o que
+-- faltava (colunas de recorrência/exceções e a tabela de calendários).
 
 -- ===== eventos =====
 create table if not exists public.calendario_eventos (
@@ -15,11 +15,13 @@ create table if not exists public.calendario_eventos (
   descricao text,
   cor text default 'azul',
   recorrencia text default 'nao',
+  excecoes jsonb not null default '[]'::jsonb,
   criado_por text,
   criado_em timestamptz not null default now()
 );
--- para bancos criados na versão anterior (sem a coluna):
+-- para bancos criados nas versões anteriores (sem as colunas):
 alter table public.calendario_eventos add column if not exists recorrencia text default 'nao';
+alter table public.calendario_eventos add column if not exists excecoes jsonb not null default '[]'::jsonb;
 
 alter table public.calendario_eventos enable row level security;
 
@@ -37,17 +39,32 @@ create policy "calendario_delete_autenticados"
   on public.calendario_eventos for delete to authenticated using (true);
 
 -- ===== calendários (lista compartilhada: criar/renomear/excluir) =====
--- Recriada com o novo formato (id, nome, cor, pos). A tabela só guarda os
--- rótulos/cores dos calendários (não os eventos), então recriá-la não perde
--- compromissos. O app semeia os calendários padrão na primeira execução.
-drop table if exists public.calendario_agendas cascade;
-create table public.calendario_agendas (
+-- NÃO recria a tabela (preserva os calendários personalizados). Só migra uma
+-- versão legada muito antiga que não tenha a coluna "id".
+do $$
+begin
+  if exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'calendario_agendas'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'calendario_agendas' and column_name = 'id'
+  ) then
+    drop table public.calendario_agendas cascade;
+  end if;
+end $$;
+
+create table if not exists public.calendario_agendas (
   id text primary key,
   nome text,
   cor text,
   pos int default 0,
   criado_em timestamptz not null default now()
 );
+-- garante as colunas em tabelas já existentes:
+alter table public.calendario_agendas add column if not exists nome text;
+alter table public.calendario_agendas add column if not exists cor text;
+alter table public.calendario_agendas add column if not exists pos int default 0;
 
 alter table public.calendario_agendas enable row level security;
 
