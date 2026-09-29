@@ -4,23 +4,38 @@ import { Field } from "./UI.jsx";
 import { UFS, MESES_LONGO } from "../constants.js";
 import { todayParts, msgErroSalvar } from "../helpers.js";
 import { baixarOficioDocx, ehSenado } from "../objetoEmendaDoc.js";
+import { baixarDocAo } from "../objetoEmendaAoDoc.js";
 import { carregarEmendasExercito, parlamentaresDoAno, cargoDoParlamentar } from "../parlamentaresLexor.js";
 import ObjetoEmendasTabela from "./ObjetoEmendasTabela.jsx";
 
 const CARGOS = ["Deputado Federal", "Deputada Federal", "Senador", "Senadora"];
-// Lista de ajustes na ordem pedida; seleção múltipla.
+// Tipos de ajuste. Regras de seleção:
+//  - Grupo A (podem ser marcados juntos): Ampliação/Alteração do objeto, Alteração de OM.
+//  - "Mudança de Ação Orçamentária (AO)": exclusivo (não convive com nenhum outro).
+//  - "Mudança de GND": não convive com AO (mas pode com o grupo A).
+const AJUSTE_AO = "Mudança de Ação Orçamentária (AO)";
+const AJUSTE_GND = "Mudança de GND";
 const AJUSTES = [
   "Ampliação do objeto",
   "Alteração do objeto",
   "Alteração de OM beneficiária",
-  "Mudança de Ação Orçamentária (AO)",
-  "Mudança de GND",
+  AJUSTE_AO,
+  AJUSTE_GND,
 ];
+
+// Campos específicos do documento "AO" (guardados em ao_dados no banco).
+const AO_KEYS = [
+  "aoObjeto", "aoOm", "aoCnpj", "aoOrgaoBenef", "aoIncorrecao", "aoJanela", "aoValor",
+  "aoDeFuncao", "aoDeSubfuncao", "aoDePrograma", "aoDeAcao", "aoDeSubtitulo",
+  "aoParaFuncao", "aoParaSubfuncao", "aoParaPrograma", "aoParaAcao", "aoParaSubtitulo",
+];
+const AO_VAZIO = Object.fromEntries(AO_KEYS.map((k) => [k, ""]));
 
 const VAZIO = {
   parlamentar: "", cargo: "Deputado Federal", partido: "", uf: "",
   oficioNr: "", emenda: "", objetoDe: "", objetoPara: "", ajustes: [],
   gabinete: "", telefone: "", email: "",
+  ...AO_VAZIO, aoOrgaoBenef: "Comando do Exército", aoCnpj: "00.394.452/0001-03",
 };
 
 export default function ObjetoEmenda({
@@ -58,6 +73,8 @@ export default function ObjetoEmenda({
   useEffect(() => {
     if (!editando) return;
     setF({
+      ...AO_VAZIO, aoOrgaoBenef: "Comando do Exército", aoCnpj: "00.394.452/0001-03",
+      ...(editando.aoDados || {}),
       parlamentar: editando.parlamentar || "", cargo: editando.cargo || "Deputado Federal",
       partido: editando.partido || "", uf: editando.uf || "",
       oficioNr: editando.oficioNr || "", dia: editando.dia || hoje.d, mes: editando.mes || hoje.m, ano: editando.ano || hoje.y,
@@ -90,10 +107,19 @@ export default function ObjetoEmenda({
   }
 
   function toggleAjuste(a) {
-    setF((s) => ({
-      ...s,
-      ajustes: s.ajustes.includes(a) ? s.ajustes.filter((x) => x !== a) : [...s.ajustes, a],
-    }));
+    setF((s) => {
+      const tem = s.ajustes.includes(a);
+      let ajustes;
+      if (tem) {
+        ajustes = s.ajustes.filter((x) => x !== a);           // desmarca
+      } else if (a === AJUSTE_AO) {
+        ajustes = [AJUSTE_AO];                                 // AO é exclusivo: limpa o resto
+      } else {
+        // qualquer outro: adiciona e remove o AO (AO não convive com nada)
+        ajustes = [...s.ajustes.filter((x) => x !== AJUSTE_AO), a];
+      }
+      return { ...s, ajustes };
+    });
     setErro(""); setOk("");
   }
 
@@ -101,23 +127,38 @@ export default function ObjetoEmenda({
     setF((s) => ({ ...VAZIO, cargo: s.cargo, dia: s.dia, mes: s.mes, ano: s.ano }));
   }
 
+  const ehAO = f.ajustes.includes(AJUSTE_AO);
+
   function validar(paraSalvar) {
     if (!f.parlamentar.trim()) return "Informe o nome do parlamentar.";
     if (!f.emenda.trim()) return "Informe o número da emenda.";
-    if (!f.objetoPara.trim()) return "Informe o novo objeto (PARA).";
+    if (ehAO) {
+      if (!f.aoObjeto.trim()) return "Informe o objeto da emenda.";
+    } else if (!f.objetoPara.trim()) {
+      return "Informe o novo objeto (PARA).";
+    }
     if (paraSalvar && !f.ajustes.length) return "Selecione ao menos um tipo de ajuste (para a consolidação).";
     return "";
   }
 
-  const payloadSalvar = () => ({ ...f, ajuste: f.ajustes.join("; ") });
+  const payloadSalvar = () => ({
+    ...f,
+    ajuste: f.ajustes.join("; "),
+    aoDados: ehAO ? Object.fromEntries(AO_KEYS.map((k) => [k, f[k] || ""])) : null,
+  });
 
   async function gerar() {
     const v = validar(false);
     if (v) { setErro(v); return; }
     setGerando(true);
     try {
-      await baixarOficioDocx(f);
-      setOk("Ofício gerado — verifique os downloads.");
+      if (ehAO) {
+        await baixarDocAo(f);
+        setOk("Documento (AO) gerado — verifique os downloads.");
+      } else {
+        await baixarOficioDocx(f);
+        setOk("Ofício gerado — verifique os downloads.");
+      }
     } catch (e) {
       setErro("Falha ao gerar o documento: " + (e?.message || e));
     }
@@ -171,7 +212,7 @@ export default function ObjetoEmenda({
 
       <form className="panel form" onSubmit={(e) => { e.preventDefault(); salvar(); }}>
         <div className="form-grid">
-          <Field label="Tipo de ajuste" required hint="Marque um ou mais — vão para a coluna “Ajuste”.">
+          <Field label="Tipo de ajuste" required hint="Marque um ou mais. “Mudança de Ação Orçamentária (AO)” é exclusiva (não combina com os demais).">
             <AjusteDropdown opcoes={AJUSTES} selecionados={f.ajustes} onToggle={toggleAjuste} />
           </Field>
 
@@ -231,16 +272,22 @@ export default function ObjetoEmenda({
             </div>
           </Field>
 
-          <Field label="Objeto atual (DE)" hint="Como está hoje na emenda.">
-            <textarea className="input textarea" rows={2} value={f.objetoDe} onChange={set("objetoDe")}
-              placeholder="Ex: Ambulância tipo “B” — Suporte básico" />
-          </Field>
+          {!ehAO && (
+            <>
+              <Field label="Objeto atual (DE)" hint="Como está hoje na emenda.">
+                <textarea className="input textarea" rows={2} value={f.objetoDe} onChange={set("objetoDe")}
+                  placeholder="Ex: Ambulância tipo “B” — Suporte básico" />
+              </Field>
 
-          <Field label="Novo objeto (PARA)" required hint="Como deverá ficar.">
-            <textarea className="input textarea" rows={2} value={f.objetoPara} onChange={set("objetoPara")}
-              placeholder="Ex: Aquisição de viatura administrativa e bens…" />
-          </Field>
+              <Field label="Novo objeto (PARA)" required hint="Como deverá ficar.">
+                <textarea className="input textarea" rows={2} value={f.objetoPara} onChange={set("objetoPara")}
+                  placeholder="Ex: Aquisição de viatura administrativa e bens…" />
+              </Field>
+            </>
+          )}
         </div>
+
+        {ehAO && <SecaoAO f={f} set={set} />}
 
         <details className="obj-rodape">
           <summary>Dados do gabinete (rodapé do ofício) — opcional</summary>
@@ -260,7 +307,7 @@ export default function ObjetoEmenda({
 
         <div className="form-actions form-actions-2">
           <button type="button" className="btn btn-ghost" onClick={gerar} disabled={gerando}>
-            <FileText size={16} /> {gerando ? "Gerando…" : "Gerar ofício (.docx)"}
+            <FileText size={16} /> {gerando ? "Gerando…" : ehAO ? "Gerar documento AO (.docx)" : "Gerar ofício (.docx)"}
           </button>
           <button type="submit" className="btn btn-primary" disabled={salvando}>
             <Save size={16} /> {salvando ? "Salvando…" : emEdicao ? "Atualizar lançamento" : "Salvar na consolidação"}
@@ -274,6 +321,62 @@ export default function ObjetoEmenda({
           <ObjetoEmendasTabela itens={itens} onEditar={onEditar} onExcluir={excluir} />
         </div>
       )}
+    </div>
+  );
+}
+
+// Campos específicos do documento "Mudança de Ação Orçamentária (AO)".
+// Aparecem no lugar do DE/PARA de objeto quando esse tipo de ajuste é marcado.
+function SecaoAO({ f, set }) {
+  return (
+    <div className="ao-secao">
+      <h3 className="ao-secao-tit">Mudança de Ação Orçamentária (AO)</h3>
+      <p className="ao-secao-sub">Campos do documento de necessidade de ajuste (AO). O documento sai com todo o texto em preto.</p>
+      <div className="form-grid">
+        <Field label="Objeto" required hint="Objeto da emenda (item 3 do documento).">
+          <textarea className="input textarea" rows={2} value={f.aoObjeto} onChange={set("aoObjeto")}
+            placeholder="Ex: Ambulância tipo “B” – Suporte básico." />
+        </Field>
+        <Field label="Incorreção" hint="Motivo do ajuste (item 5).">
+          <textarea className="input textarea" rows={2} value={f.aoIncorrecao} onChange={set("aoIncorrecao")}
+            placeholder="Ex: o valor não é suficiente para a aquisição do objeto." />
+        </Field>
+        <Field label="Órgão beneficiário">
+          <input className="input" value={f.aoOrgaoBenef} onChange={set("aoOrgaoBenef")} placeholder="Comando do Exército" />
+        </Field>
+        <Field label="CNPJ">
+          <input className="input" value={f.aoCnpj} onChange={set("aoCnpj")} placeholder="00.394.452/0001-03" />
+        </Field>
+        <Field label="OM beneficiária">
+          <input className="input" value={f.aoOm} onChange={set("aoOm")} placeholder="Ex: 4º GAAAe" />
+        </Field>
+        <Field label="Janela" hint="Período para a alteração no SIOP (item 6).">
+          <input className="input" value={f.aoJanela} onChange={set("aoJanela")} placeholder="Ex: 22 MAIO 26 a 1º JUN 26" />
+        </Field>
+        <Field label="Valor" hint="Valor reprogramado (usado no De e no Para).">
+          <input className="input" value={f.aoValor} onChange={set("aoValor")} placeholder="Ex: R$ 1.000.000,00" />
+        </Field>
+      </div>
+
+      <p className="ao-prog-tit">Programática — <strong>De</strong> <span>(situação atual)</span></p>
+      <ProgLinha pref="aoDe" f={f} set={set} />
+      <p className="ao-prog-tit">Programática — <strong>Para</strong> <span>(situação desejada)</span></p>
+      <ProgLinha pref="aoPara" f={f} set={set} />
+    </div>
+  );
+}
+
+// Uma linha da classificação programática: Função / Subfunção / Programa / Ação / Subtítulo.
+function ProgLinha({ pref, f, set }) {
+  const campos = [["Funcao", "Função"], ["Subfuncao", "Subfunção"], ["Programa", "Programa"], ["Acao", "Ação"], ["Subtitulo", "Subtítulo"]];
+  return (
+    <div className="ao-prog-grid">
+      {campos.map(([k, rot]) => (
+        <label key={k} className="ao-prog-campo">
+          <span className="ao-prog-rot">{rot}</span>
+          <input className="input" value={f[pref + k]} onChange={set(pref + k)} />
+        </label>
+      ))}
     </div>
   );
 }
