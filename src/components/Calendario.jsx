@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil,
+  ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil, Check, ChevronDown,
 } from "lucide-react";
 
 // ---------------------------------------------------------------- utilidades
@@ -9,9 +9,8 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 const MESES_CURTO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
-const H_ALTURA = 46; // px por hora nas visões Semana/Dia
+const H_ALTURA = 46;
 
-// Opções de repetição do evento.
 const RECORRENCIAS = [
   ["nao", "Não se repete"],
   ["diaria", "Todos os dias"],
@@ -19,7 +18,13 @@ const RECORRENCIAS = [
   ["mensal", "Todo mês"],
   ["anual", "Todo ano"],
 ];
-const RECORRENCIA_ROT = Object.fromEntries(RECORRENCIAS);
+
+// Paleta oferecida ao CRIAR um calendário novo.
+const PALETA_NOVO = [
+  "#3B6FB0", "#3F9D6B", "#C6543F", "#7A5AC2", "#C79A3A", "#3AA6A6", "#C25A93", "#6C7A72",
+  "#2E8B99", "#8E44AD", "#D2691E", "#4CAF50", "#E5484D", "#5C6BC0", "#00897B", "#AD1457",
+];
+const NEUTRO = "#6C7A72"; // fallback de calendário removido
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -36,22 +41,8 @@ const combinar = (data, hora) => {
   const [hh, mm] = (hora || "00:00").split(":").map(Number);
   return new Date(y, m - 1, d, hh || 0, mm || 0, 0, 0).getTime();
 };
+const chipDe = (hex) => `${hex}38`; // ~22% alpha
 
-// Paleta de cores (= calendários). O NOME de cada cor é editável (agendas).
-export const CORES = {
-  azul:     { nome: "Azul",     bg: "#3B6FB0", chip: "rgba(59,111,176,0.22)",  borda: "#3B6FB0" },
-  verde:    { nome: "Verde",    bg: "#3F9D6B", chip: "rgba(63,157,107,0.22)",  borda: "#3F9D6B" },
-  vermelho: { nome: "Vermelho", bg: "#C6543F", chip: "rgba(198,84,63,0.22)",   borda: "#C6543F" },
-  roxo:     { nome: "Roxo",     bg: "#7A5AC2", chip: "rgba(122,90,194,0.22)",  borda: "#7A5AC2" },
-  ambar:    { nome: "Âmbar",    bg: "#C79A3A", chip: "rgba(199,154,58,0.24)",  borda: "#C79A3A" },
-  ciano:    { nome: "Ciano",    bg: "#3AA6A6", chip: "rgba(58,166,166,0.22)",  borda: "#3AA6A6" },
-  rosa:     { nome: "Rosa",     bg: "#C25A93", chip: "rgba(194,90,147,0.22)",  borda: "#C25A93" },
-  cinza:    { nome: "Cinza",    bg: "#6C7A72", chip: "rgba(108,122,114,0.24)", borda: "#6C7A72" },
-};
-const CORES_IDS = Object.keys(CORES);
-const cor = (c) => CORES[c] || CORES.azul;
-
-// Eventos (já expandidos) que ocorrem num dia.
 function eventosDoDia(eventos, dia) {
   const ini = startOfDay(dia).getTime();
   const fim = ini + 86400000;
@@ -60,30 +51,21 @@ function eventosDoDia(eventos, dia) {
     .sort((a, b) => (b.diaInteiro - a.diaInteiro) || (a.inicio - b.inicio));
 }
 
-// Layout em colunas para eventos com hora que se sobrepõem (Semana/Dia).
 function layoutColunas(evs) {
   const ord = [...evs].sort((a, b) => a.inicio - b.inicio || a.fim - b.fim);
   const postos = ord.map((e) => ({ e, col: 0, cols: 1 }));
   let grupo = [], fimGrupo = -Infinity;
-  const fechar = () => {
-    const n = Math.max(...grupo.map((p) => p.col)) + 1;
-    grupo.forEach((p) => { p.cols = n; });
-    grupo = [];
-  };
+  const fechar = () => { const n = Math.max(...grupo.map((p) => p.col)) + 1; grupo.forEach((p) => { p.cols = n; }); grupo = []; };
   for (const p of postos) {
     if (grupo.length && p.e.inicio >= fimGrupo) fechar();
     const usadas = new Set(grupo.filter((q) => (q.e.fim ?? q.e.inicio) > p.e.inicio).map((q) => q.col));
     let c = 0; while (usadas.has(c)) c++;
-    p.col = c;
-    grupo.push(p);
-    fimGrupo = Math.max(fimGrupo, p.e.fim ?? p.e.inicio);
+    p.col = c; grupo.push(p); fimGrupo = Math.max(fimGrupo, p.e.fim ?? p.e.inicio);
   }
   if (grupo.length) fechar();
   return postos;
 }
 
-// Expande eventos recorrentes em ocorrências dentro do intervalo [rIni, rFim].
-// Cada ocorrência mantém `_base` (o evento original) para a edição da série.
 function expandir(eventos, rIni, rFim) {
   const passo = (d, rec) => {
     const x = new Date(d);
@@ -103,8 +85,7 @@ function expandir(eventos, rIni, rFim) {
       if ((e.fim ?? e.inicio) >= rIni && e.inicio <= rFim) out.push({ ...e, _base: e });
       continue;
     }
-    let cur = new Date(e.inicio);
-    let g = 0;
+    let cur = new Date(e.inicio), g = 0;
     while (cur.getTime() + dur < rIni && g < 4000) { cur = passo(cur, rec); g++; }
     while (cur.getTime() <= rFim && g < 4000) {
       const ini = cur.getTime();
@@ -117,7 +98,8 @@ function expandir(eventos, rIni, rFim) {
 
 // =========================================================================
 export default function Calendario({
-  eventos = [], agendas = {}, inserir, atualizar, excluir, renomearAgenda,
+  eventos = [], calendarios = [], inserir, atualizar, excluir,
+  criarAgenda, renomearAgenda, excluirAgenda,
   carregado, erro, vistaInicial = "semana",
 }) {
   const [vista, setVista] = useState(vistaInicial);
@@ -128,12 +110,18 @@ export default function Calendario({
   });
 
   const hoje = startOfDay(new Date());
-  const nomeCal = (c) => (agendas[c] && agendas[c].trim()) || cor(c).nome;
+  const calMap = useMemo(() => Object.fromEntries(calendarios.map((c) => [c.id, c])), [calendarios]);
+  const nomeCal = (id) => calMap[id]?.nome || "(sem calendário)";
+  const estilo = (id) => {
+    const c = calMap[id]; const hex = c?.cor || NEUTRO;
+    return { bg: hex, chip: chipDe(hex), borda: hex };
+  };
+  const primeiroCal = calendarios[0]?.id || "azul";
 
-  function toggleCal(c) {
+  function toggleCal(id) {
     setOcultos((prev) => {
       const s = new Set(prev);
-      s.has(c) ? s.delete(c) : s.add(c);
+      s.has(id) ? s.delete(id) : s.add(id);
       try { localStorage.setItem("cal.ocultos", JSON.stringify([...s])); } catch { /* ignore */ }
       return s;
     });
@@ -146,18 +134,10 @@ export default function Calendario({
     else setCursor((c) => addDays(c, dir));
   }
 
-  // Intervalo visível (para expandir só o necessário) + eventos filtrados.
   const [rIni, rFim] = useMemo(() => {
-    if (vista === "mes") {
-      const ini = startOfWeek(startOfMonth(cursor)).getTime();
-      return [ini, ini + 42 * 86400000];
-    }
-    if (vista === "semana") {
-      const ini = startOfWeek(cursor).getTime();
-      return [ini, ini + 7 * 86400000];
-    }
-    const ini = startOfDay(cursor).getTime();
-    return [ini, ini + 86400000];
+    if (vista === "mes") { const ini = startOfWeek(startOfMonth(cursor)).getTime(); return [ini, ini + 42 * 86400000]; }
+    if (vista === "semana") { const ini = startOfWeek(cursor).getTime(); return [ini, ini + 7 * 86400000]; }
+    const ini = startOfDay(cursor).getTime(); return [ini, ini + 86400000];
   }, [vista, cursor]);
 
   const visiveis = useMemo(() => {
@@ -184,16 +164,16 @@ export default function Calendario({
       id: null, titulo: "", diaInteiro: false, recorrencia: "nao",
       dataInicio: ymd(ini), horaInicio: hm(ini.getTime()),
       dataFim: ymd(fim), horaFim: hm(fim.getTime()),
-      local: "", descricao: "", cor: "azul",
+      local: "", descricao: "", cor: primeiroCal,
     });
   }
   function editarEvento(oc) {
-    const e = oc._base || oc; // edita a SÉRIE (âncora), não a ocorrência
+    const e = oc._base || oc;
     setModal({
       id: e.id, titulo: e.titulo, diaInteiro: e.diaInteiro, recorrencia: e.recorrencia || "nao",
       dataInicio: ymd(e.inicio), horaInicio: hm(e.inicio),
       dataFim: ymd(e.fim ?? e.inicio), horaFim: hm(e.fim ?? e.inicio),
-      local: e.local || "", descricao: e.descricao || "", cor: e.cor || "azul",
+      local: e.local || "", descricao: e.descricao || "", cor: e.cor || primeiroCal,
     });
   }
   function abrirDia(dia) { setCursor(startOfDay(dia)); setVista("dia"); }
@@ -202,9 +182,7 @@ export default function Calendario({
     <div className="view-pad cal-wrap">
       <div className="cal-toolbar">
         <div className="cal-toolbar-esq">
-          <button className="btn btn-primary btn-sm" onClick={() => novoEvento(cursor)}>
-            <Plus size={15} /> Criar
-          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => novoEvento(cursor)}><Plus size={15} /> Criar</button>
           <button className="btn btn-ghost btn-sm" onClick={irHoje}>Hoje</button>
           <div className="cal-nav">
             <button className="icon-btn" onClick={() => passo(-1)} title="Anterior"><ChevronLeft size={18} /></button>
@@ -228,19 +206,19 @@ export default function Calendario({
 
       <div className="cal-corpo">
         <BarraCalendarios
-          ocultos={ocultos} onToggle={toggleCal} nomeCal={nomeCal}
-          onRenomear={renomearAgenda} />
+          calendarios={calendarios} ocultos={ocultos} onToggle={toggleCal}
+          onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda} />
 
         <div className="cal-principal">
           {!carregado ? (
             <div className="loading-state">Carregando agenda…</div>
           ) : vista === "mes" ? (
-            <VistaMes cursor={cursor} hoje={hoje} eventos={visiveis}
+            <VistaMes cursor={cursor} hoje={hoje} eventos={visiveis} estilo={estilo}
               aoDia={abrirDia} aoNovo={novoEvento} aoEditar={editarEvento} />
           ) : (
             <VistaTempo dias={vista === "semana" ? 7 : 1}
               inicio={vista === "semana" ? startOfWeek(cursor) : startOfDay(cursor)}
-              hoje={hoje} eventos={visiveis}
+              hoje={hoje} eventos={visiveis} estilo={estilo}
               aoDia={abrirDia} aoNovoHora={novoEvento} aoEditar={editarEvento} />
           )}
         </div>
@@ -248,11 +226,10 @@ export default function Calendario({
 
       {modal && (
         <ModalEvento
-          estado={modal} nomeCal={nomeCal}
+          estado={modal} calendarios={calendarios} estilo={estilo} nomeCal={nomeCal}
           onFechar={() => setModal(null)}
           onSalvar={async (e, dados) => {
-            const payload = montarPayload(dados);
-            const res = e.id ? await atualizar(e.id, payload) : await inserir(payload);
+            const res = e.id ? await atualizar(e.id, montarPayload(dados)) : await inserir(montarPayload(dados));
             if (!res?.error) setModal(null);
             return res;
           }}
@@ -266,9 +243,7 @@ export default function Calendario({
 function montarPayload(d) {
   const comum = { titulo: d.titulo, local: d.local, descricao: d.descricao, cor: d.cor, recorrencia: d.recorrencia || "nao" };
   if (d.diaInteiro) {
-    const ini = combinar(d.dataInicio, "00:00");
-    const fim = combinar(d.dataFim || d.dataInicio, "23:59");
-    return { ...comum, diaInteiro: true, inicio: ini, fim };
+    return { ...comum, diaInteiro: true, inicio: combinar(d.dataInicio, "00:00"), fim: combinar(d.dataFim || d.dataInicio, "23:59") };
   }
   let ini = combinar(d.dataInicio, d.horaInicio);
   let fim = combinar(d.dataFim || d.dataInicio, d.horaFim || d.horaInicio);
@@ -277,53 +252,85 @@ function montarPayload(d) {
 }
 
 // ---------------------------------------------------- Barra de calendários
-function BarraCalendarios({ ocultos, onToggle, nomeCal, onRenomear }) {
-  const [editando, setEditando] = useState(null); // cor em edição de nome
+function BarraCalendarios({ calendarios, ocultos, onToggle, onRenomear, onExcluir, onCriar }) {
+  const [editando, setEditando] = useState(null);
   const [rascunho, setRascunho] = useState("");
+  const [criando, setCriando] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [novaCor, setNovaCor] = useState(PALETA_NOVO[0]);
+
+  function criar() {
+    if (!novoNome.trim()) return;
+    onCriar?.({ nome: novoNome.trim(), cor: novaCor });
+    setNovoNome(""); setNovaCor(PALETA_NOVO[0]); setCriando(false);
+  }
+
   return (
     <aside className="cal-cals">
       <p className="cal-cals-tit">Meus calendários</p>
       <ul className="cal-cals-lista">
-        {CORES_IDS.map((c) => {
-          const visivel = !ocultos.has(c);
+        {calendarios.map((c) => {
+          const visivel = !ocultos.has(c.id);
           return (
-            <li key={c} className="cal-cals-item">
-              <label className="cal-cals-chk" style={{ "--cc": cor(c).bg }}>
-                <input type="checkbox" checked={visivel} onChange={() => onToggle(c)} />
+            <li key={c.id} className="cal-cals-item">
+              <label className="cal-cals-chk" style={{ "--cc": c.cor }}>
+                <input type="checkbox" checked={visivel} onChange={() => onToggle(c.id)} />
                 <span className="cal-cals-caixa" />
               </label>
-              {editando === c ? (
+              {editando === c.id ? (
                 <input className="input cal-cals-input" autoFocus value={rascunho}
                   onChange={(e) => setRascunho(e.target.value)}
-                  onBlur={() => { onRenomear?.(c, rascunho); setEditando(null); }}
+                  onBlur={() => { onRenomear?.(c.id, rascunho); setEditando(null); }}
                   onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEditando(null); }} />
               ) : (
-                <button className="cal-cals-nome" title="Renomear calendário"
-                  onClick={() => { setEditando(c); setRascunho(nomeCal(c)); }}>
-                  <span className="cal-cals-txt">{nomeCal(c)}</span>
-                  <Pencil size={12} className="cal-cals-lapis" />
-                </button>
+                <>
+                  <button className="cal-cals-nome" title="Renomear" onClick={() => { setEditando(c.id); setRascunho(c.nome); }}>
+                    <span className="cal-cals-txt">{c.nome}</span>
+                  </button>
+                  <button className="icon-btn cal-cals-acao" title="Renomear" onClick={() => { setEditando(c.id); setRascunho(c.nome); }}><Pencil size={13} /></button>
+                  <button className="icon-btn cal-cals-acao" title="Excluir calendário"
+                    onClick={() => { if (confirm(`Excluir o calendário "${c.nome}"? Os eventos ficam sem calendário.`)) onExcluir?.(c.id); }}>
+                    <Trash2 size={13} />
+                  </button>
+                </>
               )}
             </li>
           );
         })}
       </ul>
+
+      {criando ? (
+        <div className="cal-cals-novo">
+          <input className="input" autoFocus placeholder="Nome do calendário" value={novoNome}
+            onChange={(e) => setNovoNome(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") criar(); if (e.key === "Escape") setCriando(false); }} />
+          <div className="cal-cores cal-cores-novo">
+            {PALETA_NOVO.map((hex) => (
+              <button type="button" key={hex} className={`cal-cor ${novaCor === hex ? "cal-cor-on" : ""}`}
+                style={{ background: hex }} onClick={() => setNovaCor(hex)} aria-label={hex} />
+            ))}
+          </div>
+          <div className="cal-cals-novo-acoes">
+            <button className="btn btn-ghost btn-sm" onClick={() => setCriando(false)}>Cancelar</button>
+            <button className="btn btn-primary btn-sm" onClick={criar}><Check size={14} /> Criar</button>
+          </div>
+        </div>
+      ) : (
+        <button className="cal-cals-add" onClick={() => setCriando(true)}><Plus size={15} /> Novo calendário</button>
+      )}
     </aside>
   );
 }
 
 // ------------------------------------------------------------- Visão de Mês
-function VistaMes({ cursor, hoje, eventos, aoDia, aoNovo, aoEditar }) {
+function VistaMes({ cursor, hoje, eventos, estilo, aoDia, aoNovo, aoEditar }) {
   const ini = startOfWeek(startOfMonth(cursor));
   const dias = Array.from({ length: 42 }, (_, i) => addDays(ini, i));
   const mesAtual = cursor.getMonth();
   const MAX = 3;
-
   return (
     <div className="cal-mes">
-      <div className="cal-mes-cab">
-        {SEMANA.map((s) => <div key={s} className="cal-mes-diasem">{s}</div>)}
-      </div>
+      <div className="cal-mes-cab">{SEMANA.map((s) => <div key={s} className="cal-mes-diasem">{s}</div>)}</div>
       <div className="cal-mes-grade">
         {dias.map((dia, i) => {
           const doDia = eventosDoDia(eventos, dia);
@@ -334,21 +341,19 @@ function VistaMes({ cursor, hoje, eventos, aoDia, aoNovo, aoEditar }) {
               <button className={`cal-cel-num ${eHoje ? "cal-cel-hoje" : ""}`}
                 onClick={(ev) => { ev.stopPropagation(); aoDia(dia); }}>{dia.getDate()}</button>
               <div className="cal-cel-evs">
-                {doDia.slice(0, MAX).map((e, k) => (
-                  <button key={k} className={`cal-ev ${e.diaInteiro ? "cal-ev-dia" : ""}`}
-                    style={e.diaInteiro
-                      ? { background: cor(e.cor).bg, color: "#fff" }
-                      : { background: cor(e.cor).chip, borderLeft: `3px solid ${cor(e.cor).borda}` }}
-                    title={e.titulo}
-                    onClick={(ev) => { ev.stopPropagation(); aoEditar(e); }}>
-                    {!e.diaInteiro && <span className="cal-ev-hora">{hm(e.inicio)}</span>}
-                    <span className="cal-ev-tit">{e.titulo}</span>
-                  </button>
-                ))}
+                {doDia.slice(0, MAX).map((e, k) => {
+                  const st = estilo(e.cor);
+                  return (
+                    <button key={k} className={`cal-ev ${e.diaInteiro ? "cal-ev-dia" : ""}`}
+                      style={e.diaInteiro ? { background: st.bg, color: "#fff" } : { background: st.chip, borderLeft: `3px solid ${st.borda}` }}
+                      title={e.titulo} onClick={(ev) => { ev.stopPropagation(); aoEditar(e); }}>
+                      {!e.diaInteiro && <span className="cal-ev-hora">{hm(e.inicio)}</span>}
+                      <span className="cal-ev-tit">{e.titulo}</span>
+                    </button>
+                  );
+                })}
                 {doDia.length > MAX && (
-                  <button className="cal-ev-mais" onClick={(ev) => { ev.stopPropagation(); aoDia(dia); }}>
-                    +{doDia.length - MAX} mais
-                  </button>
+                  <button className="cal-ev-mais" onClick={(ev) => { ev.stopPropagation(); aoDia(dia); }}>+{doDia.length - MAX} mais</button>
                 )}
               </div>
             </div>
@@ -360,17 +365,15 @@ function VistaMes({ cursor, hoje, eventos, aoDia, aoNovo, aoEditar }) {
 }
 
 // ------------------------------------------------ Visão de Semana / Dia (tempo)
-function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }) {
+function VistaTempo({ dias, inicio, hoje, eventos, estilo, aoDia, aoNovoHora, aoEditar }) {
   const colDias = Array.from({ length: dias }, (_, i) => addDays(inicio, i));
   const scrollRef = useRef(null);
   const [agora, setAgora] = useState(Date.now());
-
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 7 * H_ALTURA - 12;
     const t = setInterval(() => setAgora(Date.now()), 60000);
     return () => clearInterval(t);
   }, [dias, inicio.getTime()]);
-
   const minutosAgora = (() => { const d = new Date(agora); return d.getHours() * 60 + d.getMinutes(); })();
 
   return (
@@ -388,10 +391,8 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
               </button>
               <div className="cal-tempo-allday">
                 {daDia.map((e, k) => (
-                  <button key={k} className="cal-ev cal-ev-dia" style={{ background: cor(e.cor).bg, color: "#fff" }}
-                    title={e.titulo} onClick={() => aoEditar(e)}>
-                    <span className="cal-ev-tit">{e.titulo}</span>
-                  </button>
+                  <button key={k} className="cal-ev cal-ev-dia" style={{ background: estilo(e.cor).bg, color: "#fff" }}
+                    title={e.titulo} onClick={() => aoEditar(e)}><span className="cal-ev-tit">{e.titulo}</span></button>
                 ))}
               </div>
             </div>
@@ -411,38 +412,28 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
           {colDias.map((dia, i) => {
             const ini = startOfDay(dia).getTime();
             const fimDia = ini + 86400000;
-            const timed = eventos.filter((e) => !e.diaInteiro && e.inicio != null
-              && (e.fim ?? e.inicio) > ini && e.inicio < fimDia);
+            const timed = eventos.filter((e) => !e.diaInteiro && e.inicio != null && (e.fim ?? e.inicio) > ini && e.inicio < fimDia);
             const postos = layoutColunas(timed);
             const eHoje = sameDay(dia, hoje);
             return (
               <div key={i} className="cal-tempo-col"
                 onClick={(ev) => {
                   const rect = ev.currentTarget.getBoundingClientRect();
-                  const y = ev.clientY - rect.top;
-                  const hora = Math.max(0, Math.min(23, Math.floor(y / H_ALTURA)));
+                  const hora = Math.max(0, Math.min(23, Math.floor((ev.clientY - rect.top) / H_ALTURA)));
                   aoNovoHora(dia, hora);
                 }}>
                 {HORAS.map((h) => <div key={h} className="cal-tempo-cel" style={{ height: `${H_ALTURA}px` }} />)}
-                {eHoje && (
-                  <div className="cal-agora" style={{ top: `${(minutosAgora / 60) * H_ALTURA}px` }}>
-                    <span className="cal-agora-bola" />
-                  </div>
-                )}
+                {eHoje && <div className="cal-agora" style={{ top: `${(minutosAgora / 60) * H_ALTURA}px` }}><span className="cal-agora-bola" /></div>}
                 {postos.map(({ e, col, cols }, k) => {
                   const s = Math.max(e.inicio, ini);
                   const f = Math.min(e.fim ?? (e.inicio + 3600000), fimDia);
                   const top = ((s - ini) / 60000 / 60) * H_ALTURA;
                   const alt = Math.max(20, ((f - s) / 60000 / 60) * H_ALTURA - 2);
+                  const st = estilo(e.cor);
                   return (
                     <button key={k} className="cal-ev-bloco"
-                      style={{
-                        top: `${top}px`, height: `${alt}px`,
-                        left: `calc(${(col / cols) * 100}% + 2px)`, width: `calc(${100 / cols}% - 4px)`,
-                        background: cor(e.cor).chip, borderLeft: `3px solid ${cor(e.cor).borda}`,
-                      }}
-                      title={e.titulo}
-                      onClick={(ev) => { ev.stopPropagation(); aoEditar(e); }}>
+                      style={{ top: `${top}px`, height: `${alt}px`, left: `calc(${(col / cols) * 100}% + 2px)`, width: `calc(${100 / cols}% - 4px)`, background: st.chip, borderLeft: `3px solid ${st.borda}` }}
+                      title={e.titulo} onClick={(ev) => { ev.stopPropagation(); aoEditar(e); }}>
                       <span className="cal-ev-tit">{e.titulo}</span>
                       <span className="cal-ev-hora2">{hm(e.inicio)}–{hm(e.fim ?? e.inicio)}</span>
                     </button>
@@ -457,8 +448,42 @@ function VistaTempo({ dias, inicio, hoje, eventos, aoDia, aoNovoHora, aoEditar }
   );
 }
 
+// ------------------------------------------------------ Seletor de calendário
+function SeletorCalendario({ calendarios, valor, estilo, nomeCal, onChange }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e) => { if (ref.current && !ref.current.contains(e.target)) setAberto(false); };
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+  return (
+    <div className={`cal-sel ${aberto ? "cal-sel-aberto" : ""}`} ref={ref}>
+      <button type="button" className="input cal-sel-btn" onClick={() => setAberto((a) => !a)} aria-haspopup="listbox" aria-expanded={aberto}>
+        <span className="cal-sel-dot" style={{ background: estilo(valor).bg }} />
+        <span className="cal-sel-nome">{nomeCal(valor)}</span>
+        <ChevronDown size={16} className="cal-sel-seta" />
+      </button>
+      {aberto && (
+        <div className="cal-sel-menu" role="listbox">
+          {calendarios.map((c) => (
+            <button type="button" key={c.id} role="option" aria-selected={valor === c.id}
+              className={`cal-sel-item ${valor === c.id ? "on" : ""}`}
+              onClick={() => { onChange(c.id); setAberto(false); }}>
+              <span className="cal-sel-dot" style={{ background: c.cor }} />
+              <span className="cal-sel-nome">{c.nome}</span>
+              {valor === c.id && <Check size={14} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // -------------------------------------------------------------- Modal de evento
-function ModalEvento({ estado, nomeCal, onFechar, onSalvar, onExcluir }) {
+function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar, onExcluir }) {
   const [f, setF] = useState(estado);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -482,12 +507,10 @@ function ModalEvento({ estado, nomeCal, onFechar, onSalvar, onExcluir }) {
         </div>
 
         <div className="modal-corpo cal-modal-corpo">
-          <input className="input cal-modal-titulo" autoFocus placeholder="Adicionar título"
-            value={f.titulo} onChange={set("titulo")} />
+          <input className="input cal-modal-titulo" autoFocus placeholder="Adicionar título" value={f.titulo} onChange={set("titulo")} />
 
           <label className="cal-modal-switch">
-            <input type="checkbox" checked={f.diaInteiro}
-              onChange={(e) => setF((s) => ({ ...s, diaInteiro: e.target.checked }))} />
+            <input type="checkbox" checked={f.diaInteiro} onChange={(e) => setF((s) => ({ ...s, diaInteiro: e.target.checked }))} />
             <span>Dia inteiro</span>
           </label>
 
@@ -515,6 +538,12 @@ function ModalEvento({ estado, nomeCal, onFechar, onSalvar, onExcluir }) {
           </div>
 
           <div className="cal-campo">
+            <span className="cal-campo-rot">Calendário</span>
+            <SeletorCalendario calendarios={calendarios} valor={f.cor} estilo={estilo} nomeCal={nomeCal}
+              onChange={(id) => setF((s) => ({ ...s, cor: id }))} />
+          </div>
+
+          <div className="cal-campo">
             <span className="cal-campo-rot"><MapPin size={13} /> Local</span>
             <input className="input" value={f.local} onChange={set("local")} placeholder="Opcional" />
           </div>
@@ -524,31 +553,16 @@ function ModalEvento({ estado, nomeCal, onFechar, onSalvar, onExcluir }) {
             <textarea className="input textarea" rows={3} value={f.descricao} onChange={set("descricao")} placeholder="Opcional" />
           </div>
 
-          <div className="cal-campo">
-            <span className="cal-campo-rot">Calendário <strong className="cal-campo-cal">{nomeCal(f.cor)}</strong></span>
-            <div className="cal-cores">
-              {Object.entries(CORES).map(([id, c]) => (
-                <button type="button" key={id} className={`cal-cor ${f.cor === id ? "cal-cor-on" : ""}`}
-                  style={{ background: c.bg }} title={nomeCal(id)} aria-label={nomeCal(id)}
-                  onClick={() => setF((s) => ({ ...s, cor: id }))} />
-              ))}
-            </div>
-          </div>
-
           {erro && <div className="alert alert-error">{erro}</div>}
         </div>
 
         <div className="modal-rodape">
           {estado.id
-            ? <button type="button" className="btn btn-ghost cal-excluir" onClick={() => onExcluir(estado.id)}>
-                <Trash2 size={15} /> Excluir
-              </button>
+            ? <button type="button" className="btn btn-ghost cal-excluir" onClick={() => onExcluir(estado.id)}><Trash2 size={15} /> Excluir</button>
             : <span />}
           <div className="cal-modal-acoes">
             <button type="button" className="btn btn-ghost" onClick={onFechar}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={salvando}>
-              <Save size={15} /> {salvando ? "Salvando…" : "Salvar"}
-            </button>
+            <button type="submit" className="btn btn-primary" disabled={salvando}><Save size={15} /> {salvando ? "Salvando…" : "Salvar"}</button>
           </div>
         </div>
       </form>

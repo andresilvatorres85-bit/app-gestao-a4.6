@@ -36,10 +36,16 @@ drop policy if exists "calendario_delete_autenticados" on public.calendario_even
 create policy "calendario_delete_autenticados"
   on public.calendario_eventos for delete to authenticated using (true);
 
--- ===== calendários (nome de cada cor, compartilhado pela equipe) =====
-create table if not exists public.calendario_agendas (
-  cor text primary key,
+-- ===== calendários (lista compartilhada: criar/renomear/excluir) =====
+-- Recriada com o novo formato (id, nome, cor, pos). A tabela só guarda os
+-- rótulos/cores dos calendários (não os eventos), então recriá-la não perde
+-- compromissos. O app semeia os calendários padrão na primeira execução.
+drop table if exists public.calendario_agendas cascade;
+create table public.calendario_agendas (
+  id text primary key,
   nome text,
+  cor text,
+  pos int default 0,
   criado_em timestamptz not null default now()
 );
 

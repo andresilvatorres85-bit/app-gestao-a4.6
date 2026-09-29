@@ -196,9 +196,10 @@ export default function App() {
       <main className={`main${aba === "loa" ? " main-loa" : aba === "cartilhas" ? " main-cartilhas" : ""}`}>
         {aba === "calendario" ? (
           <Suspense fallback={<div className="loading-state">Carregando agenda…</div>}>
-            <Calendario eventos={calendario.eventos} agendas={calendario.agendas}
-              inserir={calendario.inserir} atualizar={calendario.atualizar}
-              excluir={calendario.excluir} renomearAgenda={calendario.renomearAgenda}
+            <Calendario eventos={calendario.eventos} calendarios={calendario.calendarios}
+              inserir={calendario.inserir} atualizar={calendario.atualizar} excluir={calendario.excluir}
+              criarAgenda={calendario.criarAgenda} renomearAgenda={calendario.renomearAgenda}
+              excluirAgenda={calendario.excluirAgenda}
               carregado={calendario.carregado} erro={calendario.erro} />
           </Suspense>
         ) : aba === "loa" ? (

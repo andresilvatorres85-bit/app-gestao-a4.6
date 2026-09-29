@@ -1015,3 +1015,39 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
   .cal-ev-hora { display: none; }
   .cal-titulo { font-size: 16px; width: 100%; order: 5; }
 }
+
+/* ---- Calendário: ações da barra lateral + criar calendário ---- */
+.cal-cals-nome { flex: 1; }
+.cal-cals-acao { opacity: 0; flex: none; width: 24px; height: 24px; }
+.cal-cals-item:hover .cal-cals-acao { opacity: 0.75; }
+.cal-cals-acao:hover { opacity: 1; }
+.cal-cals-add {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; width: 100%;
+  border: 1px dashed var(--line-strong); background: transparent; color: var(--muted);
+  border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; cursor: pointer;
+}
+.cal-cals-add:hover { color: var(--ink); border-color: var(--ink); }
+.cal-cals-novo { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cal-cores-novo { gap: 7px; }
+.cal-cores-novo .cal-cor { width: 22px; height: 22px; }
+.cal-cals-novo-acoes { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* ---- Calendário: seletor de calendário no modal ---- */
+.cal-sel { position: relative; }
+.cal-sel-btn { display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer; text-align: left; }
+.cal-sel-dot { width: 13px; height: 13px; border-radius: 50%; flex: none; }
+.cal-sel-nome { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-sel-seta { color: var(--muted); flex: none; transition: transform 0.15s ease; }
+.cal-sel-aberto .cal-sel-seta { transform: rotate(180deg); }
+.cal-sel-menu {
+  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+.cal-sel-item {
+  display: flex; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent;
+  color: var(--ink); font: inherit; font-size: 13px; padding: 7px 8px; border-radius: 7px; cursor: pointer;
+}
+.cal-sel-item:hover { background: var(--surface-hi); }
+.cal-sel-item.on { background: var(--surface-hi); }
