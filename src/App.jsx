@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays } from "lucide-react";
+import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays, Library } from "lucide-react";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
@@ -8,6 +8,7 @@ import { useObjetoEmendas } from "./components/useObjetoEmendas.js";
 import { useProposicoes } from "./components/useProposicoes.js";
 import { useCalendario } from "./components/useCalendario.js";
 import { useChecklists } from "./components/useChecklists.js";
+import { useLegislacao } from "./components/useLegislacao.js";
 import ObjetoEmenda from "./components/ObjetoEmenda.jsx";
 import bgImage from "./bg.jpg";
 import brasao from "./brasao.png";
@@ -26,6 +27,8 @@ const Cartilhas = lazy(() => import("./components/Cartilhas.jsx"));
 const Proposicoes = lazy(() => import("./components/Proposicoes.jsx"));
 // A aba Calendário: agenda compartilhada da A4.6 (estilo Google Agenda).
 const Calendario = lazy(() => import("./components/Calendario.jsx"));
+// A aba Conhecimento: base de referência (legislação do orçamento etc.).
+const Conhecimento = lazy(() => import("./components/Conhecimento.jsx"));
 
 // Converte uma linha da tabela "registros" (Supabase) para o formato interno
 // enxuto usado pelos componentes (mesmas chaves do histórico da planilha).
@@ -48,6 +51,7 @@ const ABAS = [
   { id: "loa", label: "LOA", icon: Landmark },
   { id: "proposicoes", label: "Proposições", icon: ScrollText },
   { id: "cartilhas", label: "Cartilhas", icon: BookOpen },
+  { id: "conhecimento", label: "CONHECIMENTO", icon: Library },
 ];
 
 // Seções internas da aba MÉTRICAS
@@ -77,6 +81,7 @@ export default function App() {
   const proposicoes = useProposicoes(session);
   const calendario = useCalendario(session);
   const checklists = useChecklists(session);
+  const legislacao = useLegislacao(session);
 
   const emailAtual = session?.user?.email || null;
   const autorAtual = nomePorEmail(usuarios, emailAtual);
@@ -213,6 +218,10 @@ export default function App() {
         ) : aba === "cartilhas" ? (
           <Suspense fallback={<div className="loading-state">Carregando Cartilhas…</div>}>
             <Cartilhas />
+          </Suspense>
+        ) : aba === "conhecimento" ? (
+          <Suspense fallback={<div className="loading-state">Carregando conhecimento…</div>}>
+            <Conhecimento legislacao={legislacao} />
           </Suspense>
         ) : aba === "lexor" ? (
           <Suspense fallback={<div className="loading-state">Carregando propostas…</div>}>
