@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil, Check, ChevronDown,
+  ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil, Check, ChevronDown, GripVertical,
 } from "lucide-react";
 import ChecklistCard from "./ChecklistCard.jsx";
 
@@ -102,7 +102,7 @@ function expandir(eventos, rIni, rFim) {
 export default function Calendario({
   eventos = [], calendarios = [], inserir, atualizar, excluir,
   excluirOcorrencia, atualizarOcorrencia,
-  criarAgenda, renomearAgenda, excluirAgenda,
+  criarAgenda, renomearAgenda, excluirAgenda, reordenarAgendas,
   checklists = {}, carregado, erro, vistaInicial = "semana",
 }) {
   const [vista, setVista] = useState(vistaInicial);
@@ -217,7 +217,8 @@ export default function Calendario({
         <div className="cal-lateral">
           <BarraCalendarios
             calendarios={calendarios} ocultos={ocultos} onToggle={toggleCal}
-            onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda} />
+            onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda}
+            onReordenar={reordenarAgendas} />
 
           <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias" tom="vermelho"
             itens={(checklists.itens || []).filter((i) => i.lista === "pendencias")}
@@ -292,17 +293,30 @@ function montarPayloadSerie(d, estado) {
 }
 
 // ---------------------------------------------------- Barra de calendários
-function BarraCalendarios({ calendarios, ocultos, onToggle, onRenomear, onExcluir, onCriar }) {
+function BarraCalendarios({ calendarios, ocultos, onToggle, onRenomear, onExcluir, onCriar, onReordenar }) {
   const [editando, setEditando] = useState(null);
   const [rascunho, setRascunho] = useState("");
   const [criando, setCriando] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(PALETA_NOVO[0]);
+  const [arrastando, setArrastando] = useState(null); // id sendo arrastado
+  const [alvo, setAlvo] = useState(null);             // id sob o cursor
 
   function criar() {
     if (!novoNome.trim()) return;
     onCriar?.({ nome: novoNome.trim(), cor: novaCor });
     setNovoNome(""); setNovaCor(PALETA_NOVO[0]); setCriando(false);
+  }
+
+  function soltar(alvoId) {
+    const de = arrastando;
+    setArrastando(null); setAlvo(null);
+    if (!de || de === alvoId) return;
+    const ids = calendarios.map((c) => c.id);
+    const iDe = ids.indexOf(de), iAlvo = ids.indexOf(alvoId);
+    if (iDe < 0 || iAlvo < 0) return;
+    ids.splice(iAlvo, 0, ids.splice(iDe, 1)[0]);
+    onReordenar?.(ids);
   }
 
   return (
@@ -311,8 +325,16 @@ function BarraCalendarios({ calendarios, ocultos, onToggle, onRenomear, onExclui
       <ul className="cal-cals-lista">
         {calendarios.map((c) => {
           const visivel = !ocultos.has(c.id);
+          const arrastavel = editando !== c.id && !!onReordenar;
           return (
-            <li key={c.id} className="cal-cals-item">
+            <li key={c.id}
+              className={`cal-cals-item${arrastando === c.id ? " cal-cals-arrastando" : ""}${alvo === c.id && arrastando && arrastando !== c.id ? " cal-cals-alvo" : ""}`}
+              draggable={arrastavel}
+              onDragStart={(e) => { if (!arrastavel) return; setArrastando(c.id); e.dataTransfer.effectAllowed = "move"; }}
+              onDragEnd={() => { setArrastando(null); setAlvo(null); }}
+              onDragOver={(e) => { if (arrastando) { e.preventDefault(); setAlvo(c.id); } }}
+              onDrop={(e) => { e.preventDefault(); soltar(c.id); }}>
+              {arrastavel && <span className="cal-cals-grip" title="Arraste para reordenar"><GripVertical size={13} /></span>}
               <label className="cal-cals-chk" style={{ "--cc": c.cor }}>
                 <input type="checkbox" checked={visivel} onChange={() => onToggle(c.id)} />
                 <span className="cal-cals-caixa" />
@@ -612,7 +634,10 @@ function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar,
 
         <div className="modal-rodape">
           {estado.id
-            ? <button type="button" className="btn btn-ghost cal-excluir" onClick={() => onExcluir(estado, escopo)}><Trash2 size={15} /> {estado.recorrente && escopo === "este" ? "Excluir este" : "Excluir"}</button>
+            ? <button type="button" className="btn btn-ghost cal-excluir" onClick={async () => {
+                const res = await onExcluir(estado, escopo);
+                if (res?.error) setErro("Não foi possível excluir: " + (res.error.message || "erro"));
+              }}><Trash2 size={15} /> {estado.recorrente && escopo === "este" ? "Excluir este" : "Excluir"}</button>
             : <span />}
           <div className="cal-modal-acoes">
             <button type="button" className="btn btn-ghost" onClick={onFechar}>Cancelar</button>

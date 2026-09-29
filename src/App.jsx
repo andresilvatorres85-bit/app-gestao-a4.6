@@ -202,7 +202,8 @@ export default function App() {
               inserir={calendario.inserir} atualizar={calendario.atualizar} excluir={calendario.excluir}
               excluirOcorrencia={calendario.excluirOcorrencia} atualizarOcorrencia={calendario.atualizarOcorrencia}
               criarAgenda={calendario.criarAgenda} renomearAgenda={calendario.renomearAgenda}
-              excluirAgenda={calendario.excluirAgenda} checklists={checklists}
+              excluirAgenda={calendario.excluirAgenda} reordenarAgendas={calendario.reordenarAgendas}
+              checklists={checklists}
               carregado={calendario.carregado} erro={calendario.erro} />
           </Suspense>
         ) : aba === "loa" ? (

@@ -134,9 +134,16 @@ export function useCalendario(session) {
   // atual do banco antes de gravar, para não perder exceções concorrentes).
   const adicionarExcecao = useCallback(async (baseId, ocData) => {
     const atual = await supabase.from("calendario_eventos").select("excecoes").eq("id", baseId).single();
+    if (atual.error && /excecoes/i.test(atual.error.message || "")) {
+      return { error: { message: "Falta a coluna 'excecoes'. Rode o supabase_calendario.sql no Supabase (SQL Editor) para ativar a edição de ocorrências individuais." } };
+    }
     const ex = Array.isArray(atual.data?.excecoes) ? [...atual.data.excecoes] : [];
     if (!ex.includes(ocData)) ex.push(ocData);
-    return supabase.from("calendario_eventos").update({ excecoes: ex }).eq("id", baseId);
+    const res = await supabase.from("calendario_eventos").update({ excecoes: ex }).eq("id", baseId);
+    if (res.error && /excecoes/i.test(res.error.message || "")) {
+      return { error: { message: "Falta a coluna 'excecoes'. Rode o supabase_calendario.sql no Supabase (SQL Editor) para ativar a edição de ocorrências individuais." } };
+    }
+    return res;
   }, []);
 
   // excluir SOMENTE esta ocorrência: vira uma exceção na série.
@@ -186,10 +193,20 @@ export function useCalendario(session) {
     return res;
   }, [recarregar]);
 
+  // reordena a lista: grava a nova posição (0,1,2…) de cada calendário.
+  const reordenarAgendas = useCallback(async (idsOrdenados) => {
+    const posPorId = Object.fromEntries(idsOrdenados.map((id, i) => [id, i]));
+    setCalendarios((prev) => ordenarCals(prev.map((c) => (posPorId[c.id] != null ? { ...c, pos: posPorId[c.id] } : c))));
+    const linhas = idsOrdenados.map((id, i) => ({ id, pos: i }));
+    const res = await supabase.from("calendario_agendas").upsert(linhas, { onConflict: "id" }).select();
+    if (res.error) recarregar(false); // reverte para o estado do banco se falhou
+    return res;
+  }, [recarregar]);
+
   return {
     eventos, calendarios, carregado, erro,
     inserir, atualizar, excluir,
     excluirOcorrencia, atualizarOcorrencia,
-    criarAgenda, renomearAgenda, excluirAgenda,
+    criarAgenda, renomearAgenda, excluirAgenda, reordenarAgendas,
   };
 }
