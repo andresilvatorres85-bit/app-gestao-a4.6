@@ -1,7 +1,8 @@
 // Gera o documento "Necessidade de ajuste de emenda parlamentar (AO)" para o
-// tipo de ajuste "Mudança de Ação Orçamentária (AO)". Segue o mesmo formato do
-// modelo em anexo, porém com TODO o texto em fonte preta (o modelo original
-// destaca em vermelho os campos variáveis; aqui sai tudo em preto).
+// tipo de ajuste "Mudança de Ação Orçamentária (AO)". Segue o formato do modelo
+// em anexo — inclusive os recuos e a numeração (itens 1–6; sob o item 6, os
+// subitens a./b. e, mais recuados, 1) De e 2) Para com as tabelas) — porém com
+// TODO o texto em fonte preta.
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   WidthType, AlignmentType, BorderStyle, VerticalAlign,
@@ -18,40 +19,42 @@ function cargoCurto(cargo) {
   if (c.startsWith("senador")) return "Senador";
   return "";
 }
-
 function nomeParlamentar(d) {
-  const pref = cargoCurto(d.cargo);
-  const nome = (d.parlamentar || "").trim();
-  return [pref, nome].filter(Boolean).join(" ").trim() || "—";
+  return [cargoCurto(d.cargo), (d.parlamentar || "").trim()].filter(Boolean).join(" ").trim() || "—";
 }
 
-// Um item numerado "n. Rótulo: valor" (rótulo em negrito, valor normal).
-function itemNum(n, rotulo, valor) {
-  return new Paragraph({
-    spacing: { after: 120 },
-    children: [
-      new TextRun({ text: `${n}. `, bold: true, color: PRETO, size: 24 }),
-      new TextRun({ text: `${rotulo}: `, bold: true, color: PRETO, size: 24 }),
-      new TextRun({ text: valor || "—", color: PRETO, size: 24 }),
-    ],
-  });
-}
-
-function paraSimples(runs, opts = {}) {
-  return new Paragraph({ spacing: { after: 100 }, children: runs, ...opts });
-}
 function run(text, opts = {}) {
   return new TextRun({ text: text ?? "", color: PRETO, size: 24, ...opts });
 }
 
-const SEM_BORDA = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+// Item numerado "n. Rótulo: valor" no nível da margem (itens 1 a 6).
+function itemNum(n, rotulo, valor) {
+  return new Paragraph({
+    spacing: { after: 120 }, alignment: AlignmentType.JUSTIFIED,
+    children: [
+      run(`${n}. `, { bold: true }),
+      run(`${rotulo}: `, { bold: true }),
+      run(valor || "—"),
+    ],
+  });
+}
+
+// Subitem recuado com marcador manual ("a.", "b.", "1)", "2)") e recuo pendente.
+function subItem(marcador, runs, left) {
+  return new Paragraph({
+    spacing: { after: 100 }, alignment: AlignmentType.JUSTIFIED,
+    indent: { left, hanging: 360 },
+    children: [run(`${marcador} `), ...runs],
+  });
+}
+
 const BORDA = { style: BorderStyle.SINGLE, size: 4, color: "000000" };
 
 function celula(texto, { bold = false, span = 1, largura } = {}) {
   return new TableCell({
     columnSpan: span,
     verticalAlign: VerticalAlign.CENTER,
-    width: largura ? { size: largura, type: WidthType.PERCENTAGE } : undefined,
+    width: largura ? { size: largura, type: WidthType.DXA } : undefined,
     margins: { top: 40, bottom: 40, left: 60, right: 60 },
     children: [new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -60,28 +63,29 @@ function celula(texto, { bold = false, span = 1, largura } = {}) {
   });
 }
 
-// Tabela VALOR | PROGRAMÁTICA (Função/Subfunção/Programa/Ação/Subtítulo).
+// Tabela VALOR | PROGRAMÁTICA (Função/Subfunção/Programa/Ação/Subtítulo),
+// recuada para acompanhar o subitem "1) De" / "2) Para".
 function tabelaProgramatica(valor, prog) {
   const bordas = { top: BORDA, bottom: BORDA, left: BORDA, right: BORDA, insideHorizontal: BORDA, insideVertical: BORDA };
+  const W_VALOR = 2200, W_COD = 1000;
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [W_VALOR, W_COD, W_COD, W_COD, W_COD, W_COD],
+    width: { size: W_VALOR + W_COD * 5, type: WidthType.DXA },
+    indent: { size: 1080, type: WidthType.DXA },
     borders: bordas,
     rows: [
       new TableRow({
         tableHeader: true,
         children: [
-          celula("VALOR", { bold: true, largura: 28 }),
-          celula("PROGRAMÁTICA", { bold: true, span: 5, largura: 72 }),
+          celula("VALOR", { bold: true, largura: W_VALOR }),
+          celula("PROGRAMÁTICA", { bold: true, span: 5, largura: W_COD * 5 }),
         ],
       }),
       new TableRow({
         children: [
-          celula(valor, { largura: 28 }),
-          celula(prog.funcao),
-          celula(prog.subfuncao),
-          celula(prog.programa),
-          celula(prog.acao),
-          celula(prog.subtitulo),
+          celula(valor, { largura: W_VALOR }),
+          celula(prog.funcao), celula(prog.subfuncao), celula(prog.programa),
+          celula(prog.acao), celula(prog.subtitulo),
         ],
       }),
     ],
@@ -105,8 +109,7 @@ export function montarDocAo(d) {
       properties: {},
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 240 },
+          alignment: AlignmentType.CENTER, spacing: { after: 240 },
           children: [new TextRun({ text: "Necessidade de ajuste de emenda parlamentar (AO)", bold: true, color: PRETO, size: 28 })],
         }),
         itemNum(1, "Parlamentar", nomeParlamentar(d)),
@@ -114,13 +117,16 @@ export function montarDocAo(d) {
         itemNum(3, "Objeto", (d.aoObjeto || "").trim()),
         itemNum(4, "Beneficiário", beneficiario),
         itemNum(5, "Incorreção", (d.aoIncorrecao || "").trim()),
-        paraSimples([run("6. ", { bold: true }), run("Ações necessárias:", { bold: true })]),
-        paraSimples([run("Janela: ", { bold: true }), run((d.aoJanela || "").trim() || "—")]),
-        paraSimples([run("Alterações a serem realizadas no SIOP:")]),
-        paraSimples([run("1) De", { bold: true })]),
+        new Paragraph({
+          spacing: { after: 100 }, alignment: AlignmentType.JUSTIFIED,
+          children: [run("6. ", { bold: true }), run("Ações necessárias:", { bold: true })],
+        }),
+        subItem("a.", [run("Janela: ", { bold: true }), run((d.aoJanela || "").trim() || "—")], 720),
+        subItem("b.", [run("Alterações a serem realizadas no SIOP:")], 720),
+        subItem("1)", [run("De", { bold: true })], 1080),
         tabelaProgramatica(valor, de),
         new Paragraph({ spacing: { after: 120 }, children: [] }),
-        paraSimples([run("2) Para", { bold: true })]),
+        subItem("2)", [run("Para", { bold: true })], 1080),
         tabelaProgramatica(valor, para),
       ],
     }],
@@ -128,8 +134,7 @@ export function montarDocAo(d) {
 }
 
 export async function gerarDocAoBlob(d) {
-  const doc = montarDocAo(d);
-  return Packer.toBlob(doc);
+  return Packer.toBlob(montarDocAo(d));
 }
 
 export async function baixarDocAo(d) {

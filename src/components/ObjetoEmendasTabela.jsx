@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { resumoObjeto, baixarOficioDocx } from "../objetoEmendaDoc.js";
+import { baixarDocAo } from "../objetoEmendaAoDoc.js";
 
 function fmtData(d) {
   if (!d.dia || !d.mes || !d.ano) return "—";
@@ -18,6 +19,24 @@ function chaveOrd(it, coluna) {
 // Divide o campo "ajuste" ("A; B; C") nos tipos individuais.
 const tiposDoAjuste = (s) => String(s || "").split(/\s*;\s*/).map((t) => t.trim()).filter(Boolean);
 
+const AJUSTE_AO = "Mudança de Ação Orçamentária (AO)";
+
+// Conteúdo da coluna "Alterações". Para "Mudança de Ação Orçamentária (AO)",
+// mostra a troca de ação orçamentária (De → Para) com os códigos em destaque;
+// nos demais tipos, mantém o resumo De/Para do objeto.
+function celulaAlteracoes(it) {
+  if (tiposDoAjuste(it.ajuste).includes(AJUSTE_AO)) {
+    const de = (it.aoDados?.aoDeAcao || "").trim();
+    const para = (it.aoDados?.aoParaAcao || "").trim();
+    if (de || para) {
+      return (
+        <>De “Ação Orçamentária <strong>{de || "—"}</strong>” para “Ação Orçamentária <strong>{para || "—"}</strong>”</>
+      );
+    }
+  }
+  return resumoObjeto(it);
+}
+
 // Tabela das alterações de objeto de emenda, reaproveitada na aba "Objeto
 // Emenda" (últimos registros) e no card do "Painel". Cada linha permite baixar
 // o ofício novamente, editar o lançamento e excluí-lo. As colunas Data,
@@ -28,7 +47,13 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
   const [fAjuste, setFAjuste] = useState("Todos");
 
   async function baixar(it) {
-    try { await baixarOficioDocx(it); } catch { /* silencioso */ }
+    try {
+      if (tiposDoAjuste(it.ajuste).includes(AJUSTE_AO)) {
+        await baixarDocAo({ ...it, ...(it.aoDados || {}) });
+      } else {
+        await baixarOficioDocx(it);
+      }
+    } catch { /* silencioso */ }
   }
 
   // Opções do filtro de Tipo de ajuste (todos os tipos presentes nos itens).
@@ -91,7 +116,7 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
               <ThOrd col="parlamentar">Parlamentar</ThOrd>
               <th>Partido/UF</th>
               <ThOrd col="emenda">Emenda</ThOrd>
-              <th>Objeto</th><th>Ajuste</th><th></th>
+              <th>Alterações</th><th>Ajuste</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -101,7 +126,7 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
                 <td>{it.parlamentar}</td>
                 <td className="mono">{[it.partido, it.uf].filter(Boolean).join("/") || "—"}</td>
                 <td className="mono">{it.emenda || "—"}</td>
-                <td className="obj-col">{resumoObjeto(it)}</td>
+                <td className="obj-col">{celulaAlteracoes(it)}</td>
                 <td>{it.ajuste || "—"}</td>
                 <td>
                   <div className="row-actions">
