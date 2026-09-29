@@ -1002,6 +1002,13 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .cal-cals-lapis { color: var(--muted); opacity: 0; flex: none; }
 .cal-cals-nome:hover .cal-cals-lapis { opacity: 1; }
 .cal-cals-input { flex: 1; min-width: 0; padding: 4px 7px; font-size: 13px; }
+/* reordenar (arrastar) calendários */
+.cal-cals-grip { flex: none; display: inline-flex; align-items: center; color: var(--muted); cursor: grab; opacity: 0; margin-left: -2px; }
+.cal-cals-item:hover .cal-cals-grip { opacity: 0.6; }
+.cal-cals-grip:hover { opacity: 1; }
+.cal-cals-item[draggable="true"] { cursor: grab; }
+.cal-cals-arrastando { opacity: 0.4; }
+.cal-cals-alvo { box-shadow: inset 0 2px 0 var(--ink); }
 
 @media (max-width: 860px) {
   .cal-corpo { flex-direction: column; }

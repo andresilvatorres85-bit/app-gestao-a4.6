@@ -89,3 +89,7 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.calendario_agendas;
 exception when duplicate_object then null; end $$;
+
+-- Força o PostgREST a recarregar o schema (senão a nova coluna "excecoes" pode
+-- ficar fora do cache e o app acusar: "Could not find the 'excecoes' column").
+notify pgrst, 'reload schema';
