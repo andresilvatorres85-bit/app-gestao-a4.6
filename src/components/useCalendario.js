@@ -120,7 +120,8 @@ export function useCalendario(session) {
   // ---- calendários ----
   const criarAgenda = useCallback(async ({ nome, cor }) => {
     const id = "cal_" + Math.random().toString(36).slice(2, 9);
-    const pos = Date.now();
+    // pos em segundos (cabe no int do Postgres; Date.now() em ms estoura o int4).
+    const pos = Math.floor(Date.now() / 1000);
     const novo = { id, nome: (nome || "").trim() || "Novo calendário", cor, pos };
     setCalendarios((prev) => ordenarCals([...prev, novo]));
     const res = await supabase.from("calendario_agendas").insert(novo).select().single();

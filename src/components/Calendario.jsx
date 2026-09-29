@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import {
   ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil, Check, ChevronDown,
 } from "lucide-react";
+import ChecklistCard from "./ChecklistCard.jsx";
 
 // ---------------------------------------------------------------- utilidades
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
@@ -100,7 +101,7 @@ function expandir(eventos, rIni, rFim) {
 export default function Calendario({
   eventos = [], calendarios = [], inserir, atualizar, excluir,
   criarAgenda, renomearAgenda, excluirAgenda,
-  carregado, erro, vistaInicial = "semana",
+  checklists = {}, carregado, erro, vistaInicial = "semana",
 }) {
   const [vista, setVista] = useState(vistaInicial);
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
@@ -205,9 +206,21 @@ export default function Calendario({
       )}
 
       <div className="cal-corpo">
-        <BarraCalendarios
-          calendarios={calendarios} ocultos={ocultos} onToggle={toggleCal}
-          onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda} />
+        <div className="cal-lateral">
+          <BarraCalendarios
+            calendarios={calendarios} ocultos={ocultos} onToggle={toggleCal}
+            onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda} />
+
+          <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias"
+            itens={(checklists.itens || []).filter((i) => i.lista === "pendencias")}
+            adicionar={checklists.adicionar} alternar={checklists.alternar}
+            editar={checklists.editar} remover={checklists.remover} />
+
+          <ChecklistCard titulo="ASSUNTOS BRIEFING" lista="briefing"
+            itens={(checklists.itens || []).filter((i) => i.lista === "briefing")}
+            adicionar={checklists.adicionar} alternar={checklists.alternar}
+            editar={checklists.editar} remover={checklists.remover} />
+        </div>
 
         <div className="cal-principal">
           {!carregado ? (
