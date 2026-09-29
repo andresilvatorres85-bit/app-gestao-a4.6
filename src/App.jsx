@@ -200,6 +200,7 @@ export default function App() {
           <Suspense fallback={<div className="loading-state">Carregando agenda…</div>}>
             <Calendario eventos={calendario.eventos} calendarios={calendario.calendarios}
               inserir={calendario.inserir} atualizar={calendario.atualizar} excluir={calendario.excluir}
+              excluirOcorrencia={calendario.excluirOcorrencia} atualizarOcorrencia={calendario.atualizarOcorrencia}
               criarAgenda={calendario.criarAgenda} renomearAgenda={calendario.renomearAgenda}
               excluirAgenda={calendario.excluirAgenda} checklists={checklists}
               carregado={calendario.carregado} erro={calendario.erro} />

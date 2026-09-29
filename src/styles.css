@@ -1040,6 +1040,11 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 /* ---- Notas checklist (estilo Google Keep) ---- */
 .chk-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .chk-tit { margin: 2px 4px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); }
+/* PENDÊNCIAS em tom de vermelho; ASSUNTOS BRIEFING em tom de azul. */
+.chk-card-vermelho { background: rgba(198, 84, 63, 0.12); border-color: rgba(198, 84, 63, 0.45); }
+.chk-card-vermelho .chk-tit { color: #E58A79; }
+.chk-card-azul { background: rgba(59, 111, 176, 0.13); border-color: rgba(59, 111, 176, 0.48); }
+.chk-card-azul .chk-tit { color: #7FA9DB; }
 .chk-add { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 8px; border: 1px dashed var(--line-strong); margin-bottom: 8px; }
 .chk-add:focus-within { border-style: solid; border-color: var(--accent, var(--ink)); }
 .chk-add-ico { color: var(--muted); flex: none; }
@@ -1060,6 +1065,10 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .chk-del:hover { opacity: 1; }
 .chk-vazio { margin: 2px 4px; font-size: 12px; color: var(--muted); font-style: italic; }
 .chk-sep { margin: 10px 4px 4px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- Calendário: escopo (esta ocorrência x toda a série) ---- */
+.cal-escopo { display: flex; gap: 8px; flex-wrap: wrap; }
+.cal-escopo .chip { flex: 1; min-width: 140px; justify-content: center; text-align: center; }
 
 /* ---- Calendário: seletor de calendário no modal ---- */
 .cal-sel { position: relative; }

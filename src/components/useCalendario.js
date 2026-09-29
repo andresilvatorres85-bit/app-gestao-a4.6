@@ -14,9 +14,10 @@ export const CALENDARIOS_PADRAO = [
   { id: "cinza", nome: "Cinza", cor: "#6C7A72", pos: 7 },
 ];
 
-const FLAG_SEMEADO = "cal.agendas.semeado";
-const jaSemeado = () => { try { return localStorage.getItem(FLAG_SEMEADO) === "1"; } catch { return false; } };
-const marcarSemeado = () => { try { localStorage.setItem(FLAG_SEMEADO, "1"); } catch { /* ignore */ } };
+// data local (YYYY-MM-DD) de um instante — usada como chave de exceção de
+// recorrência (a ocorrência daquele dia é ignorada/substituída).
+const p2 = (n) => String(n).padStart(2, "0");
+const ymdLocal = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; };
 
 function mapEvento(r) {
   return {
@@ -29,9 +30,12 @@ function mapEvento(r) {
     descricao: r.descricao || "",
     cor: r.cor || "azul",
     recorrencia: r.recorrencia || "nao",
+    excecoes: Array.isArray(r.excecoes) ? r.excecoes : [],
     criadoPor: r.criado_por || "",
   };
 }
+// Payload de gravação. NÃO inclui `excecoes` de propósito: assim um update
+// comum (editar o evento) não apaga as exceções já registradas na série.
 function eventoParaBanco(e) {
   return {
     titulo: (e.titulo || "").trim() || "(sem título)",
@@ -48,7 +52,8 @@ const ordenarCals = (arr) => [...arr].sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0)
 
 // Agenda compartilhada. `eventos` (calendario_eventos) e `calendarios`
 // (calendario_agendas: id, nome, cor, pos) em tempo real. Se a tabela de
-// calendários não existir ou estiver vazia, usa/semeia os padrões.
+// calendários estiver vazia, semeia os padrões (só então dá para renomear/
+// excluir e a mudança persistir). Se a tabela não existir, sinaliza erro.
 export function useCalendario(session) {
   const [eventos, setEventos] = useState([]);
   const [calendarios, setCalendarios] = useState(CALENDARIOS_PADRAO);
@@ -64,23 +69,28 @@ export function useCalendario(session) {
     ]);
     if (!vivoRef.current) return;
     if (ev.error) { setErro(ev.error); setCarregado(true); return; }
-    setErro(null);
     setEventos((ev.data || []).map(mapEvento));
 
     if (ag.error) {
-      // tabela de calendários ainda não existe: mantém os padrões em memória.
+      // tabela de calendários não existe: avisa e mantém os padrões em memória.
+      setErro(ag.error);
       setCalendarios(CALENDARIOS_PADRAO);
-    } else if ((ag.data || []).length > 0) {
-      marcarSemeado();
-      setCalendarios(ordenarCals(ag.data));
-    } else if (podeSemear && !semeandoRef.current && !jaSemeado()) {
-      // primeira vez: semeia os calendários padrão.
-      semeandoRef.current = true;
-      const { data: ins } = await supabase.from("calendario_agendas").insert(CALENDARIOS_PADRAO).select();
-      marcarSemeado();
-      setCalendarios(ordenarCals(ins && ins.length ? ins : CALENDARIOS_PADRAO));
     } else {
-      setCalendarios(CALENDARIOS_PADRAO);
+      setErro(null);
+      if ((ag.data || []).length > 0) {
+        setCalendarios(ordenarCals(ag.data));
+      } else if (podeSemear && !semeandoRef.current) {
+        // tabela vazia: semeia os padrões (upsert é idempotente entre abas).
+        semeandoRef.current = true;
+        const { data: ins } = await supabase
+          .from("calendario_agendas")
+          .upsert(CALENDARIOS_PADRAO, { onConflict: "id", ignoreDuplicates: true })
+          .select();
+        semeandoRef.current = false;
+        if (vivoRef.current) setCalendarios(ordenarCals(ins && ins.length ? ins : CALENDARIOS_PADRAO));
+      } else {
+        setCalendarios(CALENDARIOS_PADRAO);
+      }
     }
     setCarregado(true);
   }, []);
@@ -105,17 +115,48 @@ export function useCalendario(session) {
     return res;
   }, [recarregar]);
 
+  // editar TODA a série (ou um evento simples).
   const atualizar = useCallback(async (id, e) => {
     const res = await supabase.from("calendario_eventos").update(eventoParaBanco(e)).eq("id", id).select().single();
     if (!res.error) recarregar(false);
     return res;
   }, [recarregar]);
 
+  // excluir TODA a série (ou um evento simples).
   const excluir = useCallback(async (id) => {
     const res = await supabase.from("calendario_eventos").delete().eq("id", id);
     if (!res.error) recarregar(false);
     return res;
   }, [recarregar]);
+
+  // ---- recorrência: uma ocorrência específica ----
+  // Acrescenta a data da ocorrência ao array de exceções da série (lê o valor
+  // atual do banco antes de gravar, para não perder exceções concorrentes).
+  const adicionarExcecao = useCallback(async (baseId, ocData) => {
+    const atual = await supabase.from("calendario_eventos").select("excecoes").eq("id", baseId).single();
+    const ex = Array.isArray(atual.data?.excecoes) ? [...atual.data.excecoes] : [];
+    if (!ex.includes(ocData)) ex.push(ocData);
+    return supabase.from("calendario_eventos").update({ excecoes: ex }).eq("id", baseId);
+  }, []);
+
+  // excluir SOMENTE esta ocorrência: vira uma exceção na série.
+  const excluirOcorrencia = useCallback(async (baseId, ocData) => {
+    const res = await adicionarExcecao(baseId, ocData);
+    if (!res.error) recarregar(false);
+    return res;
+  }, [adicionarExcecao, recarregar]);
+
+  // editar SOMENTE esta ocorrência: exclui a ocorrência da série (exceção) e
+  // cria um evento avulso (sem recorrência) com os novos dados.
+  const atualizarOcorrencia = useCallback(async (baseId, ocData, e) => {
+    const exc = await adicionarExcecao(baseId, ocData);
+    if (exc.error) return exc;
+    const { data: sessao } = await supabase.auth.getUser();
+    const rec = { ...eventoParaBanco({ ...e, recorrencia: "nao" }), criado_por: sessao?.user?.email || null };
+    const res = await supabase.from("calendario_eventos").insert(rec).select().single();
+    if (!res.error) recarregar(false);
+    return res;
+  }, [adicionarExcecao, recarregar]);
 
   // ---- calendários ----
   const criarAgenda = useCallback(async ({ nome, cor }) => {
@@ -125,25 +166,30 @@ export function useCalendario(session) {
     const novo = { id, nome: (nome || "").trim() || "Novo calendário", cor, pos };
     setCalendarios((prev) => ordenarCals([...prev, novo]));
     const res = await supabase.from("calendario_agendas").insert(novo).select().single();
-    if (!res.error) recarregar(false);
+    if (res.error) recarregar(false); // desfaz o otimismo se falhou
+    else recarregar(false);
     return res;
   }, [recarregar]);
 
   const renomearAgenda = useCallback(async (id, nome) => {
-    setCalendarios((prev) => prev.map((c) => (c.id === id ? { ...c, nome } : c)));
-    await supabase.from("calendario_agendas").update({ nome: (nome || "").trim() || null }).eq("id", id);
-  }, []);
+    const novo = (nome || "").trim();
+    setCalendarios((prev) => prev.map((c) => (c.id === id ? { ...c, nome: novo } : c)));
+    const res = await supabase.from("calendario_agendas").update({ nome: novo || null }).eq("id", id);
+    if (res.error) recarregar(false); // reverte para o estado do banco se falhou
+    return res;
+  }, [recarregar]);
 
   const excluirAgenda = useCallback(async (id) => {
     setCalendarios((prev) => prev.filter((c) => c.id !== id));
     const res = await supabase.from("calendario_agendas").delete().eq("id", id);
-    if (!res.error) recarregar(false);
+    recarregar(false); // sincroniza (confirma a exclusão ou reverte em caso de erro)
     return res;
   }, [recarregar]);
 
   return {
     eventos, calendarios, carregado, erro,
     inserir, atualizar, excluir,
+    excluirOcorrencia, atualizarOcorrencia,
     criarAgenda, renomearAgenda, excluirAgenda,
   };
 }

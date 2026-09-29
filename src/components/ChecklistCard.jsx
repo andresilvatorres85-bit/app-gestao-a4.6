@@ -4,7 +4,7 @@ import { Plus, X, Check } from "lucide-react";
 // Card de nota em formato de checklist (estilo Google Keep).
 // `lista` é o identificador da lista ("pendencias" | "briefing"); `titulo` é o
 // rótulo exibido. Os itens chegam já filtrados desta lista.
-export default function ChecklistCard({ titulo, lista, itens = [], adicionar, alternar, editar, remover }) {
+export default function ChecklistCard({ titulo, lista, tom, itens = [], adicionar, alternar, editar, remover }) {
   const [novo, setNovo] = useState("");
   const [editId, setEditId] = useState(null);
   const [rascunho, setRascunho] = useState("");
@@ -46,7 +46,7 @@ export default function ChecklistCard({ titulo, lista, itens = [], adicionar, al
   );
 
   return (
-    <section className="chk-card">
+    <section className={`chk-card${tom ? ` chk-card-${tom}` : ""}`}>
       <p className="chk-tit">{titulo}</p>
 
       <div className="chk-add">

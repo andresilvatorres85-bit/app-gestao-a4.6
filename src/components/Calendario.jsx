@@ -82,6 +82,7 @@ function expandir(eventos, rIni, rFim) {
     if (e.inicio == null) continue;
     const rec = e.recorrencia || "nao";
     const dur = (e.fim ?? e.inicio) - e.inicio;
+    const exc = Array.isArray(e.excecoes) ? e.excecoes : [];
     if (rec === "nao") {
       if ((e.fim ?? e.inicio) >= rIni && e.inicio <= rFim) out.push({ ...e, _base: e });
       continue;
@@ -90,7 +91,7 @@ function expandir(eventos, rIni, rFim) {
     while (cur.getTime() + dur < rIni && g < 4000) { cur = passo(cur, rec); g++; }
     while (cur.getTime() <= rFim && g < 4000) {
       const ini = cur.getTime();
-      out.push({ ...e, inicio: ini, fim: ini + dur, _base: e });
+      if (!exc.includes(ymd(ini))) out.push({ ...e, inicio: ini, fim: ini + dur, _base: e });
       cur = passo(cur, rec); g++;
     }
   }
@@ -100,6 +101,7 @@ function expandir(eventos, rIni, rFim) {
 // =========================================================================
 export default function Calendario({
   eventos = [], calendarios = [], inserir, atualizar, excluir,
+  excluirOcorrencia, atualizarOcorrencia,
   criarAgenda, renomearAgenda, excluirAgenda,
   checklists = {}, carregado, erro, vistaInicial = "semana",
 }) {
@@ -170,10 +172,16 @@ export default function Calendario({
   }
   function editarEvento(oc) {
     const e = oc._base || oc;
+    const recorrente = (e.recorrencia || "nao") !== "nao";
+    // usa a data/hora DESTA ocorrência (para editar "somente este" fazer sentido).
+    const ini = recorrente ? oc.inicio : e.inicio;
+    const fim = recorrente ? (oc.fim ?? oc.inicio) : (e.fim ?? e.inicio);
     setModal({
-      id: e.id, titulo: e.titulo, diaInteiro: e.diaInteiro, recorrencia: e.recorrencia || "nao",
-      dataInicio: ymd(e.inicio), horaInicio: hm(e.inicio),
-      dataFim: ymd(e.fim ?? e.inicio), horaFim: hm(e.fim ?? e.inicio),
+      id: e.id, baseId: e.id, recorrente, ocData: ymd(ini),
+      baseInicio: e.inicio, baseFim: e.fim ?? e.inicio,
+      titulo: e.titulo, diaInteiro: e.diaInteiro, recorrencia: e.recorrencia || "nao",
+      dataInicio: ymd(ini), horaInicio: hm(ini),
+      dataFim: ymd(fim), horaFim: hm(fim),
       local: e.local || "", descricao: e.descricao || "", cor: e.cor || primeiroCal,
     });
   }
@@ -211,12 +219,12 @@ export default function Calendario({
             calendarios={calendarios} ocultos={ocultos} onToggle={toggleCal}
             onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda} />
 
-          <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias"
+          <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias" tom="vermelho"
             itens={(checklists.itens || []).filter((i) => i.lista === "pendencias")}
             adicionar={checklists.adicionar} alternar={checklists.alternar}
             editar={checklists.editar} remover={checklists.remover} />
 
-          <ChecklistCard titulo="ASSUNTOS BRIEFING" lista="briefing"
+          <ChecklistCard titulo="ASSUNTOS BRIEFING" lista="briefing" tom="azul"
             itens={(checklists.itens || []).filter((i) => i.lista === "briefing")}
             adicionar={checklists.adicionar} alternar={checklists.alternar}
             editar={checklists.editar} remover={checklists.remover} />
@@ -241,12 +249,22 @@ export default function Calendario({
         <ModalEvento
           estado={modal} calendarios={calendarios} estilo={estilo} nomeCal={nomeCal}
           onFechar={() => setModal(null)}
-          onSalvar={async (e, dados) => {
-            const res = e.id ? await atualizar(e.id, montarPayload(dados)) : await inserir(montarPayload(dados));
+          onSalvar={async (e, dados, escopo) => {
+            let res;
+            if (!e.id) res = await inserir(montarPayload(dados));
+            else if (e.recorrente && escopo === "este") res = await atualizarOcorrencia(e.baseId, e.ocData, montarPayload(dados));
+            else if (e.recorrente) res = await atualizar(e.id, montarPayloadSerie(dados, e));
+            else res = await atualizar(e.id, montarPayload(dados));
             if (!res?.error) setModal(null);
             return res;
           }}
-          onExcluir={async (id) => { await excluir(id); setModal(null); }}
+          onExcluir={async (e, escopo) => {
+            const res = (e.recorrente && escopo === "este")
+              ? await excluirOcorrencia(e.baseId, e.ocData)
+              : await excluir(e.id);
+            if (!res?.error) setModal(null);
+            return res;
+          }}
         />
       )}
     </div>
@@ -262,6 +280,15 @@ function montarPayload(d) {
   let fim = combinar(d.dataFim || d.dataInicio, d.horaFim || d.horaInicio);
   if (fim <= ini) fim = ini + 3600000;
   return { ...comum, diaInteiro: false, inicio: ini, fim };
+}
+
+// Editar a série INTEIRA a partir de uma ocorrência: aplica os campos do form,
+// mas mantém a DATA de início/fim originais (a âncora da recorrência), para não
+// apagar as ocorrências anteriores. O horário do dia, sim, é atualizado.
+function montarPayloadSerie(d, estado) {
+  const dataInicio = ymd(estado.baseInicio);
+  const dataFim = ymd(estado.baseFim ?? estado.baseInicio);
+  return montarPayload({ ...d, dataInicio, dataFim });
 }
 
 // ---------------------------------------------------- Barra de calendários
@@ -500,13 +527,15 @@ function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar,
   const [f, setF] = useState(estado);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  // "este" = só esta ocorrência; "todos" = a série inteira (só p/ recorrentes).
+  const [escopo, setEscopo] = useState("este");
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
   async function salvar(ev) {
     ev.preventDefault();
     if (!f.titulo.trim()) { setErro("Dê um título ao evento."); return; }
     setSalvando(true);
-    const res = await onSalvar(estado, f);
+    const res = await onSalvar(estado, f, escopo);
     setSalvando(false);
     if (res?.error) setErro("Não foi possível salvar: " + (res.error.message || "erro"));
   }
@@ -550,6 +579,18 @@ function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar,
             </select>
           </div>
 
+          {estado.recorrente && (
+            <div className="cal-campo">
+              <span className="cal-campo-rot"><Repeat size={13} /> Aplicar em</span>
+              <div className="cal-escopo">
+                <button type="button" className={`chip ${escopo === "este" ? "chip-active" : ""}`}
+                  onClick={() => setEscopo("este")}>Somente este evento</button>
+                <button type="button" className={`chip ${escopo === "todos" ? "chip-active" : ""}`}
+                  onClick={() => setEscopo("todos")}>Todos os eventos</button>
+              </div>
+            </div>
+          )}
+
           <div className="cal-campo">
             <span className="cal-campo-rot">Calendário</span>
             <SeletorCalendario calendarios={calendarios} valor={f.cor} estilo={estilo} nomeCal={nomeCal}
@@ -571,7 +612,7 @@ function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar,
 
         <div className="modal-rodape">
           {estado.id
-            ? <button type="button" className="btn btn-ghost cal-excluir" onClick={() => onExcluir(estado.id)}><Trash2 size={15} /> Excluir</button>
+            ? <button type="button" className="btn btn-ghost cal-excluir" onClick={() => onExcluir(estado, escopo)}><Trash2 size={15} /> {estado.recorrente && escopo === "este" ? "Excluir este" : "Excluir"}</button>
             : <span />}
           <div className="cal-modal-acoes">
             <button type="button" className="btn btn-ghost" onClick={onFechar}>Cancelar</button>
