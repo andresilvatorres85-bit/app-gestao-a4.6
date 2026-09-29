@@ -7,6 +7,7 @@ import { useUsuarios, nomePorEmail } from "./components/useUsuarios.js";
 import { useObjetoEmendas } from "./components/useObjetoEmendas.js";
 import { useProposicoes } from "./components/useProposicoes.js";
 import { useCalendario } from "./components/useCalendario.js";
+import { useChecklists } from "./components/useChecklists.js";
 import ObjetoEmenda from "./components/ObjetoEmenda.jsx";
 import bgImage from "./bg.jpg";
 import brasao from "./brasao.png";
@@ -75,6 +76,7 @@ export default function App() {
   const objetoEmendas = useObjetoEmendas(session);
   const proposicoes = useProposicoes(session);
   const calendario = useCalendario(session);
+  const checklists = useChecklists(session);
 
   const emailAtual = session?.user?.email || null;
   const autorAtual = nomePorEmail(usuarios, emailAtual);
@@ -199,7 +201,7 @@ export default function App() {
             <Calendario eventos={calendario.eventos} calendarios={calendario.calendarios}
               inserir={calendario.inserir} atualizar={calendario.atualizar} excluir={calendario.excluir}
               criarAgenda={calendario.criarAgenda} renomearAgenda={calendario.renomearAgenda}
-              excluirAgenda={calendario.excluirAgenda}
+              excluirAgenda={calendario.excluirAgenda} checklists={checklists}
               carregado={calendario.carregado} erro={calendario.erro} />
           </Suspense>
         ) : aba === "loa" ? (

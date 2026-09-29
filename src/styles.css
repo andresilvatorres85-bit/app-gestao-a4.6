@@ -878,7 +878,7 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 @keyframes girar { to { transform: rotate(360deg); } }
 
 /* ============================ Calendário ============================ */
-.cal-wrap { max-width: 1320px; display: flex; flex-direction: column; gap: 12px; }
+.cal-wrap { max-width: none; display: flex; flex-direction: column; gap: 12px; }
 .cal-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
 }
@@ -1005,6 +1005,7 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 
 @media (max-width: 860px) {
   .cal-corpo { flex-direction: column; }
+  .cal-lateral { flex: none; width: 100%; }
   .cal-cals { flex: none; width: 100%; }
   .cal-cals-lista { flex-flow: row wrap; }
   .cal-cals-item { width: calc(50% - 4px); }
@@ -1031,6 +1032,34 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .cal-cores-novo { gap: 7px; }
 .cal-cores-novo .cal-cor { width: 22px; height: 22px; }
 .cal-cals-novo-acoes { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* ---- Calendário: coluna lateral (calendários + notas checklist) ---- */
+.cal-lateral { flex: 0 0 208px; display: flex; flex-direction: column; gap: 14px; }
+.cal-lateral .cal-cals { flex: none; width: 100%; }
+
+/* ---- Notas checklist (estilo Google Keep) ---- */
+.chk-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.chk-tit { margin: 2px 4px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); }
+.chk-add { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 8px; border: 1px dashed var(--line-strong); margin-bottom: 8px; }
+.chk-add:focus-within { border-style: solid; border-color: var(--accent, var(--ink)); }
+.chk-add-ico { color: var(--muted); flex: none; }
+.chk-add-in { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); outline: none; }
+.chk-add-in::placeholder { color: var(--muted); }
+.chk-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.chk-lista-feitos { opacity: 0.85; }
+.chk-item { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 7px; }
+.chk-item:hover { background: var(--surface-hi); }
+.chk-box { flex: none; width: 17px; height: 17px; border-radius: 5px; border: 2px solid var(--line-strong); background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: #fff; padding: 0; }
+.chk-box:hover { border-color: var(--ink); }
+.chk-item-feito .chk-box { background: var(--muted); border-color: var(--muted); }
+.chk-txt { flex: 1; min-width: 0; border: 0; background: transparent; cursor: text; font: inherit; font-size: 13px; color: var(--ink); text-align: left; padding: 2px 0; white-space: normal; word-break: break-word; }
+.chk-item-feito .chk-txt { text-decoration: line-through; color: var(--muted); }
+.chk-edit { flex: 1; min-width: 0; padding: 4px 7px; font-size: 13px; }
+.chk-del { opacity: 0; flex: none; width: 24px; height: 24px; }
+.chk-item:hover .chk-del { opacity: 0.75; }
+.chk-del:hover { opacity: 1; }
+.chk-vazio { margin: 2px 4px; font-size: 12px; color: var(--muted); font-style: italic; }
+.chk-sep { margin: 10px 4px 4px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
 
 /* ---- Calendário: seletor de calendário no modal ---- */
 .cal-sel { position: relative; }
