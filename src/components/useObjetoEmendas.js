@@ -18,9 +18,21 @@ function mapRow(r) {
     gabinete: r.gabinete,
     telefone: r.telefone,
     email: r.email,
+    aoDados: r.ao_dados || null,
     autor: r.autor,
     criadoEm: r.criado_em ? new Date(r.criado_em).getTime() : null,
   };
+}
+
+// Executa a gravação; se a coluna ao_dados ainda não existir no banco, remove-a
+// e tenta de novo (o registro é salvo sem os detalhes do AO, sem quebrar).
+async function gravarComFallback(fazer, rec) {
+  let res = await fazer(rec);
+  if (res.error && /ao_dados/i.test(res.error.message || "")) {
+    const { ao_dados, ...semAo } = rec; // eslint-disable-line no-unused-vars
+    res = await fazer(semAo);
+  }
+  return res;
 }
 
 // Lista compartilhada das retificações de objeto de emenda (botão "Objeto
@@ -71,9 +83,10 @@ export function useObjetoEmendas(session) {
       gabinete: d.gabinete?.trim() || null,
       telefone: d.telefone?.trim() || null,
       email: d.email?.trim() || null,
+      ao_dados: d.aoDados ?? null,
       autor: d.autor || null,
     };
-    const res = await supabase.from("objeto_emendas").insert(rec).select().single();
+    const res = await gravarComFallback((r) => supabase.from("objeto_emendas").insert(r).select().single(), rec);
     if (!res.error) recarregar();
     return res;
   }, [recarregar]);
@@ -96,8 +109,9 @@ export function useObjetoEmendas(session) {
       gabinete: d.gabinete?.trim() || null,
       telefone: d.telefone?.trim() || null,
       email: d.email?.trim() || null,
+      ao_dados: d.aoDados ?? null,
     };
-    const res = await supabase.from("objeto_emendas").update(rec).eq("id", id).select().single();
+    const res = await gravarComFallback((r) => supabase.from("objeto_emendas").update(r).eq("id", id).select().single(), rec);
     if (!res.error) recarregar();
     return res;
   }, [recarregar]);
