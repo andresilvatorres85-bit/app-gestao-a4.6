@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText } from "lucide-react";
+import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays } from "lucide-react";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
 import { useUsuarios, nomePorEmail } from "./components/useUsuarios.js";
 import { useObjetoEmendas } from "./components/useObjetoEmendas.js";
 import { useProposicoes } from "./components/useProposicoes.js";
+import { useCalendario } from "./components/useCalendario.js";
 import ObjetoEmenda from "./components/ObjetoEmenda.jsx";
 import bgImage from "./bg.jpg";
 import brasao from "./brasao.png";
@@ -22,6 +23,8 @@ const Loa = lazy(() => import("./components/Loa.jsx"));
 const Cartilhas = lazy(() => import("./components/Cartilhas.jsx"));
 // A aba Proposições controla as proposições legislativas de interesse orçamentário.
 const Proposicoes = lazy(() => import("./components/Proposicoes.jsx"));
+// A aba Calendário: agenda compartilhada da A4.6 (estilo Google Agenda).
+const Calendario = lazy(() => import("./components/Calendario.jsx"));
 
 // Converte uma linha da tabela "registros" (Supabase) para o formato interno
 // enxuto usado pelos componentes (mesmas chaves do histórico da planilha).
@@ -38,6 +41,7 @@ function mapDbRow(row) {
 
 // Abas principais do aplicativo
 const ABAS = [
+  { id: "calendario", label: "CALENDÁRIO", icon: CalendarDays },
   { id: "metricas", label: "MÉTRICAS", icon: Gauge },
   { id: "lexor", label: "LEXOR", icon: FileText },
   { id: "loa", label: "LOA", icon: Landmark },
@@ -56,7 +60,7 @@ const NAV = [
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = carregando, null = deslogado
-  const [aba, setAba] = useState("metricas");
+  const [aba, setAba] = useState("calendario"); // módulo inicial ao abrir o app
   const headerRef = useRef(null);
   const subnavRef = useRef(null);
   const [view, setView] = useState("dashboard");
@@ -70,6 +74,7 @@ export default function App() {
   const { usuarios, carregado: usuariosCarregados } = useUsuarios(session);
   const objetoEmendas = useObjetoEmendas(session);
   const proposicoes = useProposicoes(session);
+  const calendario = useCalendario(session);
 
   const emailAtual = session?.user?.email || null;
   const autorAtual = nomePorEmail(usuarios, emailAtual);
@@ -189,7 +194,13 @@ export default function App() {
       )}
 
       <main className={`main${aba === "loa" ? " main-loa" : aba === "cartilhas" ? " main-cartilhas" : ""}`}>
-        {aba === "loa" ? (
+        {aba === "calendario" ? (
+          <Suspense fallback={<div className="loading-state">Carregando agenda…</div>}>
+            <Calendario eventos={calendario.eventos} inserir={calendario.inserir}
+              atualizar={calendario.atualizar} excluir={calendario.excluir}
+              carregado={calendario.carregado} erro={calendario.erro} />
+          </Suspense>
+        ) : aba === "loa" ? (
           <Suspense fallback={<div className="loading-state">Carregando Análise LOA…</div>}>
             <Loa />
           </Suspense>

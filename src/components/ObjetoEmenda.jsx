@@ -192,11 +192,10 @@ export default function ObjetoEmenda({
           </Field>
 
           <Field label="Cargo" hint={casaSenado ? "Gera o ofício no modelo do Senado. Confira o gênero." : "Confira o gênero (do/da). Preenchido pela seleção."}>
-            <input className="input" list="cargos-list" value={f.cargo} onChange={set("cargo")}
-              placeholder="Deputado Federal" />
-            <datalist id="cargos-list">
-              {CARGOS.map((c) => <option key={c} value={c} />)}
-            </datalist>
+            <select className="input" value={CARGOS.includes(f.cargo) ? f.cargo : ""} onChange={set("cargo")}>
+              <option value="">—</option>
+              {CARGOS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
           </Field>
 
           <Field label="Partido">
