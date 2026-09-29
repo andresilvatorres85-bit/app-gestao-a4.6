@@ -25,7 +25,11 @@ export default function TabelaPropostas({
   vazio = "Nenhuma proposta encontrada com esses filtros.",
 }) {
   const colunas = consolidadora ? 11 : 10;
-  const todosMarcados = itens.length > 0 && itens.every(p => selecionadas.has(p.nr));
+  // Identidade de SELEÇÃO/linha = uid (a mesma proposta pode aparecer para
+  // vários parlamentares, com o mesmo nr). O status e as ações da consolidadora
+  // continuam por nr (são do projeto, não da linha).
+  const chave = p => p.uid || p.nr;
+  const todosMarcados = itens.length > 0 && itens.every(p => selecionadas.has(chave(p)));
 
   return (
     <div className="table-wrap">
@@ -55,10 +59,10 @@ export default function TabelaPropostas({
             const sit = situacaoDe(p);
             const status = statusLexor[p.nr] || STATUS_LEXOR_PADRAO;
             return (
-              <tr key={p.nr} className={selecionadas.has(p.nr) ? "row-sel" : ""}>
+              <tr key={chave(p)} className={selecionadas.has(chave(p)) ? "row-sel" : ""}>
                 <td className="col-check">
-                  <button className="icon-btn" onClick={() => aoAlternar(p.nr)}>
-                    {selecionadas.has(p.nr) ? <CheckSquare size={15} /> : <Square size={15} />}
+                  <button className="icon-btn" onClick={() => aoAlternar(chave(p))}>
+                    {selecionadas.has(chave(p)) ? <CheckSquare size={15} /> : <Square size={15} />}
                   </button>
                 </td>
                 <td className="col-acao">

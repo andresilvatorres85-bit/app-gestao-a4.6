@@ -36,6 +36,18 @@ FONTE_URL = os.environ.get(
 LOCAL_XLSX = os.environ.get("LEXOR_XLSX", str(RAIZ / "Controle_LEXOR.xlsx"))
 DESTINO = str(RAIZ / "src" / "data" / "lexor.js")
 
+# Segunda fonte: "Prospecção de Propostas de Emendas.xlsx", no mesmo repositório.
+# Dela saem, por Nr Proposta, o Parlamentar, o Partido e os Valores Negociados
+# (GND 3, GND 4 e Total). A mesma proposta pode aparecer em várias linhas —
+# uma por parlamentar prospectado — e cada linha vira uma proposta no app.
+PROSPEC_URL = os.environ.get(
+    "PROSPEC_XLSX_URL",
+    "https://raw.githubusercontent.com/andresilvatorres85-bit/"
+    "dados-gestao-a4.6/main/Prospec%C3%A7%C3%A3o%20de%20Propostas%20de%20Emendas.xlsx",
+)
+LOCAL_PROSPEC = os.environ.get(
+    "PROSPEC_XLSX", str(RAIZ / "Prospecção de Propostas de Emendas.xlsx"))
+
 
 def obter_planilha():
     """Devolve o caminho do xlsx a processar.
@@ -54,6 +66,46 @@ def obter_planilha():
     with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
         f.write(r.read())
     return tmp
+
+
+def obter_prospeccao():
+    """Devolve o caminho do xlsx de Prospecção (local, se existir; senão baixa)."""
+    if os.path.isfile(LOCAL_PROSPEC):
+        print(f"Prospecção local: {LOCAL_PROSPEC}")
+        return LOCAL_PROSPEC
+    print(f"Baixando Prospecção de: {PROSPEC_URL}")
+    fd, tmp = tempfile.mkstemp(suffix=".xlsx")
+    os.close(fd)
+    req = urllib.request.Request(PROSPEC_URL, headers={"User-Agent": "gerar_lexor"})
+    with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
+        f.write(r.read())
+    return tmp
+
+
+def carregar_prospeccao():
+    """Lê a Prospecção e devolve { nr: [ {parlamentar, partido, gnd3n, gnd4n,
+    totaln}, ... ] }. Uma entrada por linha da planilha — a mesma proposta pode
+    ter várias, uma por parlamentar prospectado. Colunas (1-based): Nr Proposta
+    (2), Parlamentar (16), Partido (17), Valor Negociado GND 3 (19), GND 4 (20),
+    Total (21)."""
+    origem = obter_prospeccao()
+    wb = openpyxl.load_workbook(origem, data_only=True, read_only=True)
+    ws = wb["Sheet1"] if "Sheet1" in wb.sheetnames else wb[wb.sheetnames[0]]
+    por_nr = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        nr = limpa(row[1]) if len(row) > 1 else ""
+        if not nr:
+            continue
+        entrada = {
+            "parlamentar": limpa(row[15]) if len(row) > 15 else "",
+            "partido": (limpa(row[16]).upper() if len(row) > 16 else ""),
+            "gnd3n": num(row[18]) if len(row) > 18 else 0,
+            "gnd4n": num(row[19]) if len(row) > 19 else 0,
+            "totaln": num(row[20]) if len(row) > 20 else 0,
+        }
+        por_nr.setdefault(nr, []).append(entrada)
+    wb.close()
+    return por_nr
 
 # Siglas que devem continuar em caixa alta ao converter texto de CAIXA ALTA
 SIGLAS = {
@@ -179,6 +231,7 @@ RP_POR_TIPO = {"Emenda Individual": "6", "Emenda de Bancada": "7", "Emenda de Co
 
 
 def main():
+    prospec = carregar_prospeccao()
     origem = obter_planilha()
     wb = openpyxl.load_workbook(origem, data_only=True)
 
@@ -228,14 +281,11 @@ def main():
         tipo, repetida = classifica_tipo(ws.cell(r, 2).value)
         uo_cod = fp.get("uo", "") or acoes.get(acao, {}).get("uoCod", "")
 
-        # Valores originais (M/N/O) e negociados (AG/AH/AI). O espelho usa os
-        # negociados; se o par negociado estiver zerado, cai nos originais.
+        # Valores ORIGINAIS (M/N/O) vêm do Controle_LEXOR. Os NEGOCIADOS e o
+        # Parlamentar/Partido passam a vir da Prospecção (ver expansão abaixo).
         gnd3 = num(ws.cell(r, 13).value)
         gnd4 = num(ws.cell(r, 14).value)
-        gnd3n = num(ws.cell(r, 33).value)
-        gnd4n = num(ws.cell(r, 34).value)
         total = num(ws.cell(r, 15).value) or (gnd3 + gnd4)
-        totaln = num(ws.cell(r, 35).value)
 
         registro = {
             "nr": nr,
@@ -256,10 +306,7 @@ def main():
             "subtitulo": fp.get("subtitulo") or "XXXX",
             "gnd3": gnd3,
             "gnd4": gnd4,
-            "gnd3n": gnd3n,
-            "gnd4n": gnd4n,
             "total": total,
-            "totaln": totaln,
             "justificativa": frase(ws.cell(r, 16).value),
             "cmdo": limpa(ws.cell(r, 21).value),
             "catalogo": limpa(ws.cell(r, 22).value),
@@ -268,16 +315,33 @@ def main():
             "fp": limpa(fp_bruta),
             "obs": limpa(ws.cell(r, 26).value),
             "status": limpa(ws.cell(r, 29).value),
-            "parlamentar": limpa(ws.cell(r, 30).value),
-            "partido": limpa(ws.cell(r, 31).value).upper(),
             "rp": RP_POR_TIPO.get(tipo, "6"),
             "exportado": limpa(ws.cell(r, 40).value),
         }
         # descarta linhas em branco da planilha (só têm o Nr Proposta preenchido)
         if not registro["beneficiario"] and not registro["objeto"] and not registro["acao"]:
             continue
-        # omite chaves vazias para reduzir o tamanho do pacote enviado ao navegador
-        props.append({k: v for k, v in registro.items() if v not in ("", 0)})
+
+        # Expansão pela Prospecção: uma proposta por parlamentar prospectado.
+        # Sem correspondência, entra uma vez só (sem parlamentar/negociados).
+        corresps = prospec.get(nr, [])
+        if not corresps:
+            corresps = [{}]
+        n = len(corresps)
+        for k, extra in enumerate(corresps):
+            rec = dict(registro)
+            rec["parlamentar"] = extra.get("parlamentar", "")
+            rec["partido"] = extra.get("partido", "")
+            rec["gnd3n"] = extra.get("gnd3n", 0)
+            rec["gnd4n"] = extra.get("gnd4n", 0)
+            rec["totaln"] = extra.get("totaln", 0)
+            # id único: nr quando não duplica; nr#k quando a mesma proposta se
+            # repete para vários parlamentares (necessário na seleção/espelho).
+            uid = nr if n == 1 else f"{nr}#{k + 1}"
+            # omite chaves vazias para reduzir o pacote; uid é sempre mantido.
+            enxuto = {kk: vv for kk, vv in rec.items() if vv not in ("", 0)}
+            enxuto["uid"] = uid
+            props.append(enxuto)
 
     # ---------- relatório de consistência ----------
     sem_acao = [p["nr"] for p in props if not p.get("acao") or p.get("acao") not in acoes]
@@ -291,6 +355,10 @@ def main():
 
     cab = f"""// GERADO AUTOMATICAMENTE a partir de Controle_LEXOR.xlsx — não editar à mão.
 // Fonte: repositório dados-gestao-a4.6 (branch main).
+// Parlamentar, Partido e os Valores Negociados (GND 3, GND 4 e Total) vêm da
+// planilha "Prospecção de Propostas de Emendas.xlsx" (mesmo repositório), por
+// Nr Proposta. Quando a mesma proposta foi prospectada para vários
+// parlamentares, ela é duplicada — uma linha por parlamentar (campo `uid`).
 // Atualização automática: workflow diário do GitHub Actions (06:00 BRT) baixa a
 // planilha, roda gerar_lexor.py e publica. Para atualizar na hora, dispare o
 // workflow "Deploy no GitHub Pages" manualmente (workflow_dispatch).

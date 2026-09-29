@@ -126,9 +126,13 @@ export default function Lexor() {
   const totalPaginasDesc = Math.max(1, Math.ceil(listaDesconsideradas.length / PAGE_SIZE));
   const pageDesc = listaDesconsideradas.slice((paginaDesc - 1) * PAGE_SIZE, paginaDesc * PAGE_SIZE);
 
+  // Identidade de seleção/linha: uid (a mesma proposta pode aparecer para
+  // vários parlamentares, com o mesmo nr). Status/consolidadas seguem por nr.
+  const chaveDe = p => p.uid || p.nr;
+
   async function juntarSelecionadas() {
     setErroJuntar("");
-    const escolhidas = PROPOSTAS_LEXOR.filter(p => selecionadas.has(p.nr));
+    const escolhidas = PROPOSTAS_LEXOR.filter(p => selecionadas.has(chaveDe(p)));
     const veredito = podeJuntar(escolhidas);
     if (!veredito.ok) { setErroJuntar(veredito.erro); return; }
 
@@ -229,33 +233,37 @@ export default function Lexor() {
     exportarTabelaLexorPdf(filtradas, situacao, { escopo });
   }
 
-  function alternar(nr) {
+  function alternar(id) {
     setSelecionadas(prev => {
       const s = new Set(prev);
-      s.has(nr) ? s.delete(nr) : s.add(nr);
+      s.has(id) ? s.delete(id) : s.add(id);
       return s;
     });
   }
 
   function alternarPagina() {
-    const todosNaPagina = pageItems.every(p => selecionadas.has(p.nr));
+    const todosNaPagina = pageItems.every(p => selecionadas.has(chaveDe(p)));
     setSelecionadas(prev => {
       const s = new Set(prev);
-      for (const p of pageItems) todosNaPagina ? s.delete(p.nr) : s.add(p.nr);
+      for (const p of pageItems) todosNaPagina ? s.delete(chaveDe(p)) : s.add(chaveDe(p));
       return s;
     });
   }
 
   function abrirSelecionadas() {
     const lista = [...filtradas, ...todasConsolidadas, ...listaDesconsideradas]
-      .filter(p => selecionadas.has(p.nr));
+      .filter(p => selecionadas.has(chaveDe(p)));
     if (lista.length) setEspelhosDe(lista);
   }
 
   // ---------------------------------------------------------------- espelhos
   if (espelhosDe) {
+    // No arquivo de um espelho só, inclui o parlamentar quando a proposta foi
+    // prospectada para vários (mesmo nr) — assim cada espelho sai identificável.
+    const slug = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
     const nomeArquivo = espelhosDe.length === 1
-      ? `espelho-${espelhosDe[0].nr}`
+      ? `espelho-${espelhosDe[0].nr}${espelhosDe[0].parlamentar ? "-" + slug(espelhosDe[0].parlamentar) : ""}`
       : `espelhos-lexor-${exercicio}`;
     return (
       <div className="view-pad lexor-espelhos">
@@ -280,7 +288,7 @@ export default function Lexor() {
 
         <div className="espelho-area">
           {espelhosDe.map(p => (
-            <Espelho key={p.nr} proposta={p} exercicio={exercicio} />
+            <Espelho key={chaveDe(p)} proposta={p} exercicio={exercicio} />
           ))}
         </div>
       </div>
@@ -420,10 +428,10 @@ export default function Lexor() {
         selecionadas={selecionadas}
         aoAlternar={alternar}
         aoAlternarTodos={() => {
-          const todos = listaConsolidadas.every(p => selecionadas.has(p.nr));
+          const todos = listaConsolidadas.every(p => selecionadas.has(chaveDe(p)));
           setSelecionadas(prev => {
             const set = new Set(prev);
-            for (const p of listaConsolidadas) todos ? set.delete(p.nr) : set.add(p.nr);
+            for (const p of listaConsolidadas) todos ? set.delete(chaveDe(p)) : set.add(chaveDe(p));
             return set;
           });
         }}
@@ -452,10 +460,10 @@ export default function Lexor() {
         selecionadas={selecionadas}
         aoAlternar={alternar}
         aoAlternarTodos={() => {
-          const todos = pageDesc.every(p => selecionadas.has(p.nr));
+          const todos = pageDesc.every(p => selecionadas.has(chaveDe(p)));
           setSelecionadas(prev => {
             const set = new Set(prev);
-            for (const p of pageDesc) todos ? set.delete(p.nr) : set.add(p.nr);
+            for (const p of pageDesc) todos ? set.delete(chaveDe(p)) : set.add(chaveDe(p));
             return set;
           });
         }}
