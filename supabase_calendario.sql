@@ -65,6 +65,10 @@ create policy "agendas_delete_autenticados"
   on public.calendario_agendas for delete to authenticated using (true);
 
 -- ===== realtime (o app escuta mudanças em tempo real) =====
--- Ignore erro "already member of publication" se aparecer.
-alter publication supabase_realtime add table public.calendario_eventos;
-alter publication supabase_realtime add table public.calendario_agendas;
+-- Em blocos DO para não falhar se a tabela já estiver na publicação.
+do $$ begin
+  alter publication supabase_realtime add table public.calendario_eventos;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.calendario_agendas;
+exception when duplicate_object then null; end $$;
