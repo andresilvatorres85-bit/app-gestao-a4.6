@@ -41,9 +41,11 @@ function celulaAlteracoes(it) {
   if (tipos.includes(AJUSTE_GND)) {
     const de = (it.aoDados?.gndDe || "").trim();
     const para = (it.aoDados?.gndPara || "").trim();
-    if (de || para) {
+    const valor = (it.aoDados?.aoValor || "").trim();
+    if (de || para || valor) {
+      const v = valor || "—";
       return (
-        <>De “GND <strong>{de || "—"}</strong>” para “GND <strong>{para || "—"}</strong>”</>
+        <>De “{v} em GND{de || "—"}” para “{v} em GND{para || "—"}”.</>
       );
     }
   }
