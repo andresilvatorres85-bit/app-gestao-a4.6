@@ -828,8 +828,8 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 
 /* Largura fixa de colunas: sem isso os textos longos (ementa/tramitação) se
    sobrepõem e desalinham as demais colunas. */
-.tbl-prop { min-width: 1340px; table-layout: fixed; }
-.tbl-prop .c-prop { width: 116px; }
+.tbl-prop { min-width: 1388px; table-layout: fixed; }
+.tbl-prop .c-prop { width: 132px; }
 .tbl-prop .c-tipo { width: 52px; }
 .tbl-prop .c-casa { width: 64px; }
 .tbl-prop .c-ementa { width: 250px; }
@@ -838,7 +838,7 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .tbl-prop .c-relator { width: 140px; }
 .tbl-prop .c-assessor { width: 118px; }
 .tbl-prop .c-status { width: 118px; }
-.tbl-prop .c-acoes { width: 84px; }
+.tbl-prop .c-acoes { width: 116px; }
 /* As células continuam sendo table-cell; o corte multilinha vai numa div
    interna (.lc) — pôr -webkit-box no próprio <td> quebra o table-layout. */
 .tbl-prop td, .tbl-prop th { overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
@@ -848,10 +848,14 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .lc-2 { -webkit-line-clamp: 2; }
 .lc-3 { -webkit-line-clamp: 3; }
 
-.prop-nr { white-space: nowrap; }
-.prop-nr .prop-bolinha { margin-right: 7px; vertical-align: middle; }
-.prop-link { color: var(--brand-hi); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
-.prop-link:hover { text-decoration: underline; }
+.prop-nr .prop-bolinha { margin-right: 7px; vertical-align: middle; flex: none; }
+/* nome da proposição sempre legível (o link antes usava um verde de baixo
+   contraste, o que deixava MPV/PL quase invisíveis); o ícone é que dá a dica
+   de link externo. Permite quebrar em 2 linhas para não cortar o número. */
+.prop-nr { display: flex; align-items: baseline; gap: 0; }
+.prop-link { color: var(--ink); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; word-break: break-word; }
+.prop-link:hover { text-decoration: underline; color: var(--brand-hi); }
+.prop-link svg { color: var(--brand-hi); flex: none; }
 .prop-tram-col { font-size: 12px; color: var(--muted); }
 .prop-assessor { white-space: normal; }
 .prop-chip {
