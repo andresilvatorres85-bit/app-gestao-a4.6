@@ -8,7 +8,6 @@ import { useObjetoEmendas } from "./components/useObjetoEmendas.js";
 import { useProposicoes } from "./components/useProposicoes.js";
 import { useCalendario } from "./components/useCalendario.js";
 import { useChecklists } from "./components/useChecklists.js";
-import { useLegislacao } from "./components/useLegislacao.js";
 import ObjetoEmenda from "./components/ObjetoEmenda.jsx";
 import bgImage from "./bg.jpg";
 import brasao from "./brasao.png";
@@ -81,7 +80,6 @@ export default function App() {
   const proposicoes = useProposicoes(session);
   const calendario = useCalendario(session);
   const checklists = useChecklists(session);
-  const legislacao = useLegislacao(session);
 
   const emailAtual = session?.user?.email || null;
   const autorAtual = nomePorEmail(usuarios, emailAtual);
@@ -221,7 +219,7 @@ export default function App() {
           </Suspense>
         ) : aba === "conhecimento" ? (
           <Suspense fallback={<div className="loading-state">Carregando conhecimento…</div>}>
-            <Conhecimento legislacao={legislacao} />
+            <Conhecimento session={session} />
           </Suspense>
         ) : aba === "lexor" ? (
           <Suspense fallback={<div className="loading-state">Carregando propostas…</div>}>
