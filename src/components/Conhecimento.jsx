@@ -1,24 +1,40 @@
 import { useState, useMemo } from "react";
 import { ExternalLink, Plus, Pencil, Trash2, X, Save } from "lucide-react";
+import { useLegislacao } from "./useLegislacao.js";
+import { useRecebimento } from "./useRecebimento.js";
+import { useContatos } from "./useContatos.js";
+import Recebimento from "./Recebimento.jsx";
+import Contatos from "./Contatos.jsx";
 
 // Cores por tipo de legislação (na ordem das seções). Cada seção usa uma cor
 // no título e na borda/realce dos seus cards.
 const PALETA_SECOES = ["#3B6FB0", "#3F9D6B", "#C6543F", "#7A5AC2", "#C79A3A", "#3AA6A6", "#C25A93"];
+// Seções padrão de legislação (opções da lista suspensa ao criar/editar).
+const SECOES_PADRAO = ["Legislação principal", "Legislação de emendas", "Execução orçamentária", "Legislação complementar"];
 
-// Módulo CONHECIMENTO. Por ora tem a aba "Legislação" (base de leis do
-// orçamento). O nome de cada norma leva ao texto oficial (link embutido) e a
-// descrição aparece abaixo. Cada item pode ser editado, excluído e é possível
-// acrescentar novas legislações (tudo compartilhado, em tempo real).
-export default function Conhecimento({ legislacao }) {
+// Módulo CONHECIMENTO: abas "Legislação", "Recebimento Função" e "Contatos".
+export default function Conhecimento({ session }) {
   const [aba, setAba] = useState("legislacao");
+  const legislacao = useLegislacao(session);
+  const recebimento = useRecebimento(session);
+  const contatos = useContatos(session);
+
+  const ABAS = [
+    ["legislacao", "Legislação"],
+    ["recebimento", "Recebimento Função"],
+    ["contatos", "Contatos"],
+  ];
+
   return (
     <div className="view-pad conhec-wrap">
       <div className="conhec-subnav">
-        {[["legislacao", "Legislação"]].map(([id, rot]) => (
+        {ABAS.map(([id, rot]) => (
           <button key={id} className={`chip ${aba === id ? "chip-active" : ""}`} onClick={() => setAba(id)}>{rot}</button>
         ))}
       </div>
       {aba === "legislacao" && <Legislacao leg={legislacao} />}
+      {aba === "recebimento" && <Recebimento rec={recebimento} />}
+      {aba === "contatos" && <Contatos contatos={contatos} />}
     </div>
   );
 }
@@ -109,6 +125,11 @@ function ModalLegislacao({ estado, secoes, onFechar, onSalvar }) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const opcoesSecao = useMemo(() => [...new Set([...SECOES_PADRAO, ...secoes])], [secoes]);
+  function onSecao(e) {
+    const v = e.target.value;
+    setF((s) => ({ ...s, secao: v === "__outra__" ? "" : v }));
+  }
 
   async function salvar(ev) {
     ev.preventDefault();
@@ -129,9 +150,14 @@ function ModalLegislacao({ estado, secoes, onFechar, onSalvar }) {
         <div className="modal-corpo cal-campo-col">
           <div className="cal-campo">
             <span className="cal-campo-rot">Seção</span>
-            <input className="input" list="leg-secoes" value={f.secao} onChange={set("secao")}
-              placeholder="Ex: Legislação de emendas" />
-            <datalist id="leg-secoes">{secoes.map((s) => <option key={s} value={s} />)}</datalist>
+            <select className="input" value={opcoesSecao.includes(f.secao) ? f.secao : "__outra__"} onChange={onSecao}>
+              {opcoesSecao.map((s) => <option key={s} value={s}>{s}</option>)}
+              <option value="__outra__">Outra seção…</option>
+            </select>
+            {(!opcoesSecao.includes(f.secao)) && (
+              <input className="input leg-secao-nova" value={f.secao} onChange={set("secao")}
+                placeholder="Nome da nova seção" autoFocus />
+            )}
           </div>
           <div className="cal-campo">
             <span className="cal-campo-rot">Nome</span>
