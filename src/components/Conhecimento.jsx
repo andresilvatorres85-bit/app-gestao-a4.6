@@ -1,6 +1,10 @@
 import { useState, useMemo } from "react";
 import { ExternalLink, Plus, Pencil, Trash2, X, Save } from "lucide-react";
 
+// Cores por tipo de legislação (na ordem das seções). Cada seção usa uma cor
+// no título e na borda/realce dos seus cards.
+const PALETA_SECOES = ["#3B6FB0", "#3F9D6B", "#C6543F", "#7A5AC2", "#C79A3A", "#3AA6A6", "#C25A93"];
+
 // Módulo CONHECIMENTO. Por ora tem a aba "Legislação" (base de leis do
 // orçamento). O nome de cada norma leva ao texto oficial (link embutido) e a
 // descrição aparece abaixo. Cada item pode ser editado, excluído e é possível
@@ -23,14 +27,15 @@ function Legislacao({ leg }) {
   const { itens = [], carregado, erro, inserir, atualizar, excluir } = leg || {};
   const [modal, setModal] = useState(null); // {id?, secao, nome, url, descricao}
 
-  // Agrupa por seção, preservando a ordem (menor pos primeiro).
+  // Agrupa por seção, preservando a ordem (menor pos primeiro). Cada seção
+  // recebe uma cor da paleta (para o título e a borda dos cards).
   const grupos = useMemo(() => {
     const mapa = new Map();
     for (const it of itens) {
       if (!mapa.has(it.secao)) mapa.set(it.secao, []);
       mapa.get(it.secao).push(it);
     }
-    return [...mapa.entries()].map(([titulo, lista]) => ({ titulo, lista }));
+    return [...mapa.entries()].map(([titulo, lista], i) => ({ titulo, lista, cor: PALETA_SECOES[i % PALETA_SECOES.length] }));
   }, [itens]);
 
   const secoes = useMemo(() => [...new Set(itens.map((i) => i.secao).filter(Boolean))], [itens]);
@@ -59,7 +64,7 @@ function Legislacao({ leg }) {
       ) : grupos.length === 0 ? (
         <p className="leg-vazio">Nenhuma legislação cadastrada. Use “Nova legislação” para incluir.</p>
       ) : grupos.map((sec) => (
-        <section key={sec.titulo} className="leg-grupo">
+        <section key={sec.titulo} className="leg-grupo" style={{ "--leg-cor": sec.cor, "--leg-cor-bg": sec.cor + "14" }}>
           <h2 className="leg-grupo-tit">{sec.titulo}</h2>
           <ul className="leg-lista">
             {sec.lista.map((it) => (
