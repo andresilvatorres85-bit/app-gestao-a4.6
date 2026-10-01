@@ -3,8 +3,10 @@ import { ExternalLink, Plus, Pencil, Trash2, X, Save } from "lucide-react";
 import { useLegislacao } from "./useLegislacao.js";
 import { useRecebimento } from "./useRecebimento.js";
 import { useContatos } from "./useContatos.js";
+import { useRotina } from "./useRotina.js";
 import Recebimento from "./Recebimento.jsx";
 import Contatos from "./Contatos.jsx";
+import RotinaAsseOrc from "./RotinaAsseOrc.jsx";
 
 // Cores por tipo de legislação (na ordem das seções). Cada seção usa uma cor
 // no título e na borda/realce dos seus cards.
@@ -18,10 +20,12 @@ export default function Conhecimento({ session }) {
   const legislacao = useLegislacao(session);
   const recebimento = useRecebimento(session);
   const contatos = useContatos(session);
+  const rotina = useRotina(session);
 
   const ABAS = [
     ["legislacao", "Legislação"],
     ["recebimento", "Recebimento Função"],
+    ["rotina", "Rotina Asse Orç"],
     ["contatos", "Contatos"],
   ];
 
@@ -34,6 +38,7 @@ export default function Conhecimento({ session }) {
       </div>
       {aba === "legislacao" && <Legislacao leg={legislacao} />}
       {aba === "recebimento" && <Recebimento rec={recebimento} />}
+      {aba === "rotina" && <RotinaAsseOrc rotina={rotina} />}
       {aba === "contatos" && <Contatos contatos={contatos} />}
     </div>
   );
