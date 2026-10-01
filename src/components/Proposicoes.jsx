@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  Search, Plus, Pencil, Trash2, X, ExternalLink, RefreshCw, Save, ClipboardList,
+  Search, Plus, Pencil, Trash2, X, ExternalLink, RefreshCw, Save, ClipboardList, FileDown,
 } from "lucide-react";
+import { exportarInfografico } from "../proposicaoInfografico.js";
 import { StatCard } from "./UI.jsx";
 import { Field } from "./UI.jsx";
 import {
@@ -215,6 +216,7 @@ function TabelaProposicoes({ linhas, vazioTexto, onEditar, onExcluir }) {
                 <td><span className="prop-chip" style={{ color: si.cor, borderColor: si.cor }}>{si.rotulo}</span></td>
                 <td>
                   <div className="row-actions">
+                    <button className="icon-btn" title="Exportar infográfico (PDF)" onClick={() => exportarInfografico(p)}><FileDown size={16} /></button>
                     <button className="icon-btn" title="Editar" onClick={() => onEditar(p)}><Pencil size={16} /></button>
                     <button className="icon-btn" title="Excluir" onClick={() => { if (confirm(`Excluir a proposição ${p.proposicao}?`)) onExcluir(p.id); }}><Trash2 size={16} /></button>
                   </div>

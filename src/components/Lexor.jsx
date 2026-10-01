@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Search, ChevronLeft, ChevronRight, FileText, Printer, ArrowLeft,
-  AlertTriangle, Wallet, ClipboardList, FileDown, UserCheck, Combine,
+  AlertTriangle, Wallet, ClipboardList, FileDown, UserCheck, Combine, RefreshCw,
 } from "lucide-react";
 import { StatCard } from "./UI.jsx";
 import Espelho from "./Espelho.jsx";
@@ -40,6 +40,18 @@ export default function Lexor() {
   const [espelhosDe, setEspelhosDe] = useState(null); // array de propostas em exibição
   const [consolidadas, setConsolidadas] = useState([]);  // registros do Supabase
   const [erroJuntar, setErroJuntar] = useState("");
+  const [atualiz, setAtualiz] = useState({ estado: "ocioso", msg: "" }); // botão "Atualizar dados"
+
+  const atualizarDados = useCallback(async () => {
+    setAtualiz({ estado: "carregando", msg: "" });
+    try {
+      const { error } = await supabase.functions.invoke("atualizar-lexor");
+      if (error) throw error;
+      setAtualiz({ estado: "ok", msg: "Reprocessamento iniciado. Em ~2 min recarregue a página para ver os dados atualizados." });
+    } catch (e) {
+      setAtualiz({ estado: "erro", msg: "Não foi possível iniciar a atualização: " + (e?.message || e) + " (verifique a função atualizar-lexor e o token no Supabase)." });
+    }
+  }, []);
 
   // exercício sugerido pela numeração das propostas, com ajuste manual
   const exercicioPadrao = useMemo(() => {
@@ -298,11 +310,23 @@ export default function Lexor() {
   // ------------------------------------------------------------------- lista
   return (
     <div className="view-pad view-pad-lexor">
-      <h1 className="page-title">Espelhos de emenda — LEXOR</h1>
-      <p className="page-sub">
-        {PROPOSTAS_LEXOR.length.toLocaleString("pt-BR")} propostas do Controle_LEXOR.
-        Selecione uma ou várias e gere os espelhos no formato oficial.
-      </p>
+      <div className="dash-header">
+        <div>
+          <h1 className="page-title">Espelhos de emenda — LEXOR</h1>
+          <p className="page-sub">
+            {PROPOSTAS_LEXOR.length.toLocaleString("pt-BR")} propostas do Controle_LEXOR.
+            Selecione uma ou várias e gere os espelhos no formato oficial.
+          </p>
+        </div>
+        <button className="btn btn-ghost" onClick={atualizarDados} disabled={atualiz.estado === "carregando"}
+          title="Reprocessa os dados a partir de Controle_LEXOR.xlsx e Prospecção de Propostas de Emendas.xlsx">
+          <RefreshCw size={16} className={atualiz.estado === "carregando" ? "girando" : ""} />
+          {atualiz.estado === "carregando" ? "Atualizando…" : "Atualizar dados"}
+        </button>
+      </div>
+      {atualiz.msg && (
+        <div className={`alert ${atualiz.estado === "erro" ? "alert-error" : "alert-ok"} lexor-atualiz-msg`}>{atualiz.msg}</div>
+      )}
 
       <div className="stat-grid stat-grid-3">
         <StatCard label="Propostas no filtro" value={filtradas.length.toLocaleString("pt-BR")}
