@@ -68,5 +68,21 @@ export function useRotina(session) {
     return res;
   }, [itens, recarregar]);
 
-  return { itens, carregado, erro, adicionar, editar, excluir };
+  // reordena um grupo de irmãos (tarefas de um card, ou subtarefas de uma
+  // tarefa): grava a nova posição. Reconstrói a linha completa no upsert
+  // (card/texto/parent_id) para não violar NOT NULL.
+  const reordenar = useCallback(async (idsOrdenados) => {
+    const porId = Object.fromEntries(itens.map((i) => [i.id, i]));
+    const posPorId = Object.fromEntries(idsOrdenados.map((id, i) => [id, i * 10]));
+    setItens((prev) => ordenar(prev.map((i) => (posPorId[i.id] != null ? { ...i, pos: posPorId[i.id] } : i))));
+    const linhas = idsOrdenados.map((id, i) => {
+      const it = porId[id];
+      return { id, card: it.card, parent_id: it.parentId, texto: it.texto, pos: i * 10 };
+    });
+    const res = await supabase.from("rotina_itens").upsert(linhas, { onConflict: "id" }).select("id");
+    if (res.error) recarregar();
+    return res;
+  }, [itens, recarregar]);
+
+  return { itens, carregado, erro, adicionar, editar, excluir, reordenar };
 }

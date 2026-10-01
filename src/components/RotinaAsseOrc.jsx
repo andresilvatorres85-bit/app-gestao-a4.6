@@ -1,5 +1,8 @@
 import { useState, useMemo } from "react";
-import { Plus, Pencil, Trash2, CornerDownRight } from "lucide-react";
+import { Plus, Pencil, Trash2, CornerDownRight, GripVertical } from "lucide-react";
+
+// Card de largura total no topo.
+const ROTINA_DIARIA = { id: "rotina_diaria", titulo: "Rotina Diária", cor: "#C0392B" };
 
 // Cards (atividades) da rotina do Assessor de Orçamento, com cores próprias.
 const CARDS = [
@@ -15,13 +18,24 @@ const CARDS = [
   { id: "convidados", titulo: "Indicação de Convidados para Atividades Institucionais", cor: "#5C6BC0" },
 ];
 
+// Transforma URLs do texto em links clicáveis.
+function comLinks(texto) {
+  const partes = String(texto || "").split(/(https?:\/\/[^\s]+)/g);
+  return partes.map((p, i) =>
+    /^https?:\/\//.test(p)
+      ? <a key={i} href={p} target="_blank" rel="noopener noreferrer" className="rot-link">{p}</a>
+      : <span key={i}>{p}</span>
+  );
+}
+
 export default function RotinaAsseOrc({ rotina }) {
-  const { itens = [], carregado, erro, adicionar, editar, excluir } = rotina || {};
+  const { itens = [], carregado, erro, adicionar, editar, excluir, reordenar } = rotina || {};
+  const comum = { itens, adicionar, editar, excluir, reordenar };
   return (
     <div className="rot-wrap">
       <p className="page-sub">
-        Atividades do Assessor Parlamentar de Orçamento. Em cada card, adicione, edite e exclua
-        tarefas e subtarefas.
+        Atividades do Assessor Parlamentar de Orçamento. Em cada card, adicione, edite, exclua e
+        reordene (arrastando) tarefas e subtarefas. Links colados viram clicáveis.
       </p>
 
       {erro && (
@@ -34,23 +48,25 @@ export default function RotinaAsseOrc({ rotina }) {
       {!carregado ? (
         <div className="loading-state">Carregando rotina…</div>
       ) : (
-        <div className="rot-cards">
-          {CARDS.map((c) => (
-            <CardAtividade key={c.id} card={c} itens={itens}
-              adicionar={adicionar} editar={editar} excluir={excluir} />
-          ))}
-        </div>
+        <>
+          <CardAtividade card={ROTINA_DIARIA} {...comum} />
+          <div className="rot-cards">
+            {CARDS.map((c) => <CardAtividade key={c.id} card={c} {...comum} />)}
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-function CardAtividade({ card, itens, adicionar, editar, excluir }) {
+function CardAtividade({ card, itens, adicionar, editar, excluir, reordenar }) {
   const [novo, setNovo] = useState("");
   const [editId, setEditId] = useState(null);
   const [rascunho, setRascunho] = useState("");
   const [subDe, setSubDe] = useState(null);
   const [subTexto, setSubTexto] = useState("");
+  const [arr, setArr] = useState(null);   // { id, parent } sendo arrastado
+  const [alvo, setAlvo] = useState(null);
 
   const tarefas = useMemo(
     () => itens.filter((i) => i.card === card.id && !i.parentId).sort((a, b) => a.pos - b.pos),
@@ -61,6 +77,17 @@ function CardAtividade({ card, itens, adicionar, editar, excluir }) {
   function enviarNovo() { const t = novo.trim(); if (!t) return; adicionar?.(card.id, t, null); setNovo(""); }
   function salvarEdicao(id) { editar?.(id, rascunho); setEditId(null); }
   function enviarSub(pid) { const t = subTexto.trim(); if (!t) return; adicionar?.(card.id, t, pid); setSubTexto(""); setSubDe(null); }
+
+  // parentId = null → reordena tarefas; senão, subtarefas daquele pai.
+  function soltarEm(alvoId, parentId) {
+    const de = arr; setArr(null); setAlvo(null);
+    if (!de || de.id === alvoId || de.parent !== parentId) return;
+    const grupo = (parentId === null ? tarefas : subsDe(parentId)).map((x) => x.id);
+    const iDe = grupo.indexOf(de.id), iAlvo = grupo.indexOf(alvoId);
+    if (iDe < 0 || iAlvo < 0) return;
+    grupo.splice(iAlvo, 0, grupo.splice(iDe, 1)[0]);
+    reordenar?.(grupo);
+  }
 
   const editInput = (onBlurSalvar) => (
     <input className="input rot-edit" autoFocus value={rascunho}
@@ -74,10 +101,16 @@ function CardAtividade({ card, itens, adicionar, editar, excluir }) {
 
       <ul className="rot-lista">
         {tarefas.map((t) => (
-          <li key={t.id} className="rot-tarefa">
+          <li key={t.id}
+            className={`rot-tarefa${arr?.id === t.id ? " rot-arrastando" : ""}${alvo === t.id && arr && arr.parent === null && arr.id !== t.id ? " rot-alvo" : ""}`}
+            draggable={editId !== t.id}
+            onDragStart={(e) => { if (editId === t.id) return; setArr({ id: t.id, parent: null }); e.dataTransfer.effectAllowed = "move"; }}
+            onDragEnd={() => { setArr(null); setAlvo(null); }}
+            onDragOver={(e) => { if (arr && arr.parent === null) { e.preventDefault(); setAlvo(t.id); } }}
+            onDrop={(e) => { e.preventDefault(); soltarEm(t.id, null); }}>
             <div className="rot-linha">
-              <span className="rot-bullet" />
-              {editId === t.id ? editInput(() => salvarEdicao(t.id)) : <span className="rot-txt">{t.texto}</span>}
+              <span className="rot-grip" title="Arraste para reordenar"><GripVertical size={13} /></span>
+              {editId === t.id ? editInput(() => salvarEdicao(t.id)) : <span className="rot-txt">{comLinks(t.texto)}</span>}
               <div className="rot-acoes">
                 <button className="icon-btn" title="Adicionar subtarefa" onClick={() => { setSubDe(t.id); setSubTexto(""); }}><CornerDownRight size={13} /></button>
                 <button className="icon-btn" title="Editar" onClick={() => { setEditId(t.id); setRascunho(t.texto); }}><Pencil size={13} /></button>
@@ -87,9 +120,16 @@ function CardAtividade({ card, itens, adicionar, editar, excluir }) {
             {(subsDe(t.id).length > 0 || subDe === t.id) && (
               <ul className="rot-subs">
                 {subsDe(t.id).map((s) => (
-                  <li key={s.id} className="rot-sub">
+                  <li key={s.id}
+                    className={`rot-sub${arr?.id === s.id ? " rot-arrastando" : ""}${alvo === s.id && arr && arr.parent === t.id && arr.id !== s.id ? " rot-alvo" : ""}`}
+                    draggable={editId !== s.id}
+                    onDragStart={(e) => { if (editId === s.id) return; e.stopPropagation(); setArr({ id: s.id, parent: t.id }); e.dataTransfer.effectAllowed = "move"; }}
+                    onDragEnd={() => { setArr(null); setAlvo(null); }}
+                    onDragOver={(e) => { if (arr && arr.parent === t.id) { e.preventDefault(); setAlvo(s.id); } }}
+                    onDrop={(e) => { e.preventDefault(); e.stopPropagation(); soltarEm(s.id, t.id); }}>
+                    <span className="rot-grip rot-grip-sub" title="Arraste para reordenar"><GripVertical size={12} /></span>
                     <CornerDownRight size={12} className="rot-sub-ico" />
-                    {editId === s.id ? editInput(() => salvarEdicao(s.id)) : <span className="rot-txt">{s.texto}</span>}
+                    {editId === s.id ? editInput(() => salvarEdicao(s.id)) : <span className="rot-txt">{comLinks(s.texto)}</span>}
                     <div className="rot-acoes">
                       <button className="icon-btn" title="Editar" onClick={() => { setEditId(s.id); setRascunho(s.texto); }}><Pencil size={12} /></button>
                       <button className="icon-btn" title="Excluir" onClick={() => { if (confirm("Excluir esta subtarefa?")) excluir?.(s.id); }}><Trash2 size={12} /></button>
