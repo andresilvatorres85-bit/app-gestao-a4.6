@@ -1214,7 +1214,16 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .rot-tarefa { }
 .rot-linha { display: flex; align-items: flex-start; gap: 8px; padding: 2px 0; }
 .rot-bullet { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--rot-cor, #888); margin-top: 7px; }
-.rot-txt { flex: 1; min-width: 0; font-size: 13.5px; color: var(--ink); word-break: break-word; line-height: 1.4; }
+.rot-txt { flex: 1; min-width: 0; font-size: 13.5px; color: var(--ink); word-break: break-word; line-height: 1.4; text-align: justify; }
+.rot-link { color: var(--brand-hi, #67B588); text-decoration: underline; word-break: break-all; }
+.rot-link:hover { color: var(--ink); }
+.rot-grip { flex: none; color: var(--muted); cursor: grab; opacity: 0; display: inline-flex; margin-top: 2px; }
+.rot-grip-sub { margin-top: 1px; }
+.rot-tarefa:hover > .rot-linha > .rot-grip, .rot-sub:hover > .rot-grip { opacity: 0.55; }
+.rot-grip:hover { opacity: 1; }
+.rot-tarefa[draggable="true"], .rot-sub[draggable="true"] { cursor: default; }
+.rot-arrastando { opacity: 0.4; }
+.rot-alvo { box-shadow: inset 0 2px 0 var(--rot-cor, var(--ink)); }
 .rot-edit { flex: 1; min-width: 0; padding: 4px 8px; font-size: 13.5px; }
 .rot-acoes { margin-left: auto; display: flex; gap: 1px; opacity: 0; flex: none; }
 .rot-tarefa:hover > .rot-linha > .rot-acoes, .rot-sub:hover > .rot-acoes { opacity: 0.85; }

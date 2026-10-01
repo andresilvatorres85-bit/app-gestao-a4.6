@@ -24,10 +24,8 @@ function montarHtml(p) {
   const titulo = `${(p.tipo || "").trim()} ${(p.proposicao || "").trim()}`.trim() || "Proposição";
 
   return `<div style="width:1123px;background:#f3f1e7;font-family:Arial,Helvetica,sans-serif;color:#1c1c1c;">
-    <div style="text-align:center;padding:12px 0 6px;">
-      <img src="${banner}" style="display:inline-block;height:92px;width:auto;" crossorigin="anonymous" />
-    </div>
-    <div style="background:#123c78;color:#fff;margin:0 28px;border-radius:10px;padding:14px 22px;display:flex;align-items:center;gap:16px;">
+    <img src="${banner}" style="display:block;width:100%;height:auto;margin:0;" crossorigin="anonymous" />
+    <div style="background:#123c78;color:#fff;margin:16px 28px 0;border-radius:10px;padding:14px 22px;display:flex;align-items:center;gap:16px;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:28px;font-weight:800;line-height:1.1;">${esc(titulo)}</div>
         <div style="font-size:13px;margin-top:6px;opacity:.9;"><b>Casa atual:</b> ${ou(rotuloCasa(p.casa))} &nbsp;•&nbsp; <b>Situação:</b> ${ou(si.rotulo)}</div>
