@@ -13,6 +13,7 @@
 
 import { corDoRP, fmtBRL, fmtInt, fmtMilhoes, fmtPct, fmtCompacto } from './dados.js'
 import { baixar, nomeArquivo } from './exportar.js'
+import { MODELO, GEO, CAPA_TITULO, CAPA_SUFIXO, prefixarTitulo, tamanhoTitulo, imagensModelo } from '../pptxModelo.js'
 
 // ------------------------------------------------------------------ ZIP ---
 const TABELA_CRC = (() => {
@@ -206,10 +207,13 @@ function quadroGrafico(o) {
   )
 }
 
-function slideXML(corpo) {
+function slideXML(corpo, fundo) {
+  const bg = fundo
+    ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${fundo}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`
+    : ''
   return (
     XML +
-    `<p:sld xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}"><p:cSld><p:spTree>` +
+    `<p:sld xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}"><p:cSld>${bg}<p:spTree>` +
     '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>' +
     '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>' +
     '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' +
@@ -235,6 +239,7 @@ const TIPO = {
   doc: `${NS_R}/officeDocument`,
   chart: `${NS_R}/chart`,
   pacote: `${NS_R}/package`,
+  imagem: `${NS_R}/image`,
   core: 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties',
 }
 
@@ -769,28 +774,74 @@ const LAYOUT =
   `<p:cSld name="Em branco">${ARVORE_VAZIA}</p:cSld>` +
   '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>'
 
-// ------------------------------------------------------------ os 7 slides ---
+// ------------------------------------------------- modelo (capa e moldura) ---
+// Todas as exportações seguem o modelo "Métricas A4.6" (ver pptxModelo.js): o
+// slide 1 é a capa institucional e os demais recebem a moldura — fundo
+// verde-claro, faixa verde com o título e o brasão no canto superior direito.
+const pol = (v) => v * 2.54 // polegadas -> cm
+const REL_BRASAO = 'rId9'
+const REL_CAPA = 'rId8'
+
+function imagem({ id, nome, rel, x, y, w, h }) {
+  return (
+    `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="${esc(nome)}" descr="${esc(nome)}"/>` +
+    '<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>' +
+    `<p:blipFill><a:blip r:embed="${rel}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+    `<p:spPr><a:xfrm><a:off x="${cm(x)}" y="${cm(y)}"/><a:ext cx="${cm(w)}" cy="${cm(h)}"/></a:xfrm>` +
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>'
+  )
+}
+
+// Faixa com o título (texto azul-escuro sobre o verde) — mesma da MÉTRICAS.
+function faixaTitulo(id, runs, barra) {
+  return (
+    forma({ id, nome: 'Faixa', x: 0, y: pol(barra.y), w: LARG, h: pol(barra.h), fundo: MODELO.barra }) +
+    forma({
+      id: id + 1, nome: 'Título', x: pol(GEO.tituloX), y: pol(barra.y), w: LARG - pol(GEO.tituloX),
+      h: pol(barra.h), ancora: 'ctr', recuo: 0,
+      paragrafos: [{ runs: runs.map((r) => ({ ...r, cor: MODELO.titulo })) }],
+    })
+  )
+}
+
+function moldura(titulo) {
+  const b = GEO.brasao
+  return (
+    faixaTitulo(9001, [{ t: prefixarTitulo(titulo || ''), sz: tamanhoTitulo(prefixarTitulo(titulo || '')) * 100 }], GEO.barra) +
+    imagem({ id: 9003, nome: 'Brasão da Assessoria Parlamentar', rel: REL_BRASAO,
+      x: pol(b.x), y: pol(b.y), w: pol(b.lado), h: pol(b.lado) })
+  )
+}
+
+function slideCapaModelo() {
+  const c = GEO.capa
+  const corpo =
+    imagem({ id: 9010, nome: 'Congresso Nacional e a Subassessoria de Orçamento', rel: REL_CAPA,
+      x: 0, y: pol(c.imagem.y), w: LARG, h: pol(c.imagem.h) }) +
+    faixaTitulo(9011, [{ t: CAPA_TITULO, sz: 3600 }, { t: CAPA_SUFIXO, sz: 3200 }], c.barra) +
+    imagem({ id: 9013, nome: 'Brasão da Assessoria Parlamentar', rel: REL_BRASAO,
+      x: pol(c.brasao.x), y: pol(c.brasao.y), w: pol(c.brasao.lado), h: pol(c.brasao.lado) })
+  return { capa: true, corpo }
+}
+
+// Resumo do recorte (antiga capa): título da exportação na faixa e, abaixo,
+// o escopo, o recorte e a linha de totais.
 function slideCapa(d) {
   const corpo = [
-    forma({ id: 2, nome: 'Faixa', x: 0, y: 0, w: 0.55, h: ALT, fundo: ACENTO }),
     forma({
-      id: 3, nome: 'Título', x: 2.2, y: 5.4, w: 29, h: 5, ancora: 'b',
-      paragrafos: [{ runs: [{ t: d.titulo, sz: 4000, b: true, cor: TINTA, spc: 40 }] }],
-    }),
-    forma({
-      id: 4, nome: 'Subtítulo', x: 2.25, y: 10.7, w: 29, h: 3.4,
+      id: 4, nome: 'Subtítulo', x: 2.25, y: 5.2, w: 29, h: 6.4,
       paragrafos: [
-        { runs: [{ t: d.escopo, sz: 1800, cor: TINTA_2 }] },
-        { antes: 500, runs: [{ t: d.recorte, sz: 1300, cor: FRACA }] },
+        { runs: [{ t: d.escopo, sz: 2400, b: true, cor: TINTA }] },
+        { antes: 600, runs: [{ t: d.recorte, sz: 1400, cor: TINTA_2 }] },
         {
-          antes: 300,
+          antes: 400,
           runs: [{
             // A capa serve às duas bases. As emendas dizem "N emendas · R$ X";
             // o PLOA diz "N dotações · autógrafo R$ X bi". Quem monta a carga
             // escreve a linha; a capa só a posiciona.
             t: d.linhaResumo
               ?? `${fmtInt(d.stats.qtdEmendas)} emendas · ${fmtBRL(d.stats.valorTotal)}`,
-            sz: 1300, b: true, cor: TINTA_2,
+            sz: 1600, b: true, cor: TINTA,
           }],
         },
       ],
@@ -800,7 +851,7 @@ function slideCapa(d) {
       paragrafos: [{ runs: [{ t: `Extraído em ${d.geradoEm} · fonte: ${d.fonte}`, sz: 1000, cor: FRACA }] }],
     }),
   ].join('')
-  return { corpo }
+  return { titulo: d.titulo, corpo }
 }
 
 function cartao(id, o) {
@@ -820,11 +871,7 @@ function slideCards(d) {
   const imp = fmtCompacto(d.totalImpositivas)
   const corpo = [
     forma({
-      id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
-      paragrafos: [{ runs: [{ t: 'Visão geral', sz: 2400, b: true, cor: TINTA }] }],
-    }),
-    forma({
-      id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1,
+      id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }],
     }),
     cartao(4, {
@@ -853,7 +900,7 @@ function slideCards(d) {
       paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }],
     }),
   ].join('')
-  return { corpo }
+  return { titulo: 'Visão geral', corpo }
 }
 
 // Slide de um painel: título, subtítulo, total e o conteúdo — que pode ser um
@@ -919,17 +966,14 @@ function slideGrafico(d, o) {
 function umSlideGrafico(d, o) {
   const corpo = [
     forma({
-      id: 2, nome: 'Título', x: 1.6, y: 1.1, w: 20, h: 1.5,
-      paragrafos: [{ runs: [{ t: o.titulo, sz: 2400, b: true, cor: TINTA }] }],
-    }),
-    forma({
-      id: 3, nome: 'Subtítulo', x: 1.6, y: 2.4, w: 24, h: 1,
+      id: 3, nome: 'Subtítulo', x: 1.6, y: 2.0, w: 18, h: 1.3,
       paragrafos: [{ runs: [{ t: o.sub, sz: 1200, cor: FRACA }] }],
     }),
     // caixa larga: o total do slide dos autores leva o percentual junto e
-    // quebrava em duas linhas quando o espaço era o de um número só.
+    // quebrava em duas linhas quando o espaço era o de um número só. Fica à
+    // esquerda do brasão.
     forma({
-      id: 4, nome: 'Total', x: 21.2, y: 1.1, w: 11, h: 1.8, ancora: 'ctr',
+      id: 4, nome: 'Total', x: 19.6, y: 1.8, w: 11.2, h: 1.6, ancora: 'ctr',
       paragrafos: [{ algn: 'r', runs: [{ t: o.total || '', sz: 2000, b: true, cor: TINTA }] }],
     }),
     o.tabela
@@ -940,7 +984,7 @@ function umSlideGrafico(d, o) {
       paragrafos: [{ runs: [{ t: `${o.recorte ?? d.recorte} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }],
     }),
   ].join('')
-  return { corpo, grafico: o.grafico, planilha: o.planilha }
+  return { titulo: o.titulo, corpo, grafico: o.grafico, planilha: o.planilha }
 }
 
 // ---------------------------------------------------------------- painéis ---
@@ -1227,11 +1271,7 @@ function slideAnos(d) {
   })
   const corpo = [
     forma({
-      id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
-      paragrafos: [{ runs: [{ t: 'Comparativo por exercício', sz: 2400, b: true, cor: TINTA }] }],
-    }),
-    forma({
-      id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1.4,
+      id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1.4,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }],
     }),
     ...cartoes,
@@ -1240,7 +1280,7 @@ function slideAnos(d) {
       paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }],
     }),
   ].join('')
-  return { corpo }
+  return { titulo: 'Comparativo por exercício', corpo }
 }
 
 // --------------------------------------------------------- painéis PLOA ---
@@ -1623,11 +1663,7 @@ function slideCardsPLOA(d) {
   const pct = d.totalPL ? (delta / d.totalPL) * 100 : 0
   const corpo = [
     forma({
-      id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
-      paragrafos: [{ runs: [{ t: 'Visão geral do exercício', sz: 2400, b: true, cor: TINTA }] }],
-    }),
-    forma({
-      id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1,
+      id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }],
     }),
     cartao(4, {
@@ -1658,7 +1694,7 @@ function slideCardsPLOA(d) {
       paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }],
     }),
   ].join('')
-  return { corpo }
+  return { titulo: 'Visão geral do exercício', corpo }
 }
 
 // Cartões de abertura do Histórico PLOA: um por exercício, com PL, autógrafo e
@@ -1681,11 +1717,7 @@ function slideAnosPLOA(d) {
   })
   const corpo = [
     forma({
-      id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
-      paragrafos: [{ runs: [{ t: 'Comparativo por exercício', sz: 2400, b: true, cor: TINTA }] }],
-    }),
-    forma({
-      id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1.4,
+      id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1.4,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }],
     }),
     ...cartoes,
@@ -1694,7 +1726,7 @@ function slideAnosPLOA(d) {
       paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }],
     }),
   ].join('')
-  return { corpo }
+  return { titulo: 'Comparativo por exercício', corpo }
 }
 
 function montarSlides(d) {
@@ -1716,8 +1748,15 @@ function montarSlidesHistoricoPLOA(d) {
 // ------------------------------------------------------------- montagem ---
 // Monta o .pptx a partir de uma lista de slides já construídos. Serve aos três
 // usos: o baralho do Dashboard, o do Histórico e o slide avulso de um gráfico.
-function baixarPacote(d, slides, nomeBase) {
-  const arquivos = []
+// Todo pacote abre com a capa do modelo; os demais slides ganham a moldura
+// (fundo, faixa com o título e brasão).
+export async function montarPacote(d, conteudo) {
+  const img = await imagensModelo()
+  const slides = [slideCapaModelo(), ...conteudo]
+  const arquivos = [
+    { nome: 'ppt/media/capa.jpg', dados: img.capa.bytes },
+    { nome: 'ppt/media/brasao.png', dados: img.brasao.bytes },
+  ]
   const tiposOverride = []
   const relsApresentacao = [
     { id: 'rId1', tipo: TIPO.master, alvo: 'slideMasters/slideMaster1.xml' },
@@ -1728,7 +1767,11 @@ function baixarPacote(d, slides, nomeBase) {
 
   slides.forEach((s, i) => {
     const n = i + 1
-    const relSlide = [{ id: 'rId1', tipo: TIPO.layout, alvo: '../slideLayouts/slideLayout1.xml' }]
+    const relSlide = [
+      { id: 'rId1', tipo: TIPO.layout, alvo: '../slideLayouts/slideLayout1.xml' },
+      { id: REL_BRASAO, tipo: TIPO.imagem, alvo: '../media/brasao.png' },
+    ]
+    if (s.capa) relSlide.push({ id: REL_CAPA, tipo: TIPO.imagem, alvo: '../media/capa.jpg' })
 
     if (s.grafico) {
       nGrafico += 1
@@ -1745,7 +1788,8 @@ function baixarPacote(d, slides, nomeBase) {
       )
     }
 
-    arquivos.push({ nome: `ppt/slides/slide${n}.xml`, dados: slideXML(s.corpo) })
+    const xml = s.capa ? slideXML(s.corpo, 'FFFFFF') : slideXML(moldura(s.titulo) + s.corpo, MODELO.fundo)
+    arquivos.push({ nome: `ppt/slides/slide${n}.xml`, dados: xml })
     arquivos.push({ nome: `ppt/slides/_rels/slide${n}.xml.rels`, dados: rels(relSlide) })
     tiposOverride.push(
       `<Override PartName="/ppt/slides/slide${n}.xml" ` +
@@ -1778,6 +1822,8 @@ function baixarPacote(d, slides, nomeBase) {
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
     '<Default Extension="xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>' +
+    '<Default Extension="png" ContentType="image/png"/>' +
+    '<Default Extension="jpg" ContentType="image/jpeg"/>' +
     '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>' +
     '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>' +
     '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>' +
@@ -1815,7 +1861,11 @@ function baixarPacote(d, slides, nomeBase) {
     ...arquivos,
   ]
 
-  const bytes = zipar(pacote)
+  return zipar(pacote)
+}
+
+async function baixarPacote(d, slides, nomeBase) {
+  const bytes = await montarPacote(d, slides)
   const blob = new Blob([bytes], {
     type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   })
@@ -1824,22 +1874,22 @@ function baixarPacote(d, slides, nomeBase) {
 
 // Baralho completo do Dashboard: capa, cards e um slide por gráfico.
 export function exportarPPTX(d) {
-  baixarPacote(d, montarSlides(d), 'emendas apresentadas ao ploa')
+  return baixarPacote(d, montarSlides(d), 'emendas apresentadas ao ploa')
 }
 
 // Baralho completo da aba Histórico: capa, cartões por exercício e um slide
 // por painel (gráficos nativos e tabelas editáveis).
 export function exportarPPTXHistorico(d) {
-  baixarPacote(d, montarSlidesHistorico(d), 'historico das emendas ao ploa')
+  return baixarPacote(d, montarSlidesHistorico(d), 'historico das emendas ao ploa')
 }
 
 // Baralho completo do Dashboard PLOA e do Histórico PLOA.
 export function exportarPPTXPLOA(d) {
-  baixarPacote(d, montarSlidesPLOA(d), 'ploa despesas por fase de elaboracao')
+  return baixarPacote(d, montarSlidesPLOA(d), 'ploa despesas por fase de elaboracao')
 }
 
 export function exportarPPTXHistoricoPLOA(d) {
-  baixarPacote(d, montarSlidesHistoricoPLOA(d), 'historico do ploa por exercicio')
+  return baixarPacote(d, montarSlidesHistoricoPLOA(d), 'historico do ploa por exercicio')
 }
 
 // ==========================================================================
@@ -1936,9 +1986,7 @@ function slideCardsExec(d) {
   const varr = fmtCompacto(Math.abs(d.totais.variacao))
   const sinal = d.totais.variacao >= 0 ? '+' : '−'
   const corpo = [
-    forma({ id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
-      paragrafos: [{ runs: [{ t: 'Visão geral', sz: 2400, b: true, cor: TINTA }] }] }),
-    forma({ id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1,
+    forma({ id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }] }),
     cartao(4, { x: 1.6, y: 4.2, w: 15.2, h: 12.4, algn: 'ctr', sz: 5400,
       rotulo: 'Dotação autorizada', valor: `R$ ${aut.valor} ${aut.unidade}`.trim(),
@@ -1955,7 +2003,7 @@ function slideCardsExec(d) {
     forma({ id: 8, nome: 'Fonte', x: 1.6, y: 17.1, w: 30.6, h: 1,
       paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }] }),
   ].join('')
-  return { corpo }
+  return { titulo: 'Visão geral', corpo }
 }
 
 // -------- Histórico LOA (dotação por exercício) --------
@@ -2069,15 +2117,13 @@ function slideAnosExec(d) {
     })
   })
   const corpo = [
-    forma({ id: 2, nome: 'Título', x: 1.6, y: 1.2, w: 30.6, h: 1.6,
-      paragrafos: [{ runs: [{ t: 'Comparativo por exercício', sz: 2400, b: true, cor: TINTA }] }] }),
-    forma({ id: 3, nome: 'Recorte', x: 1.6, y: 2.5, w: 30.6, h: 1.4,
+    forma({ id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1.4,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }] }),
     ...cartoes,
     forma({ id: 40, nome: 'Fonte', x: 1.6, y: 17.1, w: 30.6, h: 1,
       paragrafos: [{ runs: [{ t: `${d.escopo} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }] }),
   ].join('')
-  return { corpo }
+  return { titulo: 'Comparativo por exercício', corpo }
 }
 
 function montarSlidesExec(d) {
@@ -2088,10 +2134,10 @@ function montarSlidesHistoricoExec(d) {
 }
 
 export function exportarPPTXExec(d) {
-  baixarPacote(d, montarSlidesExec(d), 'execucao loa dashboard')
+  return baixarPacote(d, montarSlidesExec(d), 'execucao loa dashboard')
 }
 export function exportarPPTXHistoricoExec(d) {
-  baixarPacote(d, montarSlidesHistoricoExec(d), 'execucao loa historico')
+  return baixarPacote(d, montarSlidesHistoricoExec(d), 'execucao loa historico')
 }
 
 // ==========================================================================
@@ -2157,7 +2203,7 @@ function montarSlidesEmendasEstado(d) {
     const titulo = `Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${grupos[0].cmilaNome} (${cmila})`
     let corpo = [], y = CY_TOP, idc = 10
     const flush = () => {
-      if (corpo.length) slides.push({ corpo: cabecalhoEmendas(titulo, d) + corpo.join('') })
+      if (corpo.length) slides.push({ titulo, corpo: cabecalhoEmendas(d) + corpo.join('') })
       corpo = []; y = CY_TOP; idc = 10
     }
     for (const g of grupos) {
@@ -2197,16 +2243,11 @@ function montarSlidesEmendasEstado(d) {
   return slides
 }
 
-// Cabeçalho comum das folhas de tabela: título (C Mil A) e a linha de recorte.
-function cabecalhoEmendas(titulo, d) {
+// Linha de recorte das folhas de tabela (o título — C Mil A — vai na faixa).
+function cabecalhoEmendas(d) {
   return [
-    forma({ id: 2, nome: 'Faixa', x: 0, y: 0, w: 0.45, h: ALT, fundo: ACENTO }),
     forma({
-      id: 3, nome: 'Título', x: 1.4, y: 0.85, w: 31, h: 1.2,
-      paragrafos: [{ runs: [{ t: titulo, sz: 2000, b: true, cor: TINTA }] }],
-    }),
-    forma({
-      id: 4, nome: 'Recorte', x: 1.4, y: 1.95, w: 31, h: 0.7,
+      id: 4, nome: 'Recorte', x: 1.4, y: 1.85, w: 29.4, h: 0.8,
       paragrafos: [{ runs: [{ t: `${d.escopo} · ${d.recorte} · extraído em ${d.geradoEm}`, sz: 950, cor: FRACA }] }],
     }),
   ].join('')
@@ -2214,7 +2255,8 @@ function cabecalhoEmendas(titulo, d) {
 
 function slideCapaEmendas(titulo, d, aviso) {
   return {
-    corpo: cabecalhoEmendas(titulo, d) + forma({
+    titulo,
+    corpo: cabecalhoEmendas(d) + forma({
       id: 10, nome: 'Aviso', x: 1.4, y: 4, w: 31, h: 2,
       paragrafos: [{ runs: [{ t: aviso, sz: 1400, cor: TINTA_2 }] }],
     }),
@@ -2222,7 +2264,7 @@ function slideCapaEmendas(titulo, d, aviso) {
 }
 
 export function exportarPPTXEmendasEstado(d) {
-  baixarPacote(d, montarSlidesEmendasEstado(d), 'emendas impositivas por estado')
+  return baixarPacote(d, montarSlidesEmendasEstado(d), 'emendas impositivas por estado')
 }
 
 // Um gráfico, um slide. `id` é o mesmo identificador usado na lista de painéis,
@@ -2244,5 +2286,5 @@ export function exportarSlidePPTX(d, id) {
   if (!painel) throw new Error(`painel desconhecido: ${id}`)
   // slideGrafico já pagina: um painel longo vira mais de um slide também no
   // avulso, então o botão de um gráfico grande baixa um .pptx com N páginas.
-  baixarPacote(d, slideGrafico(d, painel), painel.titulo)
+  return baixarPacote(d, slideGrafico(d, painel), painel.titulo)
 }
