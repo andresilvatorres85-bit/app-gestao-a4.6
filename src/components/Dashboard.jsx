@@ -145,8 +145,10 @@ export default function Dashboard({ allRecords, novos, objetoEmendas = [], onEdi
     try {
       await exportarPainelPptx({
         registros: registrosSel,
-        anos: anosOrd, mes: mesTexto, papel: "Todos",
+        anos: anosOrd,
+        meses: todosMeses ? null : [...mesesSel],
         resumo: { totalGeral, totalPeriodo, totalMes },
+        alteracoes: objetoEmendasSel,
       });
     } catch (e) {
       console.error("Falha ao exportar painel:", e);

@@ -1,7 +1,9 @@
 import { ESP_LABEL, PAPEL_LABEL_CURTO, MESES } from "./constants.js";
+import capaImg from "./metricasCapa.jpg";
+import brasaoImg from "./brasao.png";
 
-// pptxgenjs e html-to-image são pesados e só usados na exportação; carregamos
-// sob demanda (dynamic import) para não pesar o carregamento inicial do app.
+// pptxgenjs, jszip e html-to-image são pesados e só usados na exportação;
+// carregamos sob demanda (dynamic import) para não pesar o app.
 async function getPptx() {
   const mod = await import("pptxgenjs");
   return mod.default;
@@ -11,49 +13,99 @@ async function getToPng() {
   return mod.toPng;
 }
 
-// Paleta usada nos slides (coerente com o tema do app, porém sobre fundo claro do PPT)
-const COR = {
-  brand: "2B5D45",
-  esq: "A6433C",
-  dir: "33578C",
-  cen: "B0862E",
-  ink: "1C2620",
-  muted: "6B7568",
-  gold: "8A6D3B",
-  anos: ["2B5D45", "8A6D3B", "33578C", "A6433C", "6B7568", "B0862E"],
+// Identidade visual da apresentação "Métricas A4.6" (modelo enviado pela
+// Subassessoria): faixa verde no topo com o título em azul-escuro, brasão no
+// canto superior direito, fundo verde-claro e gráficos em azul com gradiente.
+const W = 13.333, H = 7.5;           // 16:9 (widescreen)
+const REF = {
+  barra: "A9D08E",      // verde (accent 6, 40% mais claro)
+  fundo: "E2EFDA",      // verde-claro (accent 6, 80% mais claro)
+  titulo: "1F3864",     // azul (accent 1, 50% mais escuro)
+  azul: "4472C4",
+  grade: "D9D9D9",
+  cinza: "595959",
+  rotulo: "404040",
+  preto: "000000",
+  esq: "FF0000", dir: "0432FF", cen: "FFD966",
+  card: "1E2A23", cardBorda: "3B7C53", cardRotulo: "9BA89E",
 };
+const FONTE = "Calibri";
+const CORES_ANOS = [REF.azul, "ED7D31", "A5A5A5", "FFC000", "5B9BD5", "70AD47"];
 
 function rotuloAnos(anos) {
-  const arr = [...anos].sort((a, b) => a - b);
-  return arr.join(" · ");
+  return [...anos].sort((a, b) => a - b).join(" · ");
 }
 
-function subtituloFiltros({ anos, mes, papel }) {
-  const partes = [`Anos: ${rotuloAnos(anos)}`];
-  if (mes && mes !== "Todos") partes.push(`Mês: ${mes}`);
-  if (papel && papel !== "Todos") partes.push(`Função: ${papel}`);
-  return partes.join("   |   ");
+// Converte a URL de um asset (Vite) em data URL base64 para o addImage.
+async function paraDataUrl(url) {
+  if (String(url).startsWith("data:")) return url;
+  const resp = await fetch(url);
+  const tipo = resp.headers.get("content-type") || (/\.png$/i.test(url) ? "image/png" : "image/jpeg");
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return `data:${tipo};base64,${btoa(bin)}`;
 }
 
-// Slide-mestre com cabeçalho institucional
-function aplicarBase(slide, pptx, titulo, subtitulo) {
-  slide.background = { color: "F4F6F1" };
-  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: "100%", h: 0.9, fill: { color: "16211B" } });
-  slide.addText(titulo, { x: 0.4, y: 0.12, w: 9.2, h: 0.45, fontSize: 22, bold: true, color: "FFFFFF", fontFace: "Georgia" });
-  slide.addText(subtitulo || "", { x: 0.4, y: 0.56, w: 9.2, h: 0.28, fontSize: 11, color: "C9D1C2" });
-  slide.addText("A4.6 - Subassessoria de Orçamento", { x: 0.4, y: 6.95, w: 6, h: 0.3, fontSize: 9, color: "9BA89E" });
-  slide.addText(new Date().toLocaleDateString("pt-BR"), { x: 7.6, y: 6.95, w: 2, h: 0.3, fontSize: 9, color: "9BA89E", align: "right" });
+function novaApresentacao(pptxgen) {
+  const pptx = new pptxgen();
+  pptx.layout = "LAYOUT_WIDE";
+  pptx.author = "A4.6 - Subassessoria de Orçamento";
+  pptx.title = "Métricas A4.6";
+  pptx.theme = { headFontFace: FONTE, bodyFontFace: FONTE };
+  return pptx;
+}
+
+// Slide de conteúdo: fundo verde-claro, faixa verde com o título e brasão.
+function slideBase(pptx, titulo, brasao) {
+  const s = pptx.addSlide();
+  s.background = { color: REF.fundo };
+  s.addShape(pptx.ShapeType.rect, { x: 0, y: -0.01, w: W, h: 0.64, fill: { color: REF.barra }, line: { color: REF.barra, width: 0 } });
+  s.addText(titulo, {
+    // largura total, como no modelo (títulos longos passam sob o brasão)
+    x: 0.42, y: -0.01, w: W - 0.42, h: 0.64, margin: 0, valign: "middle",
+    fontFace: FONTE, fontSize: 32, color: REF.titulo, fit: "shrink", isTextBox: true,
+  });
+  s.addImage({ data: brasao, x: 12.288, y: 0.293, w: 0.778, h: 0.778, altText: "Brasão da Assessoria Parlamentar" });
+  return s;
+}
+
+// Opções comuns dos gráficos, no padrão do modelo: rótulos 20pt, categorias
+// em negrito, grade cinza-clara, sem legenda (exceto séries por ano).
+function estilo(o = {}) {
+  return {
+    x: o.x, y: o.y, w: o.w, h: o.h,
+    barDir: o.horizontal ? "bar" : "col",
+    barGrouping: "clustered",
+    barGapWidthPct: o.gap ?? 115,
+    chartColors: o.cores || [REF.azul],
+    showTitle: !!o.titulo, title: o.titulo, titleFontSize: o.tituloTam || 24,
+    titleBold: true, titleColor: REF.preto, titleFontFace: FONTE,
+    showLegend: !!o.legenda, legendPos: "b", legendFontSize: 16, legendFontFace: FONTE,
+    catAxisLabelFontSize: 20, catAxisLabelFontBold: true, catAxisLabelFontFace: FONTE,
+    catAxisLabelColor: o.corEixo || REF.preto,
+    catAxisLineShow: true, catAxisLineColor: REF.grade,
+    catAxisMajorTickMark: "none",
+    valAxisLabelFontSize: o.valTam || 20, valAxisLabelFontBold: o.valNegrito ?? true, valAxisLabelFontFace: FONTE,
+    valAxisLabelColor: o.corVal || o.corEixo || REF.preto,
+    valAxisLineShow: false, valAxisMajorTickMark: "none", valAxisMinVal: 0,
+    valGridLine: { color: REF.grade, size: 0.75 }, catGridLine: { style: "none" },
+    showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 20, dataLabelFontFace: FONTE,
+    dataLabelColor: o.corRotulo || REF.preto, dataLabelFormatCode: o.formatoRotulo || "#,##0",
+  };
 }
 
 // ---- Construtores de dados para cada gráfico, a partir dos registros filtrados ----
 
-export function dadosEvolucaoMensal(registros, anos) {
+// `meses` (opcional): números dos meses a exibir; padrão = Jan–Dez.
+export function dadosEvolucaoMensal(registros, anos, meses) {
   const anosOrd = [...anos].sort((a, b) => a - b);
-  const labels = MESES.slice(1);
+  const nums = meses && meses.length ? meses : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const labels = nums.map(m => MESES[m]);
   const series = anosOrd.map(ano => ({
     name: String(ano),
     labels,
-    values: labels.map((_, i) => registros.filter(r => r.y === ano && r.m === i + 1).length),
+    values: nums.map(m => registros.filter(r => r.y === ano && r.m === m).length),
   }));
   return { labels, series };
 }
@@ -69,7 +121,7 @@ export function dadosPorEspectro(registros) {
   const ordem = ["E", "D", "C"];
   const labels = ordem.map(c => ESP_LABEL[c]);
   const values = ordem.map(c => registros.filter(r => r.esp === c).length);
-  return { labels, values, cores: [COR.esq, COR.dir, COR.cen] };
+  return { labels, values, cores: [REF.esq, REF.dir, REF.cen] };
 }
 
 export function dadosTopGabinetes(registros, n = 10) {
@@ -92,121 +144,231 @@ export function dadosTopPartidos(registros, n = 10) {
   return { labels: ord.map(x => x[0]), values: ord.map(x => x[1]) };
 }
 
-// ---- Adiciona cada tipo de gráfico NATIVO a um slide ----
+// ---- Gráficos nativos no padrão do modelo ----
 
-function addBarClustered(pptx, slide, { labels, series }, opts = {}) {
-  const data = series.map((s, i) => ({ name: s.name, labels: s.labels, values: s.values }));
-  slide.addChart(pptx.ChartType.bar, data, {
-    x: opts.x ?? 0.5, y: opts.y ?? 1.2, w: opts.w ?? 9, h: opts.h ?? 5.2,
-    barDir: "col", barGrouping: "clustered",
-    chartColors: COR.anos,
-    showLegend: series.length > 1, legendPos: "b",
-    showValue: true, dataLabelFontSize: 9, dataLabelColor: "1C2620",
-    catAxisLabelColor: "6B7568", valAxisLabelColor: "6B7568",
-    catAxisLabelFontSize: 9, valAxisLabelFontSize: 9,
-    showTitle: false,
+function graficoEvolucao(pptx, slide, { series }, pos) {
+  const data = series.map(s => ({ name: s.name, labels: s.labels, values: s.values }));
+  slide.addChart(pptx.ChartType.bar, data, estilo({
+    // uma cor por ano (com um só ano, todas as barras em azul); meses sem
+    // contatos ficam sem rótulo, como no modelo.
+    ...pos, gap: 100, cores: CORES_ANOS.slice(0, Math.max(series.length, 1)), legenda: series.length > 1,
+    corEixo: REF.cinza, corRotulo: REF.rotulo, formatoRotulo: '#,##0;;""',
+  }));
+}
+
+function graficoSimples(pptx, slide, { labels, values, cores }, pos, extra = {}) {
+  slide.addChart(pptx.ChartType.bar, [{ name: "Contatos", labels, values }], estilo({ ...pos, cores, ...extra }));
+}
+
+// Cartão escuro de destaque (número + rótulo), como no slide de totais.
+function cartaoTotal(pptx, slide, x, y, valor, rotulo) {
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x, y, w: 1.919, h: 0.9, rectRadius: 0.07,
+    fill: { color: REF.card }, line: { color: REF.cardBorda, width: 1 },
+  });
+  slide.addText(String(valor), {
+    x, y: y - 0.133, w: 1.919, h: 0.7, align: "center", valign: "middle",
+    fontFace: "Georgia", fontSize: 30, bold: true, color: "FFFFFF", isTextBox: true,
+  });
+  slide.addText(rotulo, {
+    x: x - 0.25, y: y + 0.455, w: 2.4, h: 0.4, align: "center", valign: "middle",
+    fontSize: 11, color: REF.cardRotulo, isTextBox: true,
   });
 }
 
-function addBarSingle(pptx, slide, { labels, values }, opts = {}) {
-  const data = [{ name: opts.serieNome || "Contatos", labels, values }];
-  slide.addChart(pptx.ChartType.bar, data, {
-    x: opts.x ?? 0.5, y: opts.y ?? 1.2, w: opts.w ?? 9, h: opts.h ?? 5.2,
-    barDir: opts.horizontal ? "bar" : "col",
-    chartColors: opts.cores || [COR.brand],
-    chartColorsOpacity: 100,
-    showLegend: false,
-    showValue: true, dataLabelFontSize: 10, dataLabelColor: "1C2620",
-    dataLabelPosition: opts.horizontal ? "outEnd" : "outEnd",
-    catAxisLabelColor: "6B7568", valAxisLabelColor: "6B7568",
-    catAxisLabelFontSize: 9, valAxisLabelFontSize: 9,
-    showTitle: false,
+// ---- Alterações em emendas parlamentares ----
+
+const AJUSTE_AO = "Mudança de Ação Orçamentária (AO)";
+const AJUSTE_GND = "Mudança de GND";
+const tiposDoAjuste = (s) => String(s || "").split(/\s*;\s*/).map(t => t.trim()).filter(Boolean);
+
+// Texto da coluna "Alterações" (mesma regra da tabela do Painel).
+function textoAlteracao(it) {
+  const tipos = tiposDoAjuste(it.ajuste);
+  const ao = it.aoDados || {};
+  if (tipos.includes(AJUSTE_AO) && ((ao.aoDeAcao || "").trim() || (ao.aoParaAcao || "").trim())) {
+    return `De “Ação Orçamentária ${(ao.aoDeAcao || "").trim() || "—"}” para “Ação Orçamentária ${(ao.aoParaAcao || "").trim() || "—"}”`;
+  }
+  if (tipos.includes(AJUSTE_GND) && ((ao.gndDe || "").trim() || (ao.gndPara || "").trim() || (ao.aoValor || "").trim())) {
+    const v = (ao.aoValor || "").trim() || "—";
+    return `De “${v} em GND${(ao.gndDe || "").trim() || "—"}” para “${v} em GND${(ao.gndPara || "").trim() || "—"}”.`;
+  }
+  const de = (it.objetoDe || "").trim(), para = (it.objetoPara || "").trim();
+  if (de && para) return `De “${de}” para “${para}”.`;
+  return para ? `Para “${para}”.` : de ? `De “${de}”.` : "—";
+}
+
+const fmtData = (it) => (it.dia && it.mes && it.ano)
+  ? `${String(it.dia).padStart(2, "0")}/${String(it.mes).padStart(2, "0")}/${it.ano}` : "—";
+const cortar = (t, n) => (t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t);
+
+// Cartão de uma alteração (grade 3 × 2 → 6 por slide).
+function cartaoAlteracao(pptx, slide, it, x, y, w, h) {
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x, y, w, h, rectRadius: 0.08, fill: { color: "FFFFFF" }, line: { color: "C5DDB5", width: 0.75 },
+    shadow: { type: "outer", blur: 4, offset: 1.5, angle: 90, color: "000000", opacity: 0.18 },
   });
+  const ix = x + 0.16, iw = w - 0.32;
+  slide.addText(it.parlamentar || "—", {
+    x: ix, y: y + 0.12, w: iw - 1.15, h: 0.36, margin: 0, valign: "middle",
+    fontSize: 16, bold: true, color: REF.titulo, fit: "shrink", isTextBox: true,
+  });
+  slide.addText(fmtData(it), {
+    x: ix + iw - 1.15, y: y + 0.12, w: 1.15, h: 0.36, margin: 0, align: "right", valign: "middle",
+    fontSize: 12, color: REF.cinza, isTextBox: true,
+  });
+  const partUf = [it.partido, it.uf].filter(Boolean).join("/");
+  slide.addText([
+    { text: partUf ? `${partUf}  ·  ` : "", options: { color: REF.cinza } },
+    { text: "Emenda ", options: { color: REF.cinza } },
+    { text: it.emenda || "—", options: { bold: true, color: REF.rotulo } },
+  ], { x: ix, y: y + 0.5, w: iw, h: 0.28, margin: 0, valign: "middle", fontSize: 12, isTextBox: true });
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x: ix, y: y + 0.86, w: iw, h: 0.34, rectRadius: 0.06, fill: { color: "DEEAF6" }, line: { color: "DEEAF6", width: 0 },
+  });
+  slide.addText(cortar(tiposDoAjuste(it.ajuste).join(" · ") || "Ajuste não informado", 70), {
+    x: ix + 0.1, y: y + 0.86, w: iw - 0.2, h: 0.34, margin: 0, valign: "middle",
+    fontSize: 11, bold: true, color: "2F5597", fit: "shrink", isTextBox: true,
+  });
+  slide.addText(cortar(textoAlteracao(it), 300), {
+    x: ix, y: y + 1.3, w: iw, h: h - 1.42, margin: 0, valign: "top",
+    fontSize: 12, color: "262626", fit: "shrink", paraSpaceAfter: 0, isTextBox: true,
+  });
+}
+
+function slidesAlteracoes(pptx, alteracoes, brasao) {
+  const titulo = "5. Alterações em emendas parlamentares";
+  const ord = [...alteracoes].sort((a, b) =>
+    ((b.ano || 0) * 10000 + (b.mes || 0) * 100 + (b.dia || 0)) - ((a.ano || 0) * 10000 + (a.mes || 0) * 100 + (a.dia || 0)));
+  if (!ord.length) {
+    const s = slideBase(pptx, titulo, brasao);
+    s.addText("Nenhuma alteração em emenda parlamentar registrada no período selecionado.", {
+      x: 1, y: 3.2, w: W - 2, h: 0.8, align: "center", valign: "middle", fontSize: 20, color: REF.cinza, isTextBox: true,
+    });
+    return;
+  }
+  const POR_SLIDE = 6, cols = 3, gap = 0.3;
+  const x0 = 0.5, y0 = 1.25, larg = W - 2 * x0, alt = H - y0 - 0.35;
+  const w = (larg - gap * (cols - 1)) / cols, h = (alt - gap) / 2;
+  const paginas = Math.ceil(ord.length / POR_SLIDE);
+  for (let p = 0; p < paginas; p++) {
+    const s = slideBase(pptx, paginas > 1 ? `${titulo} (${p + 1}/${paginas})` : titulo, brasao);
+    ord.slice(p * POR_SLIDE, (p + 1) * POR_SLIDE).forEach((it, i) => {
+      const c = i % cols, l = Math.floor(i / cols);
+      cartaoAlteracao(pptx, s, it, x0 + c * (w + gap), y0 + l * (h + gap), w, h);
+    });
+  }
+}
+
+// pptxgenjs não gera preenchimento em gradiente: substitui o preenchimento
+// sólido azul das séries pelo gradiente + sombra do modelo.
+const GRADIENTE_AZUL =
+  '<a:gradFill rotWithShape="1"><a:gsLst>' +
+  '<a:gs pos="0"><a:srgbClr val="4472C4"><a:satMod val="103000"/><a:lumMod val="102000"/><a:tint val="94000"/></a:srgbClr></a:gs>' +
+  '<a:gs pos="50000"><a:srgbClr val="4472C4"><a:satMod val="110000"/><a:lumMod val="100000"/><a:shade val="100000"/></a:srgbClr></a:gs>' +
+  '<a:gs pos="100000"><a:srgbClr val="4472C4"><a:lumMod val="99000"/><a:satMod val="120000"/><a:shade val="78000"/></a:srgbClr></a:gs>' +
+  '</a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill>';
+
+async function aplicarGradiente(buffer) {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(buffer);
+  const graficos = Object.keys(zip.files).filter(n => /^ppt\/charts\/chart\d+\.xml$/.test(n));
+  for (const nome of graficos) {
+    const xml = await zip.file(nome).async("string");
+    const novo = xml.replace(/(<c:ser>[\s\S]*?<c:spPr>\s*)<a:solidFill>\s*<a:srgbClr val="4472C4"\s*(?:\/>|>[\s\S]*?<\/a:srgbClr>)\s*<\/a:solidFill>/g,
+      (_, ini) => ini + GRADIENTE_AZUL);
+    if (novo !== xml) zip.file(nome, novo);
+  }
+  return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+}
+
+async function salvar(pptx, nomeArquivo) {
+  const buf = await pptx.write({ outputType: "arraybuffer" });
+  const blob = await aplicarGradiente(buf);
+  if (typeof document === "undefined") return blob;  // uso fora do navegador (testes)
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nomeArquivo;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return blob;
 }
 
 // ---- Exportação do PAINEL inteiro ----
 
-export async function exportarPainelPptx({ registros, anos, mes, papel, resumo }) {
+export async function exportarPainelPptx({ registros, anos, meses, resumo, alteracoes = [] }) {
   const pptxgen = await getPptx();
-  const pptx = new pptxgen();
-  pptx.defineLayout({ name: "WIDE", width: 10, height: 7.5 });
-  pptx.layout = "WIDE";
-  pptx.author = "A4.6 - Subassessoria de Orçamento";
-  pptx.title = "Métricas de Gestão";
+  const [capa, brasao] = await Promise.all([paraDataUrl(capaImg), paraDataUrl(brasaoImg)]);
+  const pptx = novaApresentacao(pptxgen);
 
-  const sub = subtituloFiltros({ anos, mes, papel });
+  // Slide 1 — capa: faixa com o título e a imagem institucional.
+  const s1 = pptx.addSlide();
+  s1.background = { color: "FFFFFF" };
+  s1.addImage({ data: capa, x: 0, y: 0.696, w: W, h: 6.804, altText: "Congresso Nacional e a Subassessoria de Orçamento" });
+  s1.addShape(pptx.ShapeType.rect, { x: 0, y: -0.01, w: W, h: 0.707, fill: { color: REF.barra }, line: { color: REF.barra, width: 0 } });
+  s1.addText([
+    { text: "5. Subassessoria de Orçamento", options: { fontSize: 36 } },
+    { text: " (A4.6)", options: { fontSize: 32 } },
+  ], { x: 0.42, y: -0.01, w: 11.7, h: 0.707, margin: 0, valign: "middle", fontFace: FONTE, color: REF.titulo, isTextBox: true });
+  s1.addImage({ data: brasao, x: 12.381, y: 0.329, w: 0.773, h: 0.773, altText: "Brasão da Assessoria Parlamentar" });
 
-  // Slide 1 — capa com resumo
-  const capa = pptx.addSlide();
-  capa.background = { color: "16211B" };
-  capa.addText("MÉTRICAS DE GESTÃO", { x: 0.5, y: 2.1, w: 9, h: 0.8, fontSize: 40, bold: true, color: "FFFFFF", align: "center", fontFace: "Georgia" });
-  capa.addText("A4.6 - Subassessoria de Orçamento", { x: 0.5, y: 3.0, w: 9, h: 0.5, fontSize: 18, color: "67B588", align: "center" });
-  capa.addText(sub, { x: 0.5, y: 3.7, w: 9, h: 0.4, fontSize: 12, color: "C9D1C2", align: "center" });
-
-  const cards = [
-    ["Total geral", resumo.totalGeral],
-    ["Total no período", resumo.totalPeriodo],
-    ["Contatos no mês atual", resumo.totalMes],
-  ];
-  let cx = 1.2;
-  for (const [label, val] of cards) {
-    capa.addShape(pptx.ShapeType.roundRect, { x: cx, y: 4.5, w: 2.4, h: 1.4, fill: { color: "1E2A23" }, line: { color: "3B7C53", width: 1 }, rectRadius: 0.1 });
-    capa.addText(String(val), { x: cx, y: 4.7, w: 2.4, h: 0.7, fontSize: 30, bold: true, color: "FFFFFF", align: "center", fontFace: "Georgia" });
-    capa.addText(label, { x: cx, y: 5.4, w: 2.4, h: 0.4, fontSize: 11, color: "9BA89E", align: "center" });
-    cx += 2.6;
+  // Slide 2 — totais e evolução mensal. Sem filtro de mês, vai de Jan até o
+  // último mês com registros (como no modelo).
+  let nums = meses && meses.length && meses.length < 12 ? [...meses].sort((a, b) => a - b) : null;
+  if (!nums) {
+    const ultimo = registros.reduce((m, r) => Math.max(m, r.m || 0), 0) || 12;
+    nums = Array.from({ length: ultimo }, (_, i) => i + 1);
   }
+  const s2 = slideBase(pptx, "5. Total de contatos/visitas da A4.6", brasao);
+  cartaoTotal(pptx, s2, 4.267, 0.758, resumo.totalPeriodo, "Total no período");
+  cartaoTotal(pptx, s2, 7.044, 0.763, resumo.totalMes, "Contatos no mês atual");
+  graficoEvolucao(pptx, s2, dadosEvolucaoMensal(registros, anos, nums), { x: 0.5, y: 1.741, w: 12.184, h: 5.27 });
 
-  // Slide 2 — Evolução mensal (série por ano)
-  const s2 = pptx.addSlide();
-  aplicarBase(s2, pptx, "Evolução mensal", sub);
-  addBarClustered(pptx, s2, dadosEvolucaoMensal(registros, anos));
+  // Slide 3 — por tipo (função) e por espectro.
+  const s3 = slideBase(pptx, "5. Total de contatos por tipo e espectro político", brasao);
+  graficoSimples(pptx, s3, dadosPorFuncao(registros), { x: 0.77, y: 1.546, w: 5.128, h: 5.343 },
+    { horizontal: true, titulo: "Total de contatos por tipo", tituloTam: 24 });
+  graficoSimples(pptx, s3, dadosPorEspectro(registros), { x: 7.348, y: 1.546, w: 5.356, h: 5.362 },
+    { titulo: "Total de contatos por espectro", tituloTam: 21, gap: 60 });
 
-  // Slide 3 — Por função + Por espectro (somados)
-  const s3 = pptx.addSlide();
-  aplicarBase(s3, pptx, "Por função e por espectro", sub);
-  addBarSingle(pptx, s3, dadosPorFuncao(registros), { x: 0.4, y: 1.2, w: 4.6, h: 5.0, horizontal: true, serieNome: "Contatos" });
-  const esp = dadosPorEspectro(registros);
-  addBarSingle(pptx, s3, esp, { x: 5.2, y: 1.2, w: 4.4, h: 5.0, cores: esp.cores, serieNome: "Contatos" });
+  // Slide 4 — 10 mais visitados/contatados.
+  const s4 = slideBase(pptx, "5. Total de contatos/visitas da A4.6", brasao);
+  graficoSimples(pptx, s4, dadosTopGabinetes(registros), { x: 0.398, y: 1.15, w: 12.668, h: 6.057 },
+    { horizontal: true, valTam: 16, valNegrito: false, corVal: REF.cinza });
 
-  // Slide 4 — Top 10 gabinetes/contatos (somado)
-  const s4 = pptx.addSlide();
-  aplicarBase(s4, pptx, "10 mais visitados/contatados", sub);
-  addBarSingle(pptx, s4, dadosTopGabinetes(registros), { x: 0.5, y: 1.2, w: 9, h: 5.2, horizontal: true, serieNome: "Contatos" });
+  // Slide 5 — 10 partidos/consultorias/comissões.
+  const s5 = slideBase(pptx, "5. Total de contatos por partido/consultoria/comissão", brasao);
+  graficoSimples(pptx, s5, dadosTopPartidos(registros), { x: 0.505, y: 1.15, w: 12.179, h: 5.829 },
+    { horizontal: true, valTam: 16, valNegrito: false, corVal: REF.cinza });
 
-  // Slide 5 — Top 10 partidos (somado)
-  const s5 = pptx.addSlide();
-  aplicarBase(s5, pptx, "10 partidos mais visitados/contatados", sub);
-  addBarSingle(pptx, s5, dadosTopPartidos(registros), { x: 0.5, y: 1.2, w: 9, h: 5.2, horizontal: true, serieNome: "Contatos" });
+  // Slides 6+ — alterações em emendas parlamentares (6 por slide).
+  slidesAlteracoes(pptx, alteracoes, brasao);
 
-  await pptx.writeFile({ fileName: `Metricas_Gestao_A4-6_${rotuloAnos(anos)}.pptx` });
+  return salvar(pptx, `Metricas_A4-6_${rotuloAnos(anos)}.pptx`);
 }
 
-// ---- Exportação de UM gráfico individual em PPTX (nativo) ----
+// ---- Exportação de UM gráfico individual em PPTX (nativo, mesmo modelo) ----
 
-export async function exportarGraficoPptx({ tipo, titulo, dados, anos, mes, papel }) {
+export async function exportarGraficoPptx({ tipo, titulo, dados }) {
   const pptxgen = await getPptx();
-  const pptx = new pptxgen();
-  pptx.defineLayout({ name: "WIDE", width: 10, height: 7.5 });
-  pptx.layout = "WIDE";
-  pptx.author = "A4.6 - Subassessoria de Orçamento";
-
-  const sub = subtituloFiltros({ anos, mes, papel });
-  const slide = pptx.addSlide();
-  aplicarBase(slide, pptx, titulo, sub);
+  const brasao = await paraDataUrl(brasaoImg);
+  const pptx = novaApresentacao(pptxgen);
+  const slide = slideBase(pptx, `5. ${titulo}`, brasao);
+  const pos = { x: 0.5, y: 1.25, w: 12.33, h: 5.9 };
 
   if (tipo === "evolucao") {
-    addBarClustered(pptx, slide, dados);
+    graficoEvolucao(pptx, slide, dados, pos);
   } else if (tipo === "espectro") {
-    addBarSingle(pptx, slide, dados, { cores: dados.cores, serieNome: "Contatos" });
+    graficoSimples(pptx, slide, dados, pos, { gap: 60 });
   } else if (tipo === "funcao") {
-    addBarSingle(pptx, slide, dados, { horizontal: true, serieNome: "Contatos" });
+    graficoSimples(pptx, slide, dados, pos, { horizontal: true });
   } else {
     // top gabinetes / top partidos
-    addBarSingle(pptx, slide, dados, { horizontal: true, serieNome: "Contatos" });
+    graficoSimples(pptx, slide, dados, pos, { horizontal: true, valTam: 16, valNegrito: false, corVal: REF.cinza });
   }
 
   const nome = titulo.replace(/[^\w]+/g, "_");
-  await pptx.writeFile({ fileName: `${nome}_A4-6.pptx` });
+  return salvar(pptx, `${nome}_A4-6.pptx`);
 }
 
 // ---- Exportação de UM gráfico como PNG (captura do elemento renderizado) ----
