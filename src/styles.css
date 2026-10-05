@@ -92,6 +92,7 @@ body { margin: 0; }
   cursor: pointer; font-family: var(--font-body);
 }
 .logout-btn:hover { background: var(--surface-hi); color: var(--ink); }
+.topbar-acoes { display: flex; align-items: center; gap: 8px; }
 
 .main {
   flex: 1;
@@ -466,7 +467,7 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
   .topbar-right { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
   .abas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .aba-btn { justify-content: center; white-space: nowrap; }
-  .logout-btn { align-self: flex-end; }
+  .topbar-acoes { align-self: flex-end; }
 }
 @media (max-width: 520px) {
   .aba-btn { padding: 8px 10px; font-size: 11px; letter-spacing: 0.03em; }
@@ -1238,3 +1239,38 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .rot-add-in { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); outline: none; }
 .rot-add-in::placeholder { color: var(--muted); }
 @media (max-width: 720px) { .rot-cards { grid-template-columns: 1fr; } }
+
+/* ==========================================================================
+   Tour virtual (modo tutorial)
+   ========================================================================== */
+.tour-card {
+  position: fixed; right: 20px; bottom: 20px; z-index: 60;
+  width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - var(--topbar-h, 94px) - 40px);
+  overflow-y: auto; box-sizing: border-box;
+  background: var(--surface-solid); border: 1px solid var(--brand-hi); border-radius: 12px;
+  padding: 16px 18px; box-shadow: 0 14px 40px rgba(0,0,0,0.55); color: var(--ink);
+  animation: tour-entra .25s ease-out;
+}
+@keyframes tour-entra { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.tour-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.tour-passo { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--brand-hi);
+  font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.tour-titulo { font-family: var(--font-display); font-size: 21px; margin: 2px 0 6px; }
+.tour-texto { font-size: 13.5px; line-height: 1.5; color: var(--ink); margin: 0 0 10px; text-align: justify; }
+.tour-sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.tour-itens { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tour-itens li { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; border-radius: 7px;
+  background: rgba(255,255,255,0.04); border-left: 3px solid var(--brand); }
+.tour-itens b { font-size: 12.5px; color: var(--brand-hi); }
+.tour-itens span { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.tour-pontos { display: flex; justify-content: center; gap: 6px; margin: 4px 0 12px; }
+.tour-ponto { width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0; cursor: pointer; background: var(--line-strong); }
+.tour-ponto-on { background: var(--brand-hi); width: 20px; border-radius: 4px; }
+.tour-nav { display: flex; justify-content: space-between; gap: 8px; }
+.tour-nav .btn:disabled { opacity: 0.4; cursor: default; }
+.tour-destaque { position: relative; outline: 2px solid var(--gold); outline-offset: 2px;
+  animation: tour-pulso 1.4s ease-in-out infinite; }
+@keyframes tour-pulso { 0%,100% { box-shadow: 0 0 0 0 rgba(201,169,106,0.55); } 50% { box-shadow: 0 0 0 7px rgba(201,169,106,0); } }
+@media (max-width: 640px) {
+  .tour-card { right: 16px; left: 16px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: auto; max-height: 55vh; }
+}
