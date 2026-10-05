@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, ChevronLeft, ChevronRight, Check, Compass } from "lucide-react";
 
 // Roteiro do tour: uma etapa por módulo (aba do cabeçalho), com as abas
@@ -105,6 +106,38 @@ export default function TourVirtual({ aberto, onFechar, setAba, setView }) {
   const [i, setI] = useState(0);
   const etapa = ETAPAS[i];
   const ultima = i === ETAPAS.length - 1;
+  const cardRef = useRef(null);
+  const [pos, setPos] = useState(null); // { top, left, seta }
+  const seletor = `[data-tour="${etapa.aba || "tour"}"]`;
+
+  // Ancora o cartão logo abaixo do botão do módulo no cabeçalho, com a seta
+  // apontando para ele; mantém-se dentro da largura da tela.
+  const posicionar = useCallback(() => {
+    const btn = document.querySelector(seletor);
+    const card = cardRef.current;
+    if (!btn || !card) return;
+    const r = btn.getBoundingClientRect();
+    const w = card.offsetWidth;
+    const vw = document.documentElement.clientWidth;
+    const centro = r.left + r.width / 2;
+    const left = Math.min(Math.max(centro - w / 2, 12), vw - w - 12);
+    const top = r.bottom + 14;
+    const folga = vw <= 640 ? 96 : 16; // no celular, acima da barra inferior
+    setPos({ top, left, seta: Math.min(Math.max(centro - left, 20), w - 20), maxH: window.innerHeight - top - folga });
+  }, [seletor]);
+
+  useLayoutEffect(() => {
+    if (!aberto) return;
+    posicionar();
+    const raf = requestAnimationFrame(posicionar); // após o módulo renderizar
+    window.addEventListener("resize", posicionar);
+    window.addEventListener("scroll", posicionar, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", posicionar);
+      window.removeEventListener("scroll", posicionar, true);
+    };
+  }, [aberto, posicionar]);
 
   useEffect(() => { if (aberto) setI(0); }, [aberto]);
 
@@ -113,9 +146,10 @@ export default function TourVirtual({ aberto, onFechar, setAba, setView }) {
     if (!aberto) return;
     if (etapa.aba) setAba(etapa.aba);
     if (etapa.view) setView(etapa.view);
-    const btn = etapa.aba ? document.querySelector(`[data-tour="${etapa.aba}"]`) : document.querySelector("[data-tour=\"tour\"]");
-    btn?.classList.add("tour-destaque");
-    return () => btn?.classList.remove("tour-destaque");
+    const btn = document.querySelector(seletor);
+    // atributo (e não classe): o React reescreve className ao trocar de módulo.
+    btn?.setAttribute("data-tour-destaque", "");
+    return () => btn?.removeAttribute("data-tour-destaque");
   }, [aberto, i]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -131,8 +165,15 @@ export default function TourVirtual({ aberto, onFechar, setAba, setView }) {
 
   if (!aberto) return null;
 
-  return (
-    <div className="tour-card" role="dialog" aria-label="Tour virtual">
+  // Portal no <body>: fora do .app-shell, cujas regras de posicionamento dos
+  // filhos diretos anulariam o position: fixed do cartão.
+  return createPortal(
+    <div ref={cardRef} key={i} className="tour-card" role="dialog" aria-label="Tour virtual"
+      style={pos
+        ? { top: pos.top, left: pos.left, "--tour-seta": `${pos.seta}px` }
+        : { visibility: "hidden" }}>
+      <span className="tour-seta" aria-hidden="true" />
+      <div className="tour-corpo" style={pos ? { maxHeight: Math.max(pos.maxH, 220) } : undefined}>
       <div className="tour-topo">
         <span className="tour-passo"><Compass size={13} /> Tour virtual · {i + 1} de {ETAPAS.length}</span>
         <button className="icon-btn" title="Encerrar tour (Esc)" onClick={onFechar}><X size={15} /></button>
@@ -165,6 +206,8 @@ export default function TourVirtual({ aberto, onFechar, setAba, setView }) {
           <button className="btn btn-primary btn-sm" onClick={() => setI(i + 1)}>Próximo <ChevronRight size={15} /></button>
         )}
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }
