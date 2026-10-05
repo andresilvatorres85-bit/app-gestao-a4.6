@@ -386,13 +386,22 @@ export async function exportarGraficoPptx({ tipo, titulo, dados }) {
 export async function exportarGraficoPng(elemento, nomeArquivo) {
   if (!elemento) return;
   const toPng = await getToPng();
-  const dataUrl = await toPng(elemento, {
-    backgroundColor: "#0f1713",
-    pixelRatio: 2,
-    filter: (node) => !(node.classList && node.classList.contains("no-export")),
-  });
-  const link = document.createElement("a");
-  link.download = `${nomeArquivo}.png`;
-  link.href = dataUrl;
-  link.click();
+  // Esconde os controles (.no-export) com CSS ANTES da captura, para o layout
+  // se recompor sem eles — só filtrá-los na clonagem deixaria buracos, porque
+  // as alturas copiadas são as da tela com os botões.
+  elemento.classList.add("exportando-png");
+  try {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const dataUrl = await toPng(elemento, {
+      backgroundColor: "#0f1713",
+      pixelRatio: 2,
+      filter: (node) => !(node.classList && node.classList.contains("no-export")),
+    });
+    const link = document.createElement("a");
+    link.download = `${nomeArquivo}.png`;
+    link.href = dataUrl;
+    link.click();
+  } finally {
+    elemento.classList.remove("exportando-png");
+  }
 }
