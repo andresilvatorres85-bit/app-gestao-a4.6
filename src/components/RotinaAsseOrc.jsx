@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
-import { Plus, Pencil, Trash2, CornerDownRight, GripVertical } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, Pencil, Trash2, CornerDownRight, GripVertical, FileDown, Image as ImageIcon } from "lucide-react";
+import { exportarCardDocx } from "../rotinaDoc.js";
+import { exportarGraficoPng } from "../exportUtils.js";
 
 // Card de largura total no topo.
 const ROTINA_DIARIA = { id: "rotina_diaria", titulo: "Rotina Diária", cor: "#C0392B" };
@@ -16,6 +18,7 @@ const CARDS = [
   { id: "cmo", titulo: "Comissão Mista de Planos, Orçamentos Públicos e Fiscalização (CMO)", cor: "#2E8B99" },
   { id: "medalhas", titulo: "Indicação de Medalhas", cor: "#8E6D3A" },
   { id: "convidados", titulo: "Indicação de Convidados para Atividades Institucionais", cor: "#5C6BC0" },
+  { id: "eleicoes", titulo: "Eleições", cor: "#2F8F5B" },
 ];
 
 // Transforma URLs do texto em links clicáveis.
@@ -35,7 +38,8 @@ export default function RotinaAsseOrc({ rotina }) {
     <div className="rot-wrap">
       <p className="page-sub">
         Atividades do Assessor Parlamentar de Orçamento. Em cada card, adicione, edite, exclua e
-        reordene (arrastando) tarefas e subtarefas. Links colados viram clicáveis.
+        reordene (arrastando) tarefas e subtarefas — inclusive subtarefas de subtarefas. Links
+        colados viram clicáveis. Cada card pode ser exportado em DOCX ou PNG.
       </p>
 
       {erro && (
@@ -60,33 +64,39 @@ export default function RotinaAsseOrc({ rotina }) {
 }
 
 function CardAtividade({ card, itens, adicionar, editar, excluir, reordenar }) {
+  const ref = useRef(null);
   const [novo, setNovo] = useState("");
   const [editId, setEditId] = useState(null);
   const [rascunho, setRascunho] = useState("");
-  const [subDe, setSubDe] = useState(null);
+  const [subDe, setSubDe] = useState(null);     // id do item que recebe nova subtarefa
   const [subTexto, setSubTexto] = useState("");
-  const [arr, setArr] = useState(null);   // { id, parent } sendo arrastado
+  const [arr, setArr] = useState(null);          // { id, parent } sendo arrastado
   const [alvo, setAlvo] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
 
-  const tarefas = useMemo(
-    () => itens.filter((i) => i.card === card.id && !i.parentId).sort((a, b) => a.pos - b.pos),
-    [itens, card.id]
-  );
-  const subsDe = (pid) => itens.filter((i) => i.parentId === pid).sort((a, b) => a.pos - b.pos);
+  // Filhos de um item (null = tarefas do card), na ordem salva.
+  const filhosDe = (pid) =>
+    itens.filter((i) => i.card === card.id && (i.parentId || null) === pid).sort((a, b) => a.pos - b.pos);
 
   function enviarNovo() { const t = novo.trim(); if (!t) return; adicionar?.(card.id, t, null); setNovo(""); }
   function salvarEdicao(id) { editar?.(id, rascunho); setEditId(null); }
   function enviarSub(pid) { const t = subTexto.trim(); if (!t) return; adicionar?.(card.id, t, pid); setSubTexto(""); setSubDe(null); }
 
-  // parentId = null → reordena tarefas; senão, subtarefas daquele pai.
+  // Reordena entre irmãos (mesmo pai); arrastar para outro nível não faz nada.
   function soltarEm(alvoId, parentId) {
     const de = arr; setArr(null); setAlvo(null);
     if (!de || de.id === alvoId || de.parent !== parentId) return;
-    const grupo = (parentId === null ? tarefas : subsDe(parentId)).map((x) => x.id);
+    const grupo = filhosDe(parentId).map((x) => x.id);
     const iDe = grupo.indexOf(de.id), iAlvo = grupo.indexOf(alvoId);
     if (iDe < 0 || iAlvo < 0) return;
     grupo.splice(iAlvo, 0, grupo.splice(iDe, 1)[0]);
     reordenar?.(grupo);
+  }
+
+  async function exportar(fn) {
+    setOcupado(true);
+    try { await fn(); } catch (e) { console.error("Falha ao exportar o card:", e); }
+    setOcupado(false);
   }
 
   const editInput = (onBlurSalvar) => (
@@ -95,63 +105,74 @@ function CardAtividade({ card, itens, adicionar, editar, excluir, reordenar }) {
       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEditId(null); }} />
   );
 
+  // Um item e, recursivamente, suas subtarefas. Função de render (não
+  // componente), para não remontar a árvore — e perder o foco — a cada tecla.
+  function renderNo(it, parent, nivel) {
+    const filhos = filhosDe(it.id);
+    const ehAlvo = alvo === it.id && arr && arr.parent === parent && arr.id !== it.id;
+    return (
+      <li key={it.id} className={`rot-no rot-nivel-${Math.min(nivel, 3)}${arr?.id === it.id ? " rot-arrastando" : ""}${ehAlvo ? " rot-alvo" : ""}`}
+        draggable={editId !== it.id}
+        onDragStart={(e) => { e.stopPropagation(); if (editId === it.id) return; setArr({ id: it.id, parent }); e.dataTransfer.effectAllowed = "move"; }}
+        onDragEnd={(e) => { e.stopPropagation(); setArr(null); setAlvo(null); }}
+        onDragOver={(e) => { if (arr && arr.parent === parent) { e.preventDefault(); e.stopPropagation(); setAlvo(it.id); } }}
+        onDrop={(e) => { if (arr && arr.parent === parent) { e.preventDefault(); e.stopPropagation(); soltarEm(it.id, parent); } }}>
+        <div className="rot-linha">
+          <span className="rot-grip no-export" title="Arraste para reordenar"><GripVertical size={nivel ? 12 : 13} /></span>
+          {nivel > 0 && <CornerDownRight size={12} className="rot-sub-ico" />}
+          {editId === it.id ? editInput(() => salvarEdicao(it.id)) : <span className="rot-txt">{comLinks(it.texto)}</span>}
+          <div className="rot-acoes no-export">
+            <button className="icon-btn" title="Adicionar subtarefa" onClick={() => { setSubDe(it.id); setSubTexto(""); }}><CornerDownRight size={13} /></button>
+            <button className="icon-btn" title="Editar" onClick={() => { setEditId(it.id); setRascunho(it.texto); }}><Pencil size={13} /></button>
+            <button className="icon-btn" title="Excluir"
+              onClick={() => { if (confirm(filhos.length ? "Excluir este item e todas as suas subtarefas?" : "Excluir este item?")) excluir?.(it.id); }}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+        {(filhos.length > 0 || subDe === it.id) && (
+          <ul className="rot-subs">
+            {filhos.map((f) => renderNo(f, it.id, nivel + 1))}
+            {subDe === it.id && (
+              <li className="rot-no rot-nivel-novo no-export">
+                <div className="rot-linha">
+                  <CornerDownRight size={12} className="rot-sub-ico" />
+                  <input className="input rot-edit" autoFocus placeholder="Nova subtarefa" value={subTexto}
+                    onChange={(e) => setSubTexto(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") enviarSub(it.id); if (e.key === "Escape") setSubDe(null); }}
+                    onBlur={() => { if (subTexto.trim()) enviarSub(it.id); else setSubDe(null); }} />
+                </div>
+              </li>
+            )}
+          </ul>
+        )}
+      </li>
+    );
+  }
+
+  const slug = card.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]+/g, "_");
+
   return (
-    <section className="rot-card" style={{ "--rot-cor": card.cor, "--rot-cor-bg": card.cor + "14" }}>
-      <h3 className="rot-card-tit">{card.titulo}</h3>
+    <section ref={ref} className="rot-card" style={{ "--rot-cor": card.cor, "--rot-cor-bg": card.cor + "14" }}>
+      <div className="rot-card-topo">
+        <h3 className="rot-card-tit">{card.titulo}</h3>
+        <div className="chart-actions no-export">
+          <button className="mini-btn" disabled={ocupado} title="Exportar este card em DOCX (Word)"
+            onClick={() => exportar(() => exportarCardDocx({ card, itens }))}>
+            <FileDown size={13} /> DOCX
+          </button>
+          <button className="mini-btn" disabled={ocupado} title="Exportar este card como imagem PNG"
+            onClick={() => exportar(() => exportarGraficoPng(ref.current, `Rotina_${slug}`))}>
+            <ImageIcon size={13} /> PNG
+          </button>
+        </div>
+      </div>
 
       <ul className="rot-lista">
-        {tarefas.map((t) => (
-          <li key={t.id}
-            className={`rot-tarefa${arr?.id === t.id ? " rot-arrastando" : ""}${alvo === t.id && arr && arr.parent === null && arr.id !== t.id ? " rot-alvo" : ""}`}
-            draggable={editId !== t.id}
-            onDragStart={(e) => { if (editId === t.id) return; setArr({ id: t.id, parent: null }); e.dataTransfer.effectAllowed = "move"; }}
-            onDragEnd={() => { setArr(null); setAlvo(null); }}
-            onDragOver={(e) => { if (arr && arr.parent === null) { e.preventDefault(); setAlvo(t.id); } }}
-            onDrop={(e) => { e.preventDefault(); soltarEm(t.id, null); }}>
-            <div className="rot-linha">
-              <span className="rot-grip" title="Arraste para reordenar"><GripVertical size={13} /></span>
-              {editId === t.id ? editInput(() => salvarEdicao(t.id)) : <span className="rot-txt">{comLinks(t.texto)}</span>}
-              <div className="rot-acoes">
-                <button className="icon-btn" title="Adicionar subtarefa" onClick={() => { setSubDe(t.id); setSubTexto(""); }}><CornerDownRight size={13} /></button>
-                <button className="icon-btn" title="Editar" onClick={() => { setEditId(t.id); setRascunho(t.texto); }}><Pencil size={13} /></button>
-                <button className="icon-btn" title="Excluir" onClick={() => { if (confirm("Excluir esta tarefa?")) excluir?.(t.id); }}><Trash2 size={13} /></button>
-              </div>
-            </div>
-            {(subsDe(t.id).length > 0 || subDe === t.id) && (
-              <ul className="rot-subs">
-                {subsDe(t.id).map((s) => (
-                  <li key={s.id}
-                    className={`rot-sub${arr?.id === s.id ? " rot-arrastando" : ""}${alvo === s.id && arr && arr.parent === t.id && arr.id !== s.id ? " rot-alvo" : ""}`}
-                    draggable={editId !== s.id}
-                    onDragStart={(e) => { if (editId === s.id) return; e.stopPropagation(); setArr({ id: s.id, parent: t.id }); e.dataTransfer.effectAllowed = "move"; }}
-                    onDragEnd={() => { setArr(null); setAlvo(null); }}
-                    onDragOver={(e) => { if (arr && arr.parent === t.id) { e.preventDefault(); setAlvo(s.id); } }}
-                    onDrop={(e) => { e.preventDefault(); e.stopPropagation(); soltarEm(s.id, t.id); }}>
-                    <span className="rot-grip rot-grip-sub" title="Arraste para reordenar"><GripVertical size={12} /></span>
-                    <CornerDownRight size={12} className="rot-sub-ico" />
-                    {editId === s.id ? editInput(() => salvarEdicao(s.id)) : <span className="rot-txt">{comLinks(s.texto)}</span>}
-                    <div className="rot-acoes">
-                      <button className="icon-btn" title="Editar" onClick={() => { setEditId(s.id); setRascunho(s.texto); }}><Pencil size={12} /></button>
-                      <button className="icon-btn" title="Excluir" onClick={() => { if (confirm("Excluir esta subtarefa?")) excluir?.(s.id); }}><Trash2 size={12} /></button>
-                    </div>
-                  </li>
-                ))}
-                {subDe === t.id && (
-                  <li className="rot-sub">
-                    <CornerDownRight size={12} className="rot-sub-ico" />
-                    <input className="input rot-edit" autoFocus placeholder="Nova subtarefa" value={subTexto}
-                      onChange={(e) => setSubTexto(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") enviarSub(t.id); if (e.key === "Escape") setSubDe(null); }}
-                      onBlur={() => { if (subTexto.trim()) enviarSub(t.id); else setSubDe(null); }} />
-                  </li>
-                )}
-              </ul>
-            )}
-          </li>
-        ))}
+        {filhosDe(null).map((t) => renderNo(t, null, 0))}
       </ul>
 
-      <div className="rot-add">
+      <div className="rot-add no-export">
         <Plus size={14} className="rot-add-ico" />
         <input className="rot-add-in" placeholder="Adicionar tarefa" value={novo}
           onChange={(e) => setNovo(e.target.value)}

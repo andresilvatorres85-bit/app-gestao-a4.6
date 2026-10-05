@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 
 // Rotina do Assessor de Orçamento: tarefas e subtarefas dentro de cada card
-// (atividade). `card` identifica a atividade; `parent_id` liga a subtarefa à
-// tarefa. Tudo compartilhado e em tempo real.
+// (atividade). `card` identifica a atividade; `parent_id` liga a subtarefa ao
+// item pai — tarefa ou outra subtarefa, em qualquer profundidade. Tudo
+// compartilhado e em tempo real.
 function mapRow(r) {
   return { id: r.id, card: r.card || "", parentId: r.parent_id || null, texto: r.texto || "", pos: r.pos ?? 0 };
 }
@@ -59,10 +60,18 @@ export function useRotina(session) {
     return res;
   }, [recarregar]);
 
+  // Exclui o item e TODOS os descendentes (subtarefas em qualquer nível).
   const excluir = useCallback(async (id) => {
-    const filhos = itens.filter((i) => i.parentId === id).map((i) => i.id);
-    setItens((prev) => prev.filter((i) => i.id !== id && i.parentId !== id));
-    if (filhos.length) await supabase.from("rotina_itens").delete().in("id", filhos);
+    const filhosDe = (pid) => itens.filter((i) => i.parentId === pid).map((i) => i.id);
+    const descendentes = [];
+    for (let fila = filhosDe(id); fila.length; ) {
+      const atual = fila.shift();
+      descendentes.push(atual);
+      fila.push(...filhosDe(atual));
+    }
+    const remover = new Set([id, ...descendentes]);
+    setItens((prev) => prev.filter((i) => !remover.has(i.id)));
+    if (descendentes.length) await supabase.from("rotina_itens").delete().in("id", descendentes);
     const res = await supabase.from("rotina_itens").delete().eq("id", id);
     if (!res.error) recarregar();
     return res;
