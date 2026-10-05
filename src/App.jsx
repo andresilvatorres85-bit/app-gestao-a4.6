@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays, Library } from "lucide-react";
+import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays, Library, Compass } from "lucide-react";
+import TourVirtual from "./components/TourVirtual.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
@@ -68,6 +69,7 @@ export default function App() {
   const headerRef = useRef(null);
   const subnavRef = useRef(null);
   const [view, setView] = useState("dashboard");
+  const [tourAberto, setTourAberto] = useState(false);
   const [objetoEditando, setObjetoEditando] = useState(null);
   const [novos, setNovos] = useState([]);
   const [loadedNovos, setLoadedNovos] = useState(false);
@@ -177,14 +179,19 @@ export default function App() {
         <div className="topbar-right">
           <nav className="abas" aria-label="Abas principais">
             {ABAS.map(a => (
-              <button key={a.id} className={`aba-btn ${aba === a.id ? "aba-btn-active" : ""}`} onClick={() => setAba(a.id)}>
+              <button key={a.id} data-tour={a.id} className={`aba-btn ${aba === a.id ? "aba-btn-active" : ""}`} onClick={() => setAba(a.id)}>
                 <a.icon size={15} strokeWidth={1.75} /> {a.label}
               </button>
             ))}
           </nav>
-          <button className="logout-btn" onClick={() => supabase.auth.signOut()} title="Sair">
-            <LogOut size={14} /> <span className="logout-txt">Sair</span>
-          </button>
+          <div className="topbar-acoes">
+            <button className="logout-btn" data-tour="tour" onClick={() => setTourAberto(true)} title="Tour virtual: conheça os módulos do aplicativo">
+              <Compass size={14} /> <span className="logout-txt">Tour</span>
+            </button>
+            <button className="logout-btn" onClick={() => supabase.auth.signOut()} title="Sair">
+              <LogOut size={14} /> <span className="logout-txt">Sair</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -259,6 +266,8 @@ export default function App() {
           ))}
         </nav>
       )}
+
+      <TourVirtual aberto={tourAberto} onFechar={() => setTourAberto(false)} setAba={setAba} setView={setView} />
 
       {toast && (
         <div className={`toast toast-${toast.tipo}`}>
