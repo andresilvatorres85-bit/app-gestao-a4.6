@@ -456,6 +456,31 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 }
 .aba-btn:hover { background: var(--surface-hi); color: var(--ink); }
 .aba-btn-active { background: var(--brand); border-color: var(--brand-hi); color: #fff; }
+/* Telas médias: o cabeçalho se ajusta à largura para nenhum botão ficar fora
+   da tela (ver useCabecalhoAjustavel.js, que mede e aplica as classes).
+   .tb-compacta: botões mais compactos. .tb-duas-linhas: marca + Tour/Sair em
+   cima e os módulos numa grade logo abaixo, ocupando a largura toda. A altura
+   real é medida por ResizeObserver (--topbar-h), então o conteúdo acompanha. */
+.brand { flex: none; }
+.brand-sub { white-space: nowrap; }
+.topbar { gap: 16px; }
+@media (min-width: 641px) {
+  .topbar.tb-compacta { padding-left: 18px; padding-right: 18px; }
+  .tb-compacta .topbar-right { gap: 8px; }
+  .tb-compacta .abas { gap: 4px; }
+  .tb-compacta .aba-btn { padding: 7px 10px; font-size: 11.5px; letter-spacing: 0.04em; gap: 5px; }
+  .tb-compacta .topbar-acoes .logout-btn { padding: 7px 10px; }
+
+  .topbar.tb-duas-linhas {
+    flex-wrap: wrap; row-gap: 12px;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px)); padding-bottom: 14px;
+  }
+  .tb-duas-linhas .topbar-right { display: contents; }
+  .tb-duas-linhas .topbar-acoes { order: 2; margin-left: auto; }
+  .tb-duas-linhas .abas { order: 3; flex: 1 1 100%; flex-wrap: wrap; gap: 6px; }
+  .tb-duas-linhas .aba-btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+}
+
 /* Celular: empilha o cabeçalho. A marca (brasão + GESTÃO + subtítulo) fica na
    primeira linha e os botões (MÉTRICAS, LEXOR, LOA, CARTILHAS e Sair) descem
    para uma faixa logo abaixo, ocupando a largura toda e quebrando em mais de uma

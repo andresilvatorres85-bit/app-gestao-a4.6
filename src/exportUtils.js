@@ -1,6 +1,5 @@
 import { ESP_LABEL, PAPEL_LABEL_CURTO, MESES } from "./constants.js";
-import capaImg from "./metricasCapa.jpg";
-import brasaoImg from "./brasao.png";
+import { MODELO, GEO, CAPA_TITULO, CAPA_SUFIXO, tamanhoTitulo, imagensModelo } from "./pptxModelo.js";
 
 // pptxgenjs, jszip e html-to-image são pesados e só usados na exportação;
 // carregamos sob demanda (dynamic import) para não pesar o app.
@@ -13,14 +12,14 @@ async function getToPng() {
   return mod.toPng;
 }
 
-// Identidade visual da apresentação "Métricas A4.6" (modelo enviado pela
-// Subassessoria): faixa verde no topo com o título em azul-escuro, brasão no
-// canto superior direito, fundo verde-claro e gráficos em azul com gradiente.
-const W = 13.333, H = 7.5;           // 16:9 (widescreen)
+// Identidade visual da apresentação "Métricas A4.6" (ver pptxModelo.js):
+// faixa verde com o título, brasão, fundo verde-claro e gráficos em azul com
+// gradiente.
+const { W, H } = GEO;
 const REF = {
-  barra: "A9D08E",      // verde (accent 6, 40% mais claro)
-  fundo: "E2EFDA",      // verde-claro (accent 6, 80% mais claro)
-  titulo: "1F3864",     // azul (accent 1, 50% mais escuro)
+  barra: MODELO.barra,
+  fundo: MODELO.fundo,
+  titulo: MODELO.titulo,
   azul: "4472C4",
   grade: "D9D9D9",
   cinza: "595959",
@@ -29,22 +28,11 @@ const REF = {
   esq: "FF0000", dir: "0432FF", cen: "FFD966",
   card: "1E2A23", cardBorda: "3B7C53", cardRotulo: "9BA89E",
 };
-const FONTE = "Calibri";
+const FONTE = MODELO.fonte;
 const CORES_ANOS = [REF.azul, "ED7D31", "A5A5A5", "FFC000", "5B9BD5", "70AD47"];
 
 function rotuloAnos(anos) {
   return [...anos].sort((a, b) => a - b).join(" · ");
-}
-
-// Converte a URL de um asset (Vite) em data URL base64 para o addImage.
-async function paraDataUrl(url) {
-  if (String(url).startsWith("data:")) return url;
-  const resp = await fetch(url);
-  const tipo = resp.headers.get("content-type") || (/\.png$/i.test(url) ? "image/png" : "image/jpeg");
-  const bytes = new Uint8Array(await resp.arrayBuffer());
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return `data:${tipo};base64,${btoa(bin)}`;
 }
 
 function novaApresentacao(pptxgen) {
@@ -60,13 +48,29 @@ function novaApresentacao(pptxgen) {
 function slideBase(pptx, titulo, brasao) {
   const s = pptx.addSlide();
   s.background = { color: REF.fundo };
-  s.addShape(pptx.ShapeType.rect, { x: 0, y: -0.01, w: W, h: 0.64, fill: { color: REF.barra }, line: { color: REF.barra, width: 0 } });
+  s.addShape(pptx.ShapeType.rect, { x: 0, y: GEO.barra.y, w: W, h: GEO.barra.h, fill: { color: REF.barra }, line: { color: REF.barra, width: 0 } });
   s.addText(titulo, {
     // largura total, como no modelo (títulos longos passam sob o brasão)
-    x: 0.42, y: -0.01, w: W - 0.42, h: 0.64, margin: 0, valign: "middle",
-    fontFace: FONTE, fontSize: 32, color: REF.titulo, fit: "shrink", isTextBox: true,
+    x: GEO.tituloX, y: GEO.barra.y, w: W - GEO.tituloX, h: GEO.barra.h, margin: 0, valign: "middle",
+    fontFace: FONTE, fontSize: tamanhoTitulo(titulo), color: REF.titulo, fit: "shrink", isTextBox: true,
   });
-  s.addImage({ data: brasao, x: 12.288, y: 0.293, w: 0.778, h: 0.778, altText: "Brasão da Assessoria Parlamentar" });
+  const b = GEO.brasao;
+  s.addImage({ data: brasao, x: b.x, y: b.y, w: b.lado, h: b.lado, altText: "Brasão da Assessoria Parlamentar" });
+  return s;
+}
+
+// Slide 1 (capa) do modelo: faixa com o título e a imagem institucional.
+function slideCapa(pptx, capa, brasao) {
+  const c = GEO.capa;
+  const s = pptx.addSlide();
+  s.background = { color: "FFFFFF" };
+  s.addImage({ data: capa, x: 0, y: c.imagem.y, w: W, h: c.imagem.h, altText: "Congresso Nacional e a Subassessoria de Orçamento" });
+  s.addShape(pptx.ShapeType.rect, { x: 0, y: c.barra.y, w: W, h: c.barra.h, fill: { color: REF.barra }, line: { color: REF.barra, width: 0 } });
+  s.addText([
+    { text: CAPA_TITULO, options: { fontSize: 36 } },
+    { text: CAPA_SUFIXO, options: { fontSize: 32 } },
+  ], { x: GEO.tituloX, y: c.barra.y, w: 11.7, h: c.barra.h, margin: 0, valign: "middle", fontFace: FONTE, color: REF.titulo, isTextBox: true });
+  s.addImage({ data: brasao, x: c.brasao.x, y: c.brasao.y, w: c.brasao.lado, h: c.brasao.lado, altText: "Brasão da Assessoria Parlamentar" });
   return s;
 }
 
@@ -298,19 +302,12 @@ async function salvar(pptx, nomeArquivo) {
 
 export async function exportarPainelPptx({ registros, anos, meses, resumo, alteracoes = [] }) {
   const pptxgen = await getPptx();
-  const [capa, brasao] = await Promise.all([paraDataUrl(capaImg), paraDataUrl(brasaoImg)]);
+  const img = await imagensModelo();
+  const brasao = img.brasao.dataUrl;
   const pptx = novaApresentacao(pptxgen);
 
-  // Slide 1 — capa: faixa com o título e a imagem institucional.
-  const s1 = pptx.addSlide();
-  s1.background = { color: "FFFFFF" };
-  s1.addImage({ data: capa, x: 0, y: 0.696, w: W, h: 6.804, altText: "Congresso Nacional e a Subassessoria de Orçamento" });
-  s1.addShape(pptx.ShapeType.rect, { x: 0, y: -0.01, w: W, h: 0.707, fill: { color: REF.barra }, line: { color: REF.barra, width: 0 } });
-  s1.addText([
-    { text: "5. Subassessoria de Orçamento", options: { fontSize: 36 } },
-    { text: " (A4.6)", options: { fontSize: 32 } },
-  ], { x: 0.42, y: -0.01, w: 11.7, h: 0.707, margin: 0, valign: "middle", fontFace: FONTE, color: REF.titulo, isTextBox: true });
-  s1.addImage({ data: brasao, x: 12.381, y: 0.329, w: 0.773, h: 0.773, altText: "Brasão da Assessoria Parlamentar" });
+  // Slide 1 — capa do modelo.
+  slideCapa(pptx, img.capa.dataUrl, brasao);
 
   // Slide 2 — totais e evolução mensal. Sem filtro de mês, vai de Jan até o
   // último mês com registros (como no modelo).
@@ -347,12 +344,25 @@ export async function exportarPainelPptx({ registros, anos, meses, resumo, alter
   return salvar(pptx, `Metricas_A4-6_${rotuloAnos(anos)}.pptx`);
 }
 
+// ---- Exportação só das alterações em emendas (botão do card no Painel) ----
+
+export async function exportarAlteracoesPptx(alteracoes) {
+  const pptxgen = await getPptx();
+  const img = await imagensModelo();
+  const pptx = novaApresentacao(pptxgen);
+  slideCapa(pptx, img.capa.dataUrl, img.brasao.dataUrl);
+  slidesAlteracoes(pptx, alteracoes, img.brasao.dataUrl);
+  return salvar(pptx, "Alteracoes_em_emendas_A4-6.pptx");
+}
+
 // ---- Exportação de UM gráfico individual em PPTX (nativo, mesmo modelo) ----
 
 export async function exportarGraficoPptx({ tipo, titulo, dados }) {
   const pptxgen = await getPptx();
-  const brasao = await paraDataUrl(brasaoImg);
+  const img = await imagensModelo();
+  const brasao = img.brasao.dataUrl;
   const pptx = novaApresentacao(pptxgen);
+  slideCapa(pptx, img.capa.dataUrl, brasao);
   const slide = slideBase(pptx, `5. ${titulo}`, brasao);
   const pos = { x: 0.5, y: 1.25, w: 12.33, h: 5.9 };
 

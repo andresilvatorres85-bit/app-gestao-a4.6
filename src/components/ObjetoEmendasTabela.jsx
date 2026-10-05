@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { resumoObjeto, baixarOficioDocx } from "../objetoEmendaDoc.js";
 import { baixarDocAo, baixarDocGnd } from "../objetoEmendaAoDoc.js";
@@ -57,7 +57,7 @@ function celulaAlteracoes(it) {
 // o ofício novamente, editar o lançamento e excluí-lo. As colunas Data,
 // Parlamentar e Emenda são ordenáveis (crescente/decrescente) e há um filtro
 // por Tipo de ajuste.
-export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir }) {
+export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir, onVisiveis }) {
   const [ordem, setOrdem] = useState({ col: "data", dir: "desc" });
   const [fAjuste, setFAjuste] = useState("Todos");
 
@@ -94,6 +94,9 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
     });
   }, [itens, fAjuste, ordem]);
 
+  // Informa ao card as linhas exibidas (para exportar o que está na tela).
+  useEffect(() => { onVisiveis?.(visiveis); }, [visiveis, onVisiveis]);
+
   function ordenarPor(col) {
     setOrdem((o) => (o.col === col ? { col, dir: o.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" }));
   }
@@ -115,7 +118,7 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
 
   return (
     <>
-      <div className="oe-tbl-toolbar">
+      <div className="oe-tbl-toolbar no-export">
         <label className="oe-filtro">
           Tipo de ajuste
           <select className="input" value={fAjuste} onChange={(e) => setFAjuste(e.target.value)}>
@@ -134,7 +137,7 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
               <ThOrd col="parlamentar">Parlamentar</ThOrd>
               <th>Partido/UF</th>
               <ThOrd col="emenda">Emenda</ThOrd>
-              <th>Alterações</th><th>Ajuste</th><th></th>
+              <th>Alterações</th><th>Ajuste</th><th className="no-export"></th>
             </tr>
           </thead>
           <tbody>
@@ -146,7 +149,7 @@ export default function ObjetoEmendasTabela({ itens = [], onEditar, onExcluir })
                 <td className="mono">{it.emenda || "—"}</td>
                 <td className="obj-col">{celulaAlteracoes(it)}</td>
                 <td>{it.ajuste || "—"}</td>
-                <td>
+                <td className="no-export">
                   <div className="row-actions">
                     <button type="button" className="icon-btn" title="Baixar ofício novamente" onClick={() => baixar(it)}>
                       <Download size={16} />

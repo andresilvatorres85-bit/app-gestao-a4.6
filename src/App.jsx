@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays, Library, Compass } from "lucide-react";
 import TourVirtual from "./components/TourVirtual.jsx";
+import { useCabecalhoAjustavel } from "./components/useCabecalhoAjustavel.js";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
 import { usePartidos } from "./components/usePartidos.js";
@@ -106,6 +107,9 @@ export default function App() {
     if (subnavRef.current) ro.observe(subnavRef.current);
     return () => ro.disconnect();
   }, [session, aba]);
+
+  // Cabeçalho: compacta ou quebra em duas linhas quando os botões não cabem.
+  useCabecalhoAjustavel(headerRef, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
