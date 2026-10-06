@@ -27,4 +27,9 @@ do $$ begin
   alter publication supabase_realtime add table public.rotina_itens;
 exception when duplicate_object then null; end $$;
 
+-- Data da última edição do texto (a tela mostra, em cada card, a inclusão ou
+-- edição mais recente). Itens antigos começam com a data de criação.
+alter table public.rotina_itens add column if not exists atualizado_em timestamptz;
+update public.rotina_itens set atualizado_em = criado_em where atualizado_em is null;
+
 notify pgrst, 'reload schema';

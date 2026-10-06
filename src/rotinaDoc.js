@@ -40,7 +40,7 @@ function paragrafos(itens, card) {
 
 const MARCADORES = ["●", "○", "■", "●", "○", "■", "●", "○", "■"];
 
-export async function exportarCardDocx({ card, itens }) {
+export async function exportarCardDocx({ card, itens, atualizado }) {
   const cor = String(card.cor || "#1F3864").replace("#", "").toUpperCase();
   const corpo = paragrafos(itens, card.id);
   const doc = new Document({
@@ -69,7 +69,10 @@ export async function exportarCardDocx({ card, itens }) {
         }),
         new Paragraph({
           spacing: { after: 240 },
-          children: [new TextRun({ text: `Emitido em ${new Date().toLocaleDateString("pt-BR")}`, font: FONTE, size: 18, color: "6B7568" })],
+          children: [new TextRun({
+            text: `Emitido em ${new Date().toLocaleDateString("pt-BR")}${atualizado ? ` · Última atualização: ${atualizado}` : ""}`,
+            font: FONTE, size: 18, color: "6B7568",
+          })],
         }),
         ...(corpo.length ? corpo : [new Paragraph({
           children: [new TextRun({ text: "Nenhuma tarefa cadastrada.", font: FONTE, size: 22, italics: true, color: "6B7568" })],

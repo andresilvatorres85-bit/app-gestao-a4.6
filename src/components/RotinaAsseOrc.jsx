@@ -75,6 +75,12 @@ function CardAtividade({ card, itens, adicionar, editar, excluir, reordenar }) {
   const [ocupado, setOcupado] = useState(false);
 
   // Filhos de um item (null = tarefas do card), na ordem salva.
+  // Última atualização do card: a inclusão/edição mais recente entre seus itens.
+  const ultima = itens.reduce((m, i) => (i.card === card.id && i.alteradoEm > m ? i.alteradoEm : m), 0);
+  const ultimaTxt = ultima
+    ? new Date(ultima).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(", ", " às ")
+    : null;
+
   const filhosDe = (pid) =>
     itens.filter((i) => i.card === card.id && (i.parentId || null) === pid).sort((a, b) => a.pos - b.pos);
 
@@ -155,10 +161,13 @@ function CardAtividade({ card, itens, adicionar, editar, excluir, reordenar }) {
   return (
     <section ref={ref} className="rot-card" style={{ "--rot-cor": card.cor, "--rot-cor-bg": card.cor + "14" }}>
       <div className="rot-card-topo">
-        <h3 className="rot-card-tit">{card.titulo}</h3>
+        <div className="rot-card-cab">
+          <h3 className="rot-card-tit">{card.titulo}</h3>
+          <span className="rot-atualizado">{ultimaTxt ? `Atualizado em ${ultimaTxt}` : "Sem atividades cadastradas"}</span>
+        </div>
         <div className="chart-actions no-export">
           <button className="mini-btn" disabled={ocupado} title="Exportar este card em DOCX (Word)"
-            onClick={() => exportar(() => exportarCardDocx({ card, itens }))}>
+            onClick={() => exportar(() => exportarCardDocx({ card, itens, atualizado: ultimaTxt }))}>
             <FileDown size={13} /> DOCX
           </button>
           <button className="mini-btn" disabled={ocupado} title="Exportar este card como imagem PNG"
