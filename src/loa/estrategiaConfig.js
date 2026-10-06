@@ -27,6 +27,49 @@ export const REMOVIDOS_MANDATO = [
 // Defesa, confirmado na lista oficial do Senado (ESPEC §4). Editável.
 export const WHITELIST_SEN_ATIVOS = ['MARCOS DO VAL']
 
+// Eleições gerais de 2026 (04/10/2026): parlamentares em exercício que
+// disputaram a reeleição para a mesma Casa e NÃO foram eleitos. Recebem o selo
+// vermelho [NÃO REELEITO] nos relatórios. Fonte: resultados oficiais do TSE
+// (resultados.tse.jus.br, eleição 6259 — Senador e Deputado Federal),
+// totalização de 04–05/10/2026, cruzados com os autores da base. Quem não foi
+// candidato ou disputou outro cargo (governo, Senado) NÃO entra. Pernambuco
+// ficou de fora: a totalização de deputado federal ainda não estava concluída
+// no TSE em 06/10/2026. Nomes como aparecem no campo Autor (a comparação
+// ignora acentos e caixa). Editável também na tela, em "Configuração".
+export const SELO_NAO_REELEITO = 'NÃO REELEITO'
+export const COR_NAO_REELEITO = 'C00000'
+export const NAO_REELEITOS = [
+  // Senado — 18 dos 32 senadores que disputaram a reeleição não venceram.
+  'SÉRGIO PETECÃO', 'RENAN CALHEIROS', 'RANDOLFE RODRIGUES', 'ANGELO CORONEL',
+  'LEILA BARROS', 'FABIANO CONTARATO', 'MARCOS DO VAL', 'VANDERLAN CARDOSO',
+  'ELIZIANE GAMA', 'WEVERTON', 'CARLOS FÁVARO', 'SORAYA THRONICKE', 'CARLOS VIANA',
+  'ZEQUINHA MARINHO', 'CIRO NOGUEIRA', 'ZENAIDE MAIA', 'CHICO RODRIGUES', 'ESPERIDIÃO AMIN',
+  // Câmara — deputados federais candidatos à reeleição não eleitos (suplentes
+  // ou não eleitos), por UF.
+  'ANTÔNIA LÚCIA', 'ZEZINHO BARBARY', // AC
+  'PAULÃO', // AL
+  'ÁTILA LINS', // AM
+  'ANDRÉ ABDON', // AP
+  'ARTHUR OLIVEIRA MAIA', 'BACELAR', 'LÍDICE DA MATA', 'ROGÉRIA SANTOS', 'ZÉ NETO', // BA
+  'ANDRÉ FIGUEIREDO', 'EDUARDO BISMARCK', 'JOSÉ AIRTON FÉLIX CIRILO', // CE
+  'FRED LINHARES', // DF
+  'DR. VICTOR LINHALIS', // ES
+  'DR. ISMAEL ALEXANDRINO', 'JEFERSON RODRIGUES', // GO
+  'IGOR TIMO', 'LUIZ FERNANDO FARIA', 'MAURICIO DO VÔLEI', 'PEDRO AIHARA', // MG
+  'DR. LUIZ OVANDO', 'GERALDO RESENDE', // MS
+  'NELSON BARBUDO', 'RODRIGO DA ZAELI', // MT
+  'HENDERSON PINTO', // PA
+  'LUIZ COUTO', 'MERSINHO LUCENA', 'ROMERO RODRIGUES', // PB
+  'BANDEIRA DE MELLO', 'DANIELA DO WAGUINHO', 'HUGO LEAL', 'JULIO LOPES', 'LAURA CARNEIRO',
+  'MARCOS SOARES', 'MAX LEMOS', 'MURILLO GOUVEA', 'REIMONT', 'RICARDO ABRÃO',
+  'ROBERTO MONTEIRO PAI', 'ROSANGELA GOMES', // RJ
+  'PASTOR DINIZ', // RR
+  'AFONSO MOTTA', 'ALEXANDRE LINDENMEYER', 'DANIEL TRZECIAK', 'FRANCIANE BAYER', // RS
+  'FABIO SCHIOCHET', // SC
+  'ADILSON BARROSO', 'CEZINHA DE MADUREIRA', 'DAVID SOARES', 'FAUSTO PINATO',
+  'GILBERTO NASCIMENTO', 'VINICIUS CARVALHO', // SP
+]
+
 // Áreas temáticas "quentes" — existem idênticas no Exército, então uma ação
 // dessas bancada em outra Força vira troca direta de UO (ESPEC §6). Editável.
 export const GEN_QUENTE = new Set([
@@ -118,7 +161,8 @@ export const metaDe = (ac, anoIni, anoFim) =>
 export const TUTORIAL_TITULO = 'Entenda as categorias deste relatório:'
 
 export const selosLegendaDe = (ac) =>
-  `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
+  `[NÃO REELEITO] = disputou a reeleição em ${ac} e não renovou o mandato (segue em exercício até 31/01/${ac + 1} e ainda pode indicar emendas ao ${ploaAlvoDe(ac)}).   `
+  + `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
   + '[ALTA VIABILIDADE] = banca ação que existe idêntica no Exército (transferência direta de UO).   '
   + '[BAIXA VIABILIDADE] = interesse temático específico de outra Força (baixa transferibilidade).'
 

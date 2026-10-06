@@ -7,7 +7,8 @@ import {
 } from '../estrategiaDoc.js'
 import {
   UFS, UF_NOME, CASAS, LIMITACOES,
-  BANNER, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS,
+  BANNER, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS, NAO_REELEITOS,
+  SELO_NAO_REELEITO, COR_NAO_REELEITO,
 } from '../estrategiaConfig.js'
 import bannerUrl from '../assets/header-banner.jpg'
 
@@ -23,6 +24,9 @@ const carregarConfigLocal = () => {
     return JSON.parse(raw)
   } catch { return null }
 }
+// Sobrescritas salvas → montarConfig. Listas ausentes (config salva antes de
+// existirem) ficam com o padrão.
+const overDe = (c) => (c ? { removidos: c.removidos, whitelist: c.whitelist, naoReeleitos: c.naoReeleitos } : {})
 const listaDeTexto = (t) =>
   t.split('\n').map((s) => s.trim().toUpperCase()).filter(Boolean)
 
@@ -35,10 +39,12 @@ export default function AbaEstrategia({ registros }) {
     (cfgLocal?.removidos ?? REMOVIDOS_MANDATO).join('\n'))
   const [txtWhite, setTxtWhite] = useState(
     (cfgLocal?.whitelist ?? WHITELIST_SEN_ATIVOS).join('\n'))
+  const [txtNaoReel, setTxtNaoReel] = useState(
+    (cfgLocal?.naoReeleitos ?? NAO_REELEITOS).join('\n'))
   const [progresso, setProgresso] = useState(null) // {feito,total,formato} | null
 
   const config = useMemo(
-    () => montarConfig(cfgLocal ? { removidos: cfgLocal.removidos, whitelist: cfgLocal.whitelist } : {}),
+    () => montarConfig(overDe(cfgLocal)),
     [cfgLocal])
 
   const indice = useMemo(() => indicePorUFCasa(registros, config), [registros, config])
@@ -51,7 +57,7 @@ export default function AbaEstrategia({ registros }) {
   const totalCasa = (c) => UFS.reduce((s, u) => s + contUF(u, c), 0)
 
   const salvarCfg = () => {
-    const novo = { removidos: listaDeTexto(txtRemov), whitelist: listaDeTexto(txtWhite) }
+    const novo = { removidos: listaDeTexto(txtRemov), whitelist: listaDeTexto(txtWhite), naoReeleitos: listaDeTexto(txtNaoReel) }
     try { localStorage.setItem(LS_KEY, JSON.stringify(novo)) } catch { /* modo privado */ }
     setCfgLocal(novo)
     setEditandoCfg(false)
@@ -61,6 +67,7 @@ export default function AbaEstrategia({ registros }) {
     setCfgLocal(null)
     setTxtRemov(REMOVIDOS_MANDATO.join('\n'))
     setTxtWhite(WHITELIST_SEN_ATIVOS.join('\n'))
+    setTxtNaoReel(NAO_REELEITOS.join('\n'))
     setEditandoCfg(false)
   }
 
@@ -70,7 +77,7 @@ export default function AbaEstrategia({ registros }) {
     try {
       await baixarZip(registros, {
         formato,
-        configOver: cfgLocal ? { removidos: cfgLocal.removidos, whitelist: cfgLocal.whitelist } : {},
+        configOver: overDe(cfgLocal),
         onProgresso: (feito, total) => setProgresso({ feito, total, formato }),
       })
     } catch (e) {
@@ -182,7 +189,10 @@ export default function AbaEstrategia({ registros }) {
                   <p className="estr-ficha-nome" style={{ color: cor(s.cor) }}>
                     {f.nome}
                     {f.selos.map((sel) => (
-                      <span key={sel} className="estr-selo" style={{ borderColor: cor(s.cor), color: cor(s.cor) }}>{sel}</span>
+                      <span key={sel} className="estr-selo"
+                style={sel === SELO_NAO_REELEITO
+                  ? { background: cor(COR_NAO_REELEITO), borderColor: cor(COR_NAO_REELEITO), color: '#fff' }
+                  : { borderColor: cor(s.cor), color: cor(s.cor) }}>{sel}</span>
                     ))}
                   </p>
                   <p className="estr-ficha-ident">{f.ident}</p>
@@ -217,6 +227,10 @@ export default function AbaEstrategia({ registros }) {
             <label>
               Whitelist de senadores ativos (em exercício, sem emenda recente à Defesa)
               <textarea rows={6} value={txtWhite} onChange={(e) => setTxtWhite(e.target.value)} />
+            </label>
+            <label>
+              Não reeleitos nas eleições de 2026 (recebem o selo vermelho NÃO REELEITO)
+              <textarea rows={6} value={txtNaoReel} onChange={(e) => setTxtNaoReel(e.target.value)} />
             </label>
           </div>
           <div className="estr-cfg-acoes">
