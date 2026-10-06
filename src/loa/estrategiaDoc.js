@@ -15,7 +15,7 @@ import {
 import { jsPDF } from 'jspdf'
 import JSZip from 'jszip'
 import bannerUrl from './assets/header-banner.jpg'
-import { PALETA, BANNER, CASAS, UFS } from './estrategiaConfig.js'
+import { PALETA, BANNER, CASAS, UFS, SELO_NAO_REELEITO, COR_NAO_REELEITO } from './estrategiaConfig.js'
 import { gerarDocumento, indicePorUFCasa, montarConfig } from './estrategia.js'
 
 // ==== util =================================================================
@@ -103,7 +103,16 @@ function ficha(f, cor) {
   const blocos = [
     new Paragraph({
       spacing: { before: 120, after: 0 },
-      children: [new TextRun({ text: f.nome, bold: true, size: hp(11.5), color: cor })],
+      children: [
+        new TextRun({ text: f.nome, bold: true, size: hp(11.5), color: cor }),
+        ...(f.naoReeleito ? [
+          new TextRun({ text: '  ', size: hp(11.5) }),
+          new TextRun({
+            text: ` ${SELO_NAO_REELEITO} `, bold: true, size: hp(8.5), color: PALETA.branco,
+            shading: { type: ShadingType.CLEAR, fill: COR_NAO_REELEITO, color: 'auto' },
+          }),
+        ] : []),
+      ],
     }),
     new Paragraph({
       spacing: { before: 0, after: 20 },
@@ -333,6 +342,25 @@ function escreverPar(doc, fluxo, { texto, size, bold, italic, cor, align = 'left
   st.y += depois
 }
 
+// Nome do parlamentar + selo vermelho [NÃO REELEITO] logo à direita.
+function nomePdf(doc, fluxo, f, cor) {
+  escreverPar(doc, fluxo, { texto: f.nome, size: 11.5, bold: true, cor, antes: 1.5, depois: 0 })
+  if (!f.naoReeleito) return
+  const { st } = fluxo
+  const lh = pt2mm(11.5) * 1.34
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5)
+  const ultima = doc.splitTextToSize(f.nome, LARG).pop()
+  const x = MM.L + doc.getTextWidth(ultima) + 2.5
+  doc.setFontSize(7.5)
+  const w = doc.getTextWidth(SELO_NAO_REELEITO) + 3
+  const h = pt2mm(7.5) * 1.5
+  const yTopo = st.y - lh + (lh - h) / 2 - 0.4
+  setFill(doc, COR_NAO_REELEITO)
+  doc.roundedRect(x, yTopo, w, h, 0.8, 0.8, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.text(SELO_NAO_REELEITO, x + 1.5, yTopo + h - pt2mm(7.5) * 0.42)
+}
+
 // Régua horizontal.
 function reguaPdf(doc, fluxo, hex, antes = 1) {
   const { st, garantir } = fluxo
@@ -411,7 +439,7 @@ export function documentoPdf(documento, banner, doc = null) {
     for (const secao of documento.secoes) {
       faixaPdf(doc, fluxo, secao.cabecalho, secao.cor)
       for (const f of secao.fichas) {
-        escreverPar(doc, fluxo, { texto: f.nome, size: 11.5, bold: true, cor: secao.cor, antes: 1.5, depois: 0 })
+        nomePdf(doc, fluxo, f, secao.cor)
         escreverPar(doc, fluxo, { texto: f.ident, size: 9.5, cor: PALETA.cinza, depois: 0.5 })
         for (const c of f.campos) {
           escreverPar(doc, fluxo, {

@@ -27,6 +27,32 @@ export const REMOVIDOS_MANDATO = [
 // Defesa, confirmado na lista oficial do Senado (ESPEC §4). Editável.
 export const WHITELIST_SEN_ATIVOS = ['MARCOS DO VAL']
 
+// Eleições gerais de 2026 (04/10/2026): parlamentares em exercício que
+// disputaram a reeleição para a mesma Casa e NÃO renovaram o mandato. Recebem o
+// selo vermelho [NÃO REELEITO] nos relatórios. Nomes como aparecem no campo
+// Autor (a comparação ignora acentos e caixa). Conferidos em resultados
+// divulgados em 05–06/10/2026 (TSE/imprensa) — completar/ajustar na tela, em
+// "Configuração", à medida que os demais estados forem verificados. Editável.
+export const SELO_NAO_REELEITO = 'NÃO REELEITO'
+export const COR_NAO_REELEITO = 'C00000'
+export const NAO_REELEITOS = [
+  // Senado — 18 dos 32 senadores que tentaram a reeleição não venceram.
+  'SÉRGIO PETECÃO', 'RENAN CALHEIROS', 'RANDOLFE RODRIGUES', 'ANGELO CORONEL',
+  'LEILA BARROS', 'FABIANO CONTARATO', 'MARCOS DO VAL', 'VANDERLAN CARDOSO',
+  'ELIZIANE GAMA', 'WEVERTON', 'CARLOS FÁVARO', 'SORAYA THRONICKE', 'CARLOS VIANA',
+  'ZEQUINHA MARINHO', 'CIRO NOGUEIRA', 'ZENAIDE MAIA', 'CHICO RODRIGUES', 'ESPERIDIÃO AMIN',
+  // Câmara — Bahia
+  'ROGÉRIA SANTOS', 'MARCELO NILO', 'PAULO MAGALHÃES', 'LÍDICE DA MATA', 'JOSÉ ROCHA',
+  'ARTHUR OLIVEIRA MAIA', 'JOSÉ CARLOS ARAÚJO', 'JORGE ARAÚJO', 'BACELAR',
+  'ZÉ NETO', 'WALDENOR PEREIRA',
+  // Câmara — Minas Gerais
+  'ANA PAULA LEÃO', 'CÉLIA XAKRIABÁ', 'EUCLYDES PETTERSEN', 'GILMAR MACHADO', 'IGOR TIMO',
+  'LUIZ FERNANDO FARIA', 'MÁRIO HERINGER', 'MAURICIO DO VÔLEI', 'PEDRO AIHARA',
+  'STEFANO AGUIAR', 'ZÉ SILVA',
+  // Câmara — Rio de Janeiro
+  'HUGO LEAL', 'ROSANGELA GOMES', 'OTONI DE PAULA',
+]
+
 // Áreas temáticas "quentes" — existem idênticas no Exército, então uma ação
 // dessas bancada em outra Força vira troca direta de UO (ESPEC §6). Editável.
 export const GEN_QUENTE = new Set([
@@ -118,7 +144,8 @@ export const metaDe = (ac, anoIni, anoFim) =>
 export const TUTORIAL_TITULO = 'Entenda as categorias deste relatório:'
 
 export const selosLegendaDe = (ac) =>
-  `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
+  `[NÃO REELEITO] = disputou a reeleição em ${ac} e não renovou o mandato (segue em exercício até 31/01/${ac + 1} e ainda pode indicar emendas ao ${ploaAlvoDe(ac)}).   `
+  + `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
   + '[ALTA VIABILIDADE] = banca ação que existe idêntica no Exército (transferência direta de UO).   '
   + '[BAIXA VIABILIDADE] = interesse temático específico de outra Força (baixa transferibilidade).'
 
