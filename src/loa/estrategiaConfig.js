@@ -28,29 +28,46 @@ export const REMOVIDOS_MANDATO = [
 export const WHITELIST_SEN_ATIVOS = ['MARCOS DO VAL']
 
 // Eleições gerais de 2026 (04/10/2026): parlamentares em exercício que
-// disputaram a reeleição para a mesma Casa e NÃO renovaram o mandato. Recebem o
-// selo vermelho [NÃO REELEITO] nos relatórios. Nomes como aparecem no campo
-// Autor (a comparação ignora acentos e caixa). Conferidos em resultados
-// divulgados em 05–06/10/2026 (TSE/imprensa) — completar/ajustar na tela, em
-// "Configuração", à medida que os demais estados forem verificados. Editável.
+// disputaram a reeleição para a mesma Casa e NÃO foram eleitos. Recebem o selo
+// vermelho [NÃO REELEITO] nos relatórios. Fonte: resultados oficiais do TSE
+// (resultados.tse.jus.br, eleição 6259 — Senador e Deputado Federal),
+// totalização de 04–05/10/2026, cruzados com os autores da base. Quem não foi
+// candidato ou disputou outro cargo (governo, Senado) NÃO entra. Pernambuco
+// ficou de fora: a totalização de deputado federal ainda não estava concluída
+// no TSE em 06/10/2026. Nomes como aparecem no campo Autor (a comparação
+// ignora acentos e caixa). Editável também na tela, em "Configuração".
 export const SELO_NAO_REELEITO = 'NÃO REELEITO'
 export const COR_NAO_REELEITO = 'C00000'
 export const NAO_REELEITOS = [
-  // Senado — 18 dos 32 senadores que tentaram a reeleição não venceram.
+  // Senado — 18 dos 32 senadores que disputaram a reeleição não venceram.
   'SÉRGIO PETECÃO', 'RENAN CALHEIROS', 'RANDOLFE RODRIGUES', 'ANGELO CORONEL',
   'LEILA BARROS', 'FABIANO CONTARATO', 'MARCOS DO VAL', 'VANDERLAN CARDOSO',
   'ELIZIANE GAMA', 'WEVERTON', 'CARLOS FÁVARO', 'SORAYA THRONICKE', 'CARLOS VIANA',
   'ZEQUINHA MARINHO', 'CIRO NOGUEIRA', 'ZENAIDE MAIA', 'CHICO RODRIGUES', 'ESPERIDIÃO AMIN',
-  // Câmara — Bahia
-  'ROGÉRIA SANTOS', 'MARCELO NILO', 'PAULO MAGALHÃES', 'LÍDICE DA MATA', 'JOSÉ ROCHA',
-  'ARTHUR OLIVEIRA MAIA', 'JOSÉ CARLOS ARAÚJO', 'JORGE ARAÚJO', 'BACELAR',
-  'ZÉ NETO', 'WALDENOR PEREIRA',
-  // Câmara — Minas Gerais
-  'ANA PAULA LEÃO', 'CÉLIA XAKRIABÁ', 'EUCLYDES PETTERSEN', 'GILMAR MACHADO', 'IGOR TIMO',
-  'LUIZ FERNANDO FARIA', 'MÁRIO HERINGER', 'MAURICIO DO VÔLEI', 'PEDRO AIHARA',
-  'STEFANO AGUIAR', 'ZÉ SILVA',
-  // Câmara — Rio de Janeiro
-  'HUGO LEAL', 'ROSANGELA GOMES', 'OTONI DE PAULA',
+  // Câmara — deputados federais candidatos à reeleição não eleitos (suplentes
+  // ou não eleitos), por UF.
+  'ANTÔNIA LÚCIA', 'ZEZINHO BARBARY', // AC
+  'PAULÃO', // AL
+  'ÁTILA LINS', // AM
+  'ANDRÉ ABDON', // AP
+  'ARTHUR OLIVEIRA MAIA', 'BACELAR', 'LÍDICE DA MATA', 'ROGÉRIA SANTOS', 'ZÉ NETO', // BA
+  'ANDRÉ FIGUEIREDO', 'EDUARDO BISMARCK', 'JOSÉ AIRTON FÉLIX CIRILO', // CE
+  'FRED LINHARES', // DF
+  'DR. VICTOR LINHALIS', // ES
+  'DR. ISMAEL ALEXANDRINO', 'JEFERSON RODRIGUES', // GO
+  'IGOR TIMO', 'LUIZ FERNANDO FARIA', 'MAURICIO DO VÔLEI', 'PEDRO AIHARA', // MG
+  'DR. LUIZ OVANDO', 'GERALDO RESENDE', // MS
+  'NELSON BARBUDO', 'RODRIGO DA ZAELI', // MT
+  'HENDERSON PINTO', // PA
+  'LUIZ COUTO', 'MERSINHO LUCENA', 'ROMERO RODRIGUES', // PB
+  'BANDEIRA DE MELLO', 'DANIELA DO WAGUINHO', 'HUGO LEAL', 'JULIO LOPES', 'LAURA CARNEIRO',
+  'MARCOS SOARES', 'MAX LEMOS', 'MURILLO GOUVEA', 'REIMONT', 'RICARDO ABRÃO',
+  'ROBERTO MONTEIRO PAI', 'ROSANGELA GOMES', // RJ
+  'PASTOR DINIZ', // RR
+  'AFONSO MOTTA', 'ALEXANDRE LINDENMEYER', 'DANIEL TRZECIAK', 'FRANCIANE BAYER', // RS
+  'FABIO SCHIOCHET', // SC
+  'ADILSON BARROSO', 'CEZINHA DE MADUREIRA', 'DAVID SOARES', 'FAUSTO PINATO',
+  'GILBERTO NASCIMENTO', 'VINICIUS CARVALHO', // SP
 ]
 
 // Áreas temáticas "quentes" — existem idênticas no Exército, então uma ação
