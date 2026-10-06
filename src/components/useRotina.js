@@ -5,9 +5,19 @@ import { supabase } from "../lib/supabaseClient.js";
 // (atividade). `card` identifica a atividade; `parent_id` liga a subtarefa ao
 // item pai — tarefa ou outra subtarefa, em qualquer profundidade. Tudo
 // compartilhado e em tempo real.
+// `alteradoEm`: momento da inclusão ou da última edição do texto (ms). Usa
+// `atualizado_em` quando a coluna existe (ver supabase_rotina.sql); senão,
+// `criado_em`.
 function mapRow(r) {
-  return { id: r.id, card: r.card || "", parentId: r.parent_id || null, texto: r.texto || "", pos: r.pos ?? 0 };
+  const quando = r.atualizado_em || r.criado_em;
+  return {
+    id: r.id, card: r.card || "", parentId: r.parent_id || null, texto: r.texto || "", pos: r.pos ?? 0,
+    alteradoEm: quando ? new Date(quando).getTime() : null,
+  };
 }
+
+// Coluna `atualizado_em` ainda não criada no banco → grava sem ela.
+const semColuna = (err) => !!err && (err.code === "PGRST204" || /atualizado_em/i.test(err.message || ""));
 const ordenar = (arr) => [...arr].sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0));
 
 export function useRotina(session) {
@@ -54,8 +64,10 @@ export function useRotina(session) {
 
   const editar = useCallback(async (id, texto) => {
     const t = (texto || "").trim();
-    setItens((prev) => prev.map((i) => (i.id === id ? { ...i, texto: t } : i)));
-    const res = await supabase.from("rotina_itens").update({ texto: t }).eq("id", id);
+    const agora = new Date();
+    setItens((prev) => prev.map((i) => (i.id === id ? { ...i, texto: t, alteradoEm: agora.getTime() } : i)));
+    let res = await supabase.from("rotina_itens").update({ texto: t, atualizado_em: agora.toISOString() }).eq("id", id);
+    if (semColuna(res.error)) res = await supabase.from("rotina_itens").update({ texto: t }).eq("id", id);
     if (!res.error) recarregar();
     return res;
   }, [recarregar]);

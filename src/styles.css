@@ -1101,7 +1101,7 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .chk-add { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 8px; border: 1px dashed var(--line-strong); margin-bottom: 8px; }
 .chk-add:focus-within { border-style: solid; border-color: var(--accent, var(--ink)); }
 .chk-add-ico { color: var(--muted); flex: none; }
-.chk-add-in { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); outline: none; }
+.chk-add-in { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14.5px; color: var(--ink); outline: none; }
 .chk-add-in::placeholder { color: var(--muted); }
 .chk-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .chk-lista-feitos { opacity: 0.85; }
@@ -1234,37 +1234,38 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 
 /* ---- Conhecimento: Rotina Asse Orç (cards por atividade) ---- */
 .rot-wrap { display: flex; flex-direction: column; gap: 14px; }
-.rot-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+/* Um card por linha, na largura total da página (como o card Rotina Diária). */
+.rot-cards { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
 .rot-card { background: var(--rot-cor-bg, var(--surface)); border: 1px solid var(--line); border-top: 4px solid var(--rot-cor, #3B6FB0); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-.rot-card-tit { margin: 0 0 4px; font-size: 14.5px; font-weight: 800; color: var(--rot-cor, var(--ink)); line-height: 1.25; }
+.rot-card-tit { margin: 0; font-size: 17px; font-weight: 800; color: var(--rot-cor, var(--ink)); line-height: 1.25; }
 .rot-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .rot-card-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.rot-card-topo .rot-card-tit { flex: 1; min-width: 0; }
+.rot-card-cab { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+.rot-atualizado { font-size: 12px; color: var(--muted); font-style: italic; }
 .rot-card-topo .chart-actions { flex: none; }
 .rot-linha { display: flex; align-items: flex-start; gap: 6px; padding: 2px 0; }
-.rot-txt { flex: 1; min-width: 0; font-size: 13.5px; color: var(--ink); word-break: break-word; line-height: 1.4; text-align: justify; }
-.rot-nivel-1 > .rot-linha .rot-txt, .rot-nivel-2 > .rot-linha .rot-txt, .rot-nivel-3 > .rot-linha .rot-txt { font-size: 12.8px; color: var(--muted); }
-.rot-nivel-2 > .rot-linha .rot-txt, .rot-nivel-3 > .rot-linha .rot-txt { font-size: 12.4px; }
+.rot-txt { flex: 1; min-width: 0; font-size: 15.5px; color: var(--ink); word-break: break-word; line-height: 1.4; text-align: justify; }
+.rot-nivel-1 > .rot-linha .rot-txt, .rot-nivel-2 > .rot-linha .rot-txt, .rot-nivel-3 > .rot-linha .rot-txt { font-size: 14.8px; color: var(--muted); }
+.rot-nivel-2 > .rot-linha .rot-txt, .rot-nivel-3 > .rot-linha .rot-txt { font-size: 14.2px; }
 .rot-link { color: var(--brand-hi, #67B588); text-decoration: underline; word-break: break-all; }
 .rot-link:hover { color: var(--ink); }
-.rot-grip { flex: none; color: var(--muted); cursor: grab; opacity: 0; display: inline-flex; margin-top: 2px; }
+.rot-grip { flex: none; color: var(--muted); cursor: grab; opacity: 0; display: inline-flex; margin-top: 4px; }
 .rot-no:hover > .rot-linha > .rot-grip { opacity: 0.55; }
 .rot-grip:hover { opacity: 1; }
 .rot-no[draggable="true"] { cursor: default; }
 .rot-arrastando { opacity: 0.4; }
 .rot-alvo > .rot-linha { box-shadow: inset 0 2px 0 var(--rot-cor, var(--ink)); }
-.rot-edit { flex: 1; min-width: 0; padding: 4px 8px; font-size: 13.5px; }
+.rot-edit { flex: 1; min-width: 0; padding: 4px 8px; font-size: 15px; }
 .rot-acoes { margin-left: auto; display: flex; gap: 1px; opacity: 0; flex: none; }
 .rot-no:hover > .rot-linha > .rot-acoes, .rot-acoes:focus-within { opacity: 0.85; }
 .rot-acoes .icon-btn { width: 24px; height: 24px; }
 .rot-subs { list-style: none; margin: 2px 0 4px; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 2px; }
-.rot-sub-ico { color: var(--muted); flex: none; margin-top: 3px; }
+.rot-sub-ico { color: var(--muted); flex: none; margin-top: 5px; }
 .rot-add { display: flex; align-items: center; gap: 7px; margin-top: 4px; padding: 6px 9px; border-radius: 8px; border: 1px dashed var(--line-strong); }
 .rot-add:focus-within { border-style: solid; border-color: var(--rot-cor, var(--ink)); }
 .rot-add-ico { color: var(--muted); flex: none; }
 .rot-add-in { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); outline: none; }
 .rot-add-in::placeholder { color: var(--muted); }
-@media (max-width: 720px) { .rot-cards { grid-template-columns: 1fr; } }
 
 /* ==========================================================================
    Tour virtual (modo tutorial)
