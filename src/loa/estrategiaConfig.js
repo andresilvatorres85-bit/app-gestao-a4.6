@@ -145,10 +145,10 @@ export const CATEGORIAS = [
     id: 'consolidado',
     rotulo: 'APOIO CONSOLIDADO',
     cor: PALETA.consolidado,
-    cabecalho: (n, ac) => `APOIO CONSOLIDADO — apoiaram o Exército em ${ac} (${n})`,
+    cabecalho: (n, ac) => `APOIO CONSOLIDADO — apoiaram a instituição em ${ac} (${n})`,
     tutulo: 'APOIO CONSOLIDADO',
     tutuloTexto: (ac) =>
-      `destinaram emenda impositiva ao Exército em ${ac}. São a base de apoio da Força — `
+      `destinaram emenda impositiva à instituição em ${ac}. São a base de apoio da instituição — `
       + 'o esforço aqui é de MANUTENÇÃO: agradecer, prestar contas e levar o próximo projeto '
       + 'no formato que já costumam indicar.',
   },
@@ -159,7 +159,7 @@ export const CATEGORIAS = [
     cabecalho: (n, ac) => `APOIO A RECUPERAR — apoiaram antes, migraram em ${ac} (${n})`,
     tutulo: 'APOIO A RECUPERAR',
     tutuloTexto: (ac) =>
-      `já apoiaram o Exército em anos anteriores, mas NÃO em ${ac} (migraram para a `
+      `já apoiaram a instituição em anos anteriores, mas NÃO em ${ac} (migraram para a `
       + 'Marinha/Aeronáutica ou pausaram). O relacionamento já existe e é o de menor custo '
       + 'para reativar — abordar lembrando a parceria passada.',
   },
@@ -167,11 +167,11 @@ export const CATEGORIAS = [
     id: 'conquistar',
     rotulo: 'APOIO A CONQUISTAR',
     cor: PALETA.conquistar,
-    cabecalho: (n) => `APOIO A CONQUISTAR — nunca apoiaram o Exército (${n})`,
+    cabecalho: (n) => `APOIO A CONQUISTAR — nunca apoiaram a instituição (${n})`,
     tutulo: 'APOIO A CONQUISTAR',
     tutuloTexto: () =>
-      'nunca apoiaram o Exército, mas apoiam a Marinha e/ou a Aeronáutica. É o campo de '
-      + 'abertura de novas relações — oferecer um projeto do Exército equivalente ao que já '
+      'nunca apoiaram a instituição, mas apoiam a Marinha e/ou a Aeronáutica. É o campo de '
+      + 'abertura de novas relações — oferecer um projeto da instituição equivalente ao que já '
       + 'emendam para as outras Forças.',
   },
 ]
@@ -192,15 +192,15 @@ export const selosLegendaDe = (ac) =>
   `[NÃO REELEITO] = não obteve novo mandato no Congresso nas eleições de ${ac} (perdeu, disputou outro cargo ou não concorreu); segue em exercício até 31/01/${ac + 1} e ainda pode indicar emendas ao ${ploaAlvoDe(ac)}.   `
   + `[SENADOR(A)/GOVERNADOR/DEPUTADO ${ac + 1}] = eleito em ${ac} para outro cargo, que assume em ${ac + 1}.   `
   + `[SUPLENTE ${ac + 1}] = sem mandato próprio a partir de ${ac + 1}; é suplente de senador eleito em ${ac}.   `
-  + `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
-  + '[ALTA VIABILIDADE] = banca ação que existe idêntica no Exército (transferência direta de UO).   '
+  + `[NOVO] = estreou o apoio à instituição em ${ac}, sem histórico anterior (merece consolidação).   `
+  + '[ALTA VIABILIDADE] = banca ação que existe idêntica na instituição (transferência direta de UO).   '
   + '[BAIXA VIABILIDADE] = interesse temático específico de outra Força (baixa transferibilidade).'
 
 export const DISCLAIMER =
   'as informações deste relatório são fruto de uma análise unicamente numérica e quantitativa, '
   + 'assim é necessário que o Assessor Parlamentar faça uma análise qualitativa da situação '
   + 'política atual para verificar a viabilidade de aproximação com o gabinete de cada '
-  + 'parlamentar, além de realizar as coordenações técnicas com os AsPar EB locais.'
+  + 'parlamentar, além de realizar as coordenações técnicas com as assessorias parlamentares locais da instituição.'
 
 export const estadoVazioDe = (ac) =>
   'Sem registros de emendas individuais (RP6) à Defesa nesta Casa e neste estado no período '

@@ -4,18 +4,15 @@
 // o layout da ESPEC §10. DOCX via docx-js (Packer.toBlob); PDF via jsPDF (texto
 // vetorial, fiel e leve, adequado ao pacote de 54 documentos); ZIP via JSZip
 // com as subpastas Camara_Deputados/ e Senado_Senadores/ (ESPEC §12).
-// O banner institucional (header.jpg) entra em sangria total no topo de cada
-// página (ESPEC §10.1).
+// Sem imagem de cabeçalho: o título abre a primeira página, logo na margem
+// superior.
 // ---------------------------------------------------------------------------
 import {
-  Document, Packer, Paragraph, TextRun, Header, ImageRun,
-  AlignmentType, BorderStyle, ShadingType,
-  HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType,
+  Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, ShadingType,
 } from 'docx'
 import { jsPDF } from 'jspdf'
 import JSZip from 'jszip'
-import bannerUrl from './assets/header-banner.jpg'
-import { PALETA, BANNER, CASAS, UFS } from './estrategiaConfig.js'
+import { PALETA, CASAS, UFS } from './estrategiaConfig.js'
 import { gerarDocumento, indicePorUFCasa, montarConfig } from './estrategia.js'
 
 // ==== util =================================================================
@@ -37,55 +34,10 @@ const baixarBlob = (blob, nome) => {
 export const nomeArquivo = (documento) =>
   `${documento.uf}_${CASAS[documento.casa].sufixoArquivo}`
 
-// Banner carregado uma vez: bytes (docx) + dataURL (jsPDF).
-let _bannerPromise = null
-function carregarBanner() {
-  if (!_bannerPromise) {
-    _bannerPromise = fetch(bannerUrl).then((r) => r.arrayBuffer()).then((ab) => {
-      const bytes = new Uint8Array(ab)
-      let bin = ''
-      for (let i = 0; i < bytes.length; i += 0x8000) {
-        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000))
-      }
-      const dataUrl = 'data:image/jpeg;base64,' + btoa(bin)
-      return { bytes, dataUrl }
-    })
-  }
-  return _bannerPromise
-}
-
 // ==== DOCX =================================================================
 // pt → half-points (docx usa half-points no `size`).
 const hp = (pt) => Math.round(pt * 2)
 const regua = (cor) => ({ bottom: { style: BorderStyle.SINGLE, size: 8, color: cor, space: 2 } })
-
-// Largura da página A4 em px (96 dpi) para a imagem de sangria total.
-const PAG_W_PX = Math.round((21.0 / 2.54) * 96) // 794
-const BANNER_H_PX = Math.round(PAG_W_PX / BANNER.aspecto) // ~150
-
-function bannerHeader(banner) {
-  return new Header({
-    children: [
-      new Paragraph({
-        spacing: { before: 0, after: 0 },
-        children: [
-          new ImageRun({
-            data: banner.bytes,
-            type: 'jpg',
-            transformation: { width: PAG_W_PX, height: BANNER_H_PX },
-            floating: {
-              horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 },
-              verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 },
-              allowOverlap: true,
-              behindDocument: false,
-              wrap: { type: TextWrappingType.NONE },
-            },
-          }),
-        ],
-      }),
-    ],
-  })
-}
 
 function paragrafoCampo(campo, cor) {
   return new Paragraph({
@@ -177,7 +129,7 @@ function disclaimerDocx(documento) {
   })
 }
 
-export function documentoDocx(documento, banner) {
+export function documentoDocx(documento) {
   const filhos = []
   // Título + subtítulo + régua
   filhos.push(new Paragraph({
@@ -230,43 +182,35 @@ export function documentoDocx(documento, banner) {
     creator: 'Gestão A4.6',
     title: nomeArquivo(documento),
     sections: [{
-      // Margem superior = altura do banner (~4,0cm) + 0,25cm de folga (ESPEC §10).
-      properties: { page: { margin: { top: 4.25 * CM, bottom: 1.5 * CM, left: 2.0 * CM, right: 2.0 * CM } } },
-      headers: { default: bannerHeader(banner) },
+      properties: { page: { margin: { top: 1.5 * CM, bottom: 1.5 * CM, left: 2.0 * CM, right: 2.0 * CM } } },
       children: filhos,
     }],
   })
 }
 
-export async function blobDocx(documento, banner) {
-  return Packer.toBlob(documentoDocx(documento, banner || (await carregarBanner())))
+export async function blobDocx(documento) {
+  return Packer.toBlob(documentoDocx(documento))
 }
 
 export async function baixarDocx(documento) {
-  const blob = await blobDocx(documento, await carregarBanner())
+  const blob = await blobDocx(documento)
   baixarBlob(blob, `${nomeArquivo(documento)}.docx`)
 }
 
 // ==== PDF (jsPDF, fluxo de texto em mm) ====================================
-const MM = { L: 20, R: 20, T: 43, B: 15, W: 210, H: 297 }
+const MM = { L: 20, R: 20, T: 15, B: 15, W: 210, H: 297 }
 const LARG = MM.W - MM.L - MM.R // largura útil
-const BANNER_H_MM = MM.W / BANNER.aspecto // ~39,7mm (sangria total)
 
 function novaPdf() {
   return new jsPDF({ unit: 'mm', format: 'a4', compress: true })
 }
 
-// Desenha o banner institucional (imagem) no topo de CADA página.
-function bannerPdf(doc, banner) {
-  if (banner?.dataUrl) doc.addImage(banner.dataUrl, 'JPEG', 0, 0, MM.W, BANNER_H_MM)
-}
 
-// Cursor de fluxo: quebra de página desenhando o banner de novo.
-function criarFluxo(doc, banner) {
-  bannerPdf(doc, banner)
+// Cursor de fluxo: quebra de página quando o conteúdo passa da margem inferior.
+function criarFluxo(doc) {
   const st = { y: MM.T }
   const garantir = (h) => {
-    if (st.y + h > MM.H - MM.B) { doc.addPage(); bannerPdf(doc, banner); st.y = MM.T }
+    if (st.y + h > MM.H - MM.B) { doc.addPage(); st.y = MM.T }
   }
   return { st, garantir }
 }
@@ -419,9 +363,9 @@ function disclaimerPdf(doc, fluxo, documento) {
   st.y += h + 1.5
 }
 
-export function documentoPdf(documento, banner, doc = null) {
+export function documentoPdf(documento, doc = null) {
   doc = doc || novaPdf()
-  const fluxo = criarFluxo(doc, banner)
+  const fluxo = criarFluxo(doc)
   escreverPar(doc, fluxo, { texto: documento.titulo, size: 15, bold: true, cor: PALETA.azulInstitucional, align: 'center', depois: 1 })
   escreverPar(doc, fluxo, { texto: documento.subtitulo, size: 12, bold: true, cor: documento.corSubtitulo, align: 'center', depois: 0.5 })
   reguaPdf(doc, fluxo, PALETA.azulInstitucional)
@@ -464,15 +408,13 @@ export function documentoPdf(documento, banner, doc = null) {
 }
 
 export async function baixarPdf(documento) {
-  const banner = await carregarBanner()
-  documentoPdf(documento, banner).save(`${nomeArquivo(documento)}.pdf`)
+  documentoPdf(documento).save(`${nomeArquivo(documento)}.pdf`)
 }
 
 // ==== ZIP (54 documentos, subpastas por Casa) ==============================
 // `onProgresso(feito, total)` opcional para a barra de progresso da tela.
 export async function baixarZip(registros, { formato = 'docx', configOver = {}, onProgresso } = {}) {
   const cfg = montarConfig(configOver)
-  const banner = await carregarBanner()
   const zip = new JSZip()
   const combos = []
   for (const casa of ['camara', 'senado']) for (const uf of UFS) combos.push({ uf, casa })
@@ -481,9 +423,9 @@ export async function baixarZip(registros, { formato = 'docx', configOver = {}, 
     const documento = gerarDocumento(registros, { uf, casa, config: cfg })
     const nome = `${CASAS[casa].subpasta}/${nomeArquivo(documento)}.${formato}`
     if (formato === 'docx') {
-      zip.file(nome, await blobDocx(documento, banner))
+      zip.file(nome, await blobDocx(documento))
     } else {
-      const buf = documentoPdf(documento, banner).output('arraybuffer')
+      const buf = documentoPdf(documento).output('arraybuffer')
       zip.file(nome, buf)
     }
     feito += 1

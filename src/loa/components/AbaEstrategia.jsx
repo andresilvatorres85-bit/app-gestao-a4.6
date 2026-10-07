@@ -7,10 +7,9 @@ import {
 } from '../estrategiaDoc.js'
 import {
   UFS, UF_NOME, CASAS, LIMITACOES,
-  BANNER, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS, NAO_REELEITOS,
+  REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS, NAO_REELEITOS,
   CARGOS_2027,
 } from '../estrategiaConfig.js'
-import bannerUrl from '../assets/header-banner.jpg'
 
 const CH = '#'
 const cor = (h) => CH + h
@@ -164,8 +163,6 @@ export default function AbaEstrategia({ registros }) {
 
       {/* ---- prévia do documento (espelha o DOCX/PDF exportado) ---- */}
       <article className="estr-doc" aria-label="Prévia do documento">
-        <img className="estr-banner-img" src={bannerUrl} alt={BANNER.alt} />
-
         <h1 className="estr-titulo" style={{ color: cor('1A3A5C') }}>{documento.titulo}</h1>
         <h2 className="estr-subtitulo" style={{ color: cor(documento.corSubtitulo), borderColor: cor('1A3A5C') }}>
           {documento.subtitulo}

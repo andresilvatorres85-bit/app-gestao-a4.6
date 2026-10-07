@@ -143,7 +143,7 @@ function fichaConsolidado(a, ac) {
   const areasU = [...new Set(areas)]
   const estreante = a.anosExAll.size === 1 && a.anosExAll.has(String(ac))
   const campos = [
-    { rotulo: 'Histórico com o Exército', texto: `${VF(a.valExHist)} — ${anosTxt(a.anosExAll)}.` },
+    { rotulo: 'Histórico com a instituição', texto: `${VF(a.valExHist)} — ${anosTxt(a.anosExAll)}.` },
     { rotulo: 'Perfil de indicação', texto: areasU.length ? `${areasU.join(', ')}.` : 'não detalhado.' },
   ]
   const objetos = objetosRecentes(a.ex_obj)
@@ -166,19 +166,19 @@ function fichaRecuperar(a, ac) {
     const partes = []
     if (maAtual > 0) partes.push(`Marinha ${M(maAtual)}`)
     if (aeAtual > 0) partes.push(`Aeronáutica ${M(aeAtual)}`)
-    situacao = `Apoiou o Exército em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); em ${ac} migrou para ${partes.join(' + ')}.`
+    situacao = `Apoiou a instituição em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); em ${ac} migrou para ${partes.join(' + ')}.`
   } else {
     const somaMa = somaMap(a.ma_by)
     const somaAe = somaMap(a.ae_by)
     const forca = somaMa >= somaAe ? 'Marinha' : 'Aeronáutica'
     const by = forca === 'Marinha' ? a.ma_by : a.ae_by
     const ultimoAno = [...by.keys()].map(Number).sort((x, y) => y - x)[0]
-    situacao = `Apoiou o Exército em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); migrou para ${forca} `
-      + `(último apoio em ${ultimoAno ?? '—'}, histórico ${M(somaMa + somaAe)}). Sem emenda ao Exército em ${ac}.`
+    situacao = `Apoiou a instituição em ${anosTxt(a.anosExAll)} (${VF(a.valExHist)}); migrou para ${forca} `
+      + `(último apoio em ${ultimoAno ?? '—'}, histórico ${M(somaMa + somaAe)}). Sem emenda à instituição em ${ac}.`
   }
   const campos = [
     { rotulo: 'Situação', texto: situacao },
-    { rotulo: 'Perfil (Exército)', texto: areas.length ? `${areas.join(', ')}.` : 'adequação/infraestrutura.' },
+    { rotulo: 'Perfil (instituição)', texto: areas.length ? `${areas.join(', ')}.` : 'adequação/infraestrutura.' },
   ]
   const objetos = objetosRecentes(a.ex_obj)
   if (objetos) campos.push({ rotulo: 'Objetos recentes', texto: objetos })
@@ -215,8 +215,8 @@ function fichaConquistar(a, ac) {
     {
       rotulo: 'Abordagem',
       texto: quente
-        ? `Oferecer a mesma ação numa OM do Exército no estado (troca direta de UO): ${areas[0]}.`
-        : 'Interesse temático específico de outra Força — abordar só se houver projeto do Exército no mesmo nicho (C&T, ensino).',
+        ? `Oferecer a mesma ação numa OM da instituição no estado (troca direta de UO): ${areas[0]}.`
+        : 'Interesse temático específico de outra Força — abordar só se houver projeto da instituição no mesmo nicho (C&T, ensino).',
     },
   ]
   return { campos, selos: [quente ? 'ALTA VIABILIDADE' : 'BAIXA VIABILIDADE'] }
