@@ -18,7 +18,8 @@ import {
   ANO_CORRENTE_PADRAO, janelaDe, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS,
   GEN_QUENTE, MAPA_AREA, CATEGORIA_POR_ID, CATEGORIAS, CASAS, UF_NOME, UFS,
   tituloDe, metaDe, selosLegendaDe, estadoVazioDe, TUTORIAL_TITULO,
-  DISCLAIMER, NOTA_FECHAMENTO, NAO_REELEITOS, SELO_NAO_REELEITO,
+  DISCLAIMER, NOTA_FECHAMENTO, NAO_REELEITOS, SELO_NAO_REELEITO, COR_NAO_REELEITO,
+  CARGOS_2027, corDoCargo2027,
 } from './estrategiaConfig.js'
 
 // --- helpers de texto ------------------------------------------------------
@@ -257,6 +258,7 @@ export function montarConfig(over = {}) {
     whitelist: new Set((over.whitelist ?? WHITELIST_SEN_ATIVOS).map((s) => s.trim().toUpperCase())),
     // comparação sem acentos: a grafia do Autor varia (ROSANGELA/ROSÂNGELA)
     naoReeleitos: new Set((over.naoReeleitos ?? NAO_REELEITOS).map((s) => up(s.trim()))),
+    cargos2027: new Map(Object.entries(over.cargos2027 ?? CARGOS_2027).map(([n, c]) => [up(n.trim()), c.trim().toUpperCase()])),
   }
 }
 
@@ -295,13 +297,20 @@ export function gerarDocumento(registros, { uf, casa, config } = {}) {
     const meta = CATEGORIA_POR_ID[id]
     const fichas = autores.map((a) => {
       const { campos, selos } = FICHA_POR_CAT[id](a, ac)
-      // Selo das eleições: vai junto ao nome (em vermelho), não na identificação.
+      // Selos das eleições (NÃO REELEITO / cargo em 2027): vão junto ao nome,
+      // coloridos, e não na linha de identificação.
       const naoReeleito = cfg.naoReeleitos.has(up(a.autor))
+      const cargo2027 = cfg.cargos2027.get(up(a.autor))
+      const destaques = [
+        ...(naoReeleito ? [{ texto: SELO_NAO_REELEITO, cor: COR_NAO_REELEITO }] : []),
+        ...(cargo2027 ? [{ texto: cargo2027, cor: corDoCargo2027(cargo2027) }] : []),
+      ]
       return {
         autor: a.autor,
         nome: tituloBR(a.autor),
         ident: identificacao(a, casaDef.cargo, selos),
-        selos: naoReeleito ? [SELO_NAO_REELEITO, ...selos] : selos,
+        selos: [...destaques.map((d) => d.texto), ...selos],
+        destaques,
         naoReeleito,
         campos,
       }

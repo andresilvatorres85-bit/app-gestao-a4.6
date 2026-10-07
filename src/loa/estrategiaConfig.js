@@ -41,10 +41,31 @@ export const WHITELIST_SEN_ATIVOS = ['MARCOS DO VAL']
 // também na tela, em "Configuração".
 export const SELO_NAO_REELEITO = 'NÃO REELEITO'
 export const COR_NAO_REELEITO = 'C00000'
+
+// Quem muda de cargo em 2027 (eleito em 2026 para outro cargo) recebe o selo
+// do novo cargo; quem é suplente de senador eleito (sem mandato próprio)
+// recebe [SUPLENTE 2027], junto com [NÃO REELEITO]. Mesma fonte (TSE, chapas
+// com vice/suplentes). Editável na tela ("NOME = CARGO", um por linha).
+export const COR_CARGO_2027 = '1F5FAD'
+export const COR_SUPLENTE_2027 = '9C6500'
+export const corDoCargo2027 = (txt) => (/^SUPLENTE/i.test(txt) ? COR_SUPLENTE_2027 : COR_CARGO_2027)
+export const CARGOS_2027 = {
+  // Deputados eleitos senadores
+  'LUIZIANNE LINS': 'SENADORA 2027', 'BIA KICIS': 'SENADORA 2027', 'JOSÉ MEDEIROS': 'SENADOR 2027',
+  'FILIPE BARROS': 'SENADOR 2027', 'JÚLIO CESAR': 'SENADOR 2027', 'CARLOS JORDY': 'SENADOR 2027',
+  'SANDERSON': 'SENADOR 2027', 'NICOLETTI': 'SENADOR 2027', 'GUILHERME DERRITE': 'SENADOR 2027',
+  'ALEXANDRE GUIMARÃES': 'SENADOR 2027',
+  // Eleitos governadores
+  'ZUCCO': 'GOVERNADOR 2027', 'SERGIO MORO': 'GOVERNADOR 2027',
+  // Senador eleito deputado federal
+  'IZALCI LUCAS': 'DEPUTADO 2027',
+  // 1º suplente de senador eleito em 2026
+  'LUCIANO BIVAR': 'SUPLENTE 2027', 'DRA. EUDÓCIA': 'SUPLENTE 2027', 'JADER BARBALHO': 'SUPLENTE 2027',
+}
 export const NAO_REELEITOS = [
   // Senado (mandato encerra em 31/01/2027)
   'ANGELO CORONEL', 'CARLOS VIANA', 'CHICO RODRIGUES', 'DANIELLA RIBEIRO',
-  'DRA. EUDÓCIA', 'EDUARDO GIRÃO', 'ELIZIANE GAMA', 'ESPERIDIÃO AMIN',
+  'DRA. EUDÓCIA', 'EDUARDO GIRÃO', 'JADER BARBALHO', 'ELIZIANE GAMA', 'ESPERIDIÃO AMIN',
   'FERNANDO DUEIRE', 'FLÁVIO ARNS', 'GIORDANO', 'IVETE DA SILVEIRA',
   'JAYME CAMPOS', 'LEILA BARROS', 'LUIS CARLOS HEINZE', 'MARCOS DO VAL',
   'MECIAS DE JESUS', 'ORIOVISTO GUIMARÃES', 'RODRIGO PACHECO', 'SORAYA THRONICKE',
@@ -169,6 +190,8 @@ export const TUTORIAL_TITULO = 'Entenda as categorias deste relatório:'
 
 export const selosLegendaDe = (ac) =>
   `[NÃO REELEITO] = não obteve novo mandato no Congresso nas eleições de ${ac} (perdeu, disputou outro cargo ou não concorreu); segue em exercício até 31/01/${ac + 1} e ainda pode indicar emendas ao ${ploaAlvoDe(ac)}.   `
+  + `[SENADOR(A)/GOVERNADOR/DEPUTADO ${ac + 1}] = eleito em ${ac} para outro cargo, que assume em ${ac + 1}.   `
+  + `[SUPLENTE ${ac + 1}] = sem mandato próprio a partir de ${ac + 1}; é suplente de senador eleito em ${ac}.   `
   + `[NOVO] = estreou o apoio ao Exército em ${ac}, sem histórico anterior (merece consolidação).   `
   + '[ALTA VIABILIDADE] = banca ação que existe idêntica no Exército (transferência direta de UO).   '
   + '[BAIXA VIABILIDADE] = interesse temático específico de outra Força (baixa transferibilidade).'

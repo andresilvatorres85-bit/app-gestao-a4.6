@@ -1499,7 +1499,7 @@
 }
 .loa-app .estr-cfg summary, .loa-app .estr-limit summary { cursor: pointer; font-weight: 700; color: var(--tinta-2); }
 .loa-app .estr-cfg-ajuda { color: var(--tinta-fraca); font-size: 0.76rem; margin: 0.5rem 0; }
-.loa-app .estr-cfg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+.loa-app .estr-cfg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
 .loa-app .estr-cfg-grid label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.72rem; font-weight: 700; color: var(--tinta-2); }
 .loa-app .estr-cfg-grid textarea {
   font: inherit; font-size: 0.78rem; padding: 0.4rem; border: 1px solid var(--borda);

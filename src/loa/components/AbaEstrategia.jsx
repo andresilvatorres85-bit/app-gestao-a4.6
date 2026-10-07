@@ -8,7 +8,7 @@ import {
 import {
   UFS, UF_NOME, CASAS, LIMITACOES,
   BANNER, REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS, NAO_REELEITOS,
-  SELO_NAO_REELEITO, COR_NAO_REELEITO,
+  CARGOS_2027,
 } from '../estrategiaConfig.js'
 import bannerUrl from '../assets/header-banner.jpg'
 
@@ -26,7 +26,14 @@ const carregarConfigLocal = () => {
 }
 // Sobrescritas salvas → montarConfig. Listas ausentes (config salva antes de
 // existirem) ficam com o padrão.
-const overDe = (c) => (c ? { removidos: c.removidos, whitelist: c.whitelist, naoReeleitos: c.naoReeleitos } : {})
+const overDe = (c) => (c ? {
+  removidos: c.removidos, whitelist: c.whitelist, naoReeleitos: c.naoReeleitos, cargos2027: c.cargos2027,
+} : {})
+// "NOME = CARGO" por linha ⇄ objeto { NOME: CARGO }.
+const cargosParaTexto = (o) => Object.entries(o).map(([n, c]) => `${n} = ${c}`).join('\n')
+const cargosDeTexto = (t) => Object.fromEntries(t.split('\n').map((l) => l.split('='))
+  .filter((p) => p.length === 2 && p[0].trim() && p[1].trim())
+  .map(([n, c]) => [n.trim().toUpperCase(), c.trim().toUpperCase()]))
 const listaDeTexto = (t) =>
   t.split('\n').map((s) => s.trim().toUpperCase()).filter(Boolean)
 
@@ -41,6 +48,8 @@ export default function AbaEstrategia({ registros }) {
     (cfgLocal?.whitelist ?? WHITELIST_SEN_ATIVOS).join('\n'))
   const [txtNaoReel, setTxtNaoReel] = useState(
     (cfgLocal?.naoReeleitos ?? NAO_REELEITOS).join('\n'))
+  const [txtCargos, setTxtCargos] = useState(
+    cargosParaTexto(cfgLocal?.cargos2027 ?? CARGOS_2027))
   const [progresso, setProgresso] = useState(null) // {feito,total,formato} | null
 
   const config = useMemo(
@@ -57,7 +66,7 @@ export default function AbaEstrategia({ registros }) {
   const totalCasa = (c) => UFS.reduce((s, u) => s + contUF(u, c), 0)
 
   const salvarCfg = () => {
-    const novo = { removidos: listaDeTexto(txtRemov), whitelist: listaDeTexto(txtWhite), naoReeleitos: listaDeTexto(txtNaoReel) }
+    const novo = { removidos: listaDeTexto(txtRemov), whitelist: listaDeTexto(txtWhite), naoReeleitos: listaDeTexto(txtNaoReel), cargos2027: cargosDeTexto(txtCargos) }
     try { localStorage.setItem(LS_KEY, JSON.stringify(novo)) } catch { /* modo privado */ }
     setCfgLocal(novo)
     setEditandoCfg(false)
@@ -68,6 +77,7 @@ export default function AbaEstrategia({ registros }) {
     setTxtRemov(REMOVIDOS_MANDATO.join('\n'))
     setTxtWhite(WHITELIST_SEN_ATIVOS.join('\n'))
     setTxtNaoReel(NAO_REELEITOS.join('\n'))
+    setTxtCargos(cargosParaTexto(CARGOS_2027))
     setEditandoCfg(false)
   }
 
@@ -188,12 +198,16 @@ export default function AbaEstrategia({ registros }) {
                 <div key={f.autor} className="estr-ficha" style={{ borderColor: cor(s.cor) }}>
                   <p className="estr-ficha-nome" style={{ color: cor(s.cor) }}>
                     {f.nome}
-                    {f.selos.map((sel) => (
-                      <span key={sel} className="estr-selo"
-                style={sel === SELO_NAO_REELEITO
-                  ? { background: cor(COR_NAO_REELEITO), borderColor: cor(COR_NAO_REELEITO), color: '#fff' }
-                  : { borderColor: cor(s.cor), color: cor(s.cor) }}>{sel}</span>
-                    ))}
+                    {f.selos.map((sel) => {
+                      // selos das eleições: preenchidos na cor própria
+                      const d = (f.destaques || []).find((x) => x.texto === sel)
+                      return (
+                        <span key={sel} className="estr-selo"
+                          style={d
+                            ? { background: cor(d.cor), borderColor: cor(d.cor), color: '#fff' }
+                            : { borderColor: cor(s.cor), color: cor(s.cor) }}>{sel}</span>
+                      )
+                    })}
                   </p>
                   <p className="estr-ficha-ident">{f.ident}</p>
                   {f.campos.map((c) => (
@@ -231,6 +245,10 @@ export default function AbaEstrategia({ registros }) {
             <label>
               Não reeleitos nas eleições de 2026 (recebem o selo vermelho NÃO REELEITO)
               <textarea rows={6} value={txtNaoReel} onChange={(e) => setTxtNaoReel(e.target.value)} />
+            </label>
+            <label>
+              Cargo em 2027 para quem muda de cargo (NOME = CARGO, um por linha)
+              <textarea rows={6} value={txtCargos} onChange={(e) => setTxtCargos(e.target.value)} />
             </label>
           </div>
           <div className="estr-cfg-acoes">
