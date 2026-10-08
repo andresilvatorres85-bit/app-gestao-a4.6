@@ -570,17 +570,25 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or "
 def _abrir(url, tentativas=4):
     """urlopen com User-Agent, token (quando houver) e retry com backoff em
     caso de 403 (rate limit) ou erros transitórios."""
-    req = urllib.request.Request(url, headers={"User-Agent": "emendas-defesa-app-build"})
     host = url.split("/")[2] if "//" in url else ""
-    if GITHUB_TOKEN and host.endswith(("github.com", "githubusercontent.com")):
-        req.add_header("Authorization", f"Bearer {GITHUB_TOKEN}")
-        req.add_header("X-GitHub-Api-Version", "2022-11-28")
+    # O token só vai para a API (limite de requisições). Nos downloads
+    # (raw.githubusercontent.com) ele atrapalha: o GITHUB_TOKEN do Actions vale
+    # só para o repositório do app, e o repositório de dados é outro.
+    com_token = bool(GITHUB_TOKEN) and host == "api.github.com"
     ultimo_erro = None
     for i in range(tentativas):
+        req = urllib.request.Request(url, headers={"User-Agent": "emendas-defesa-app-build"})
+        if com_token:
+            req.add_header("Authorization", f"Bearer {GITHUB_TOKEN}")
+            req.add_header("X-GitHub-Api-Version", "2022-11-28")
         try:
             return urllib.request.urlopen(req)
         except urllib.error.HTTPError as e:
             ultimo_erro = e
+            if com_token and e.code in (401, 404):
+                print(f"  {e.code} com token em {url} — tentando sem token")
+                com_token = False
+                continue
             # 403/429 = rate limit/abuso; 5xx = transitório. Aguarda e tenta de novo.
             if e.code in (403, 429) or 500 <= e.code < 600:
                 espera = 2 ** i * 5
