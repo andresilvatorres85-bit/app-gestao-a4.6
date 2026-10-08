@@ -33,7 +33,7 @@ export default function NovoRegistro({ onSaved, nextProtocolo, partidos, mapaEsp
   async function submeter(e) {
     e.preventDefault();
     setErro(""); setOk(null);
-    if (!autorAtual) { setErro('Seu e-mail de login ainda não está vinculado a um nome. Peça para cadastrarem em Configurações > Usuários.'); return; }
+    if (!autorAtual) { setErro('Seu e-mail de login ainda não está vinculado a um nome. Peça para cadastrarem em CONFIGURAÇÕES > Geral > Usuários.'); return; }
 
     if (tipo === "Consultor") {
       if (!nome.trim()) { setErro("Informe o nome do consultor."); return; }
@@ -183,7 +183,7 @@ export default function NovoRegistro({ onSaved, nextProtocolo, partidos, mapaEsp
           <Field label="Registrado por" hint={autorAtual ? "Preenchido automaticamente pelo seu login." : "Seu e-mail ainda não está vinculado a um nome."}>
             {autorAtual
               ? <div className="registrado-auto">{autorAtual}</div>
-              : <div className="registrado-auto registrado-auto-alerta">{emailAtual || "—"} <span>(vincule em Configurações → Usuários)</span></div>}
+              : <div className="registrado-auto registrado-auto-alerta">{emailAtual || "—"} <span>(vincule em CONFIGURAÇÕES → Usuários)</span></div>}
           </Field>
         </div>
 

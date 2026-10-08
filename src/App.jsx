@@ -53,6 +53,7 @@ const ABAS = [
   { id: "proposicoes", label: "Proposições", icon: ScrollText },
   { id: "cartilhas", label: "Cartilhas", icon: BookOpen },
   { id: "conhecimento", label: "CONHECIMENTO", icon: Library },
+  { id: "config", label: "CONFIGURAÇÕES", icon: Settings },
 ];
 
 // Seções internas da aba MÉTRICAS
@@ -61,7 +62,6 @@ const NAV = [
   { id: "novo", label: "Lançar", icon: Plus },
   { id: "objeto", label: "Alteração emenda", icon: FileSignature },
   { id: "historico", label: "Histórico", icon: History },
-  { id: "config", label: "Configurações", icon: Settings },
 ];
 
 export default function App() {
@@ -241,6 +241,10 @@ export default function App() {
             <Proposicoes itens={proposicoes.itens} inserir={proposicoes.inserir}
               atualizar={proposicoes.atualizar} excluir={proposicoes.excluir} />
           </Suspense>
+        ) : aba === "config" ? (
+          !partidosCarregados || !usuariosCarregados
+            ? <div className="loading-state">Carregando…</div>
+            : <Configuracoes partidos={partidos} usuarios={usuarios} emailAtual={emailAtual} />
         ) : !loadedNovos || !partidosCarregados || !usuariosCarregados ? (
           <div className="loading-state">Carregando…</div>
         ) : view === "dashboard" ? (
@@ -253,10 +257,8 @@ export default function App() {
             atualizar={objetoEmendas.atualizar} excluir={objetoEmendas.excluir}
             editando={objetoEditando} onEditar={editarObjeto} onCancelarEdicao={() => setObjetoEditando(null)}
             partidos={partidos} autorAtual={autorAtual} emailAtual={emailAtual} />
-        ) : view === "historico" ? (
-          <Historico allRecords={allRecords} onDelete={handleDelete} />
         ) : (
-          <Configuracoes partidos={partidos} usuarios={usuarios} emailAtual={emailAtual} />
+          <Historico allRecords={allRecords} onDelete={handleDelete} />
         )}
       </main>
 

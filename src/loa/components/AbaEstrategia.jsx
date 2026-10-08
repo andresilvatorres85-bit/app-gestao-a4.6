@@ -7,48 +7,17 @@ import {
 } from '../estrategiaDoc.js'
 import {
   UFS, UF_NOME, CASAS, LIMITACOES,
-  REMOVIDOS_MANDATO, WHITELIST_SEN_ATIVOS, NAO_REELEITOS,
-  CARGOS_2027,
 } from '../estrategiaConfig.js'
+import { carregarConfigLocal, overDe } from '../estrategiaCfg.js'
 
 const CH = '#'
 const cor = (h) => CH + h
 
-// Persistência local das listas de mandato editáveis (ESPEC §4/§13).
-const LS_KEY = 'estrategia.config.v1'
-const carregarConfigLocal = () => {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch { return null }
-}
-// Sobrescritas salvas → montarConfig. Listas ausentes (config salva antes de
-// existirem) ficam com o padrão.
-const overDe = (c) => (c ? {
-  removidos: c.removidos, whitelist: c.whitelist, naoReeleitos: c.naoReeleitos, cargos2027: c.cargos2027,
-} : {})
-// "NOME = CARGO" por linha ⇄ objeto { NOME: CARGO }.
-const cargosParaTexto = (o) => Object.entries(o).map(([n, c]) => `${n} = ${c}`).join('\n')
-const cargosDeTexto = (t) => Object.fromEntries(t.split('\n').map((l) => l.split('='))
-  .filter((p) => p.length === 2 && p[0].trim() && p[1].trim())
-  .map(([n, c]) => [n.trim().toUpperCase(), c.trim().toUpperCase()]))
-const listaDeTexto = (t) =>
-  t.split('\n').map((s) => s.trim().toUpperCase()).filter(Boolean)
-
 export default function AbaEstrategia({ registros }) {
   const [uf, setUf] = useState('RJ')
   const [casa, setCasa] = useState('camara')
-  const [cfgLocal, setCfgLocal] = useState(() => carregarConfigLocal())
-  const [editandoCfg, setEditandoCfg] = useState(false)
-  const [txtRemov, setTxtRemov] = useState(
-    (cfgLocal?.removidos ?? REMOVIDOS_MANDATO).join('\n'))
-  const [txtWhite, setTxtWhite] = useState(
-    (cfgLocal?.whitelist ?? WHITELIST_SEN_ATIVOS).join('\n'))
-  const [txtNaoReel, setTxtNaoReel] = useState(
-    (cfgLocal?.naoReeleitos ?? NAO_REELEITOS).join('\n'))
-  const [txtCargos, setTxtCargos] = useState(
-    cargosParaTexto(cfgLocal?.cargos2027 ?? CARGOS_2027))
+  // Listas editadas em CONFIGURAÇÕES › LOA (lidas ao abrir a aba).
+  const [cfgLocal] = useState(() => carregarConfigLocal())
   const [progresso, setProgresso] = useState(null) // {feito,total,formato} | null
 
   const config = useMemo(
@@ -63,22 +32,6 @@ export default function AbaEstrategia({ registros }) {
   // estado vazio) — o usuário escolheu de propósito.
   const contUF = (u, c) => indice[c]?.[u]?.total ?? 0
   const totalCasa = (c) => UFS.reduce((s, u) => s + contUF(u, c), 0)
-
-  const salvarCfg = () => {
-    const novo = { removidos: listaDeTexto(txtRemov), whitelist: listaDeTexto(txtWhite), naoReeleitos: listaDeTexto(txtNaoReel), cargos2027: cargosDeTexto(txtCargos) }
-    try { localStorage.setItem(LS_KEY, JSON.stringify(novo)) } catch { /* modo privado */ }
-    setCfgLocal(novo)
-    setEditandoCfg(false)
-  }
-  const restaurarCfg = () => {
-    try { localStorage.removeItem(LS_KEY) } catch { /* ignore */ }
-    setCfgLocal(null)
-    setTxtRemov(REMOVIDOS_MANDATO.join('\n'))
-    setTxtWhite(WHITELIST_SEN_ATIVOS.join('\n'))
-    setTxtNaoReel(NAO_REELEITOS.join('\n'))
-    setTxtCargos(cargosParaTexto(CARGOS_2027))
-    setEditandoCfg(false)
-  }
 
   const baixarPacote = async (formato) => {
     if (progresso) return
@@ -223,37 +176,10 @@ export default function AbaEstrategia({ registros }) {
         </p>
       </article>
 
-      {/* ---- configuração das listas de mandato (ESPEC §4) ---- */}
-      <details className="estr-cfg" open={editandoCfg} onToggle={(e) => setEditandoCfg(e.target.open)}>
-        <summary>Configuração das listas de mandato ativo (2026){cfgLocal ? ' · personalizada' : ''}</summary>
-        <div className="estr-cfg-corpo">
-          <p className="estr-cfg-ajuda">
-            Um nome por linha, em CAIXA ALTA, como aparece no campo Autor. Salvo neste navegador.
-          </p>
-          <div className="estr-cfg-grid">
-            <label>
-              Removidos do mandato (aparecem em 2024–2026, mas não estão mais em exercício)
-              <textarea rows={6} value={txtRemov} onChange={(e) => setTxtRemov(e.target.value)} />
-            </label>
-            <label>
-              Whitelist de senadores ativos (em exercício, sem emenda recente à Defesa)
-              <textarea rows={6} value={txtWhite} onChange={(e) => setTxtWhite(e.target.value)} />
-            </label>
-            <label>
-              Não reeleitos nas eleições de 2026 (recebem o selo vermelho NÃO REELEITO)
-              <textarea rows={6} value={txtNaoReel} onChange={(e) => setTxtNaoReel(e.target.value)} />
-            </label>
-            <label>
-              Cargo em 2027 para quem muda de cargo (NOME = CARGO, um por linha)
-              <textarea rows={6} value={txtCargos} onChange={(e) => setTxtCargos(e.target.value)} />
-            </label>
-          </div>
-          <div className="estr-cfg-acoes">
-            <button className="btn-docx" onClick={salvarCfg}>Salvar</button>
-            <button className="limpar-tudo" onClick={restaurarCfg}>Restaurar padrão</button>
-          </div>
-        </div>
-      </details>
+      <p className="estr-cfg-ajuda">
+        Listas de mandato e selos eleitorais{cfgLocal ? ' (configuração personalizada em uso)' : ''}:
+        edite em <strong>CONFIGURAÇÕES › LOA › Estratégia</strong>.
+      </p>
 
       {/* ---- limitações conhecidas (ESPEC §14) ---- */}
       <details className="estr-limit">
