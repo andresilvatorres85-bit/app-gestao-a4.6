@@ -7,6 +7,7 @@ import { StatCard } from "./UI.jsx";
 import Espelho from "./Espelho.jsx";
 import TabelaPropostas from "./TabelaPropostas.jsx";
 import { supabase } from "../lib/supabaseClient.js";
+import { useAcesso } from "../acessos.js";
 import { PROPOSTAS_LEXOR, ACOES_LEXOR } from "../data/lexor.js";
 import {
   moeda, valorTotal, exercicioDe, situacaoDe, SITUACOES,
@@ -41,6 +42,7 @@ export default function Lexor() {
   const [consolidadas, setConsolidadas] = useState([]);  // registros do Supabase
   const [erroJuntar, setErroJuntar] = useState("");
   const [atualiz, setAtualiz] = useState({ estado: "ocioso", msg: "" }); // botão "Atualizar dados"
+  const podeAtualizar = useAcesso().pode("recursos.atualizar"); // CONFIGURAÇÕES › Acessos
 
   const atualizarDados = useCallback(async () => {
     setAtualiz({ estado: "carregando", msg: "" });
@@ -318,11 +320,11 @@ export default function Lexor() {
             Selecione uma ou várias e gere os espelhos no formato oficial.
           </p>
         </div>
-        <button className="btn btn-ghost" onClick={atualizarDados} disabled={atualiz.estado === "carregando"}
+        {podeAtualizar && <button className="btn btn-ghost" onClick={atualizarDados} disabled={atualiz.estado === "carregando"}
           title="Reprocessa os dados a partir de Controle_LEXOR.xlsx e Prospecção de Propostas de Emendas.xlsx">
           <RefreshCw size={16} className={atualiz.estado === "carregando" ? "girando" : ""} />
           {atualiz.estado === "carregando" ? "Atualizando…" : "Atualizar dados"}
-        </button>
+        </button>}
       </div>
       {atualiz.msg && (
         <div className={`alert ${atualiz.estado === "erro" ? "alert-error" : "alert-ok"} lexor-atualiz-msg`}>{atualiz.msg}</div>

@@ -21,7 +21,7 @@ export default function Configuracoes({ partidos, usuarios, emailAtual }) {
       secoes: [
         { id: "usuarios", titulo: "Usuários", icone: UsersRound, badge: usuarios.length,
           corpo: () => <Usuarios usuarios={usuarios} emailAtual={emailAtual} somenteLeitura={somenteLeitura} /> },
-        { id: "acessos", titulo: "Acessos aos módulos, abas e subabas", icone: KeyRound, admin: true,
+        { id: "acessos", titulo: "Acessos aos módulos, abas, subabas e recursos", icone: KeyRound, admin: true,
           corpo: () => haAdmin
             ? <AcessosPanel usuarios={usuarios} emailAtual={emailAtual} />
             : <p className="config-help">

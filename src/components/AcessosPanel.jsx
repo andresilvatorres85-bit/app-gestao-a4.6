@@ -66,7 +66,8 @@ export default function AcessosPanel({ usuarios, emailAtual }) {
       <p className="config-help">
         Escolha um usuário e marque o que ele pode ver. Desmarcar um módulo retira também todas as
         suas abas e subabas; módulos com todas as abas retiradas somem do cabeçalho. Novos módulos
-        nascem liberados. Administradores têm acesso a tudo e gerenciam os acessos.
+        nascem liberados. Em RECURSOS fica o botão “Atualizar dados” (cabeçalho e LEXOR). Administradores
+        têm acesso a tudo e gerenciam os acessos.
       </p>
       <div className="acessos-grid">
         <ul className="acessos-usuarios">

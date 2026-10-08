@@ -31,6 +31,11 @@ export const CATALOGO = [
     { id: "metricas", rotulo: "MÉTRICAS", filhos: folhas([["partidos", "Partidos e espectro"]]) },
     { id: "loa", rotulo: "LOA", filhos: folhas([["estrategia", "Estratégia · listas e selos"]]) },
   ] },
+  // Recursos que não são módulos: o botão "Atualizar dados" (cabeçalho e
+  // módulo LEXOR), que republica o app com as planilhas do repositório.
+  { id: "recursos", rotulo: "RECURSOS", filhos: folhas([
+    ["atualizar", "Botão “Atualizar dados”"],
+  ]) },
 ];
 
 // Lista plana { chave, rotulo, nivel, pai } na ordem da árvore.
