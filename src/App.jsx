@@ -207,7 +207,7 @@ export default function App() {
             ))}
           </nav>
           <div className="topbar-acoes">
-            <AtualizarDados />
+            {acesso.pode("recursos.atualizar") && <AtualizarDados />}
             <button className="logout-btn" data-tour="tour" onClick={() => setTourAberto(true)} title="Tour virtual: conheça os módulos do aplicativo">
               <Compass size={14} /> <span className="logout-txt">Tour</span>
             </button>
