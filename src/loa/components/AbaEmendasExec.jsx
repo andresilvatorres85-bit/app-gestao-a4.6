@@ -16,10 +16,10 @@ export default function AbaEmendasExec({ registros, detalhe, abrirDetalhe, filtr
         <div className="grade">
           {grupos.map((g) => (
             <CartaoEmenda
-              key={g.emenda}
+              key={g.chave}
               grupo={g}
-              aberto={detalhe === g.emenda}
-              onToggle={() => abrirDetalhe(g.emenda)}
+              aberto={detalhe === g.chave}
+              onToggle={() => abrirDetalhe(g.chave)}
             />
           ))}
         </div>

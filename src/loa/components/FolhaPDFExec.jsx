@@ -842,7 +842,7 @@ export function FolhaInconsistencias({ registros, filtrosTexto }) {
             </thead>
             <tbody>
               {grupos.map((g) => (
-                <tr key={g.emenda}>
+                <tr key={g.chave}>
                   <td className="c-ord">{g.emenda}</td>
                   <td className="c-aut">
                     {g.autor}{g.partido && g.partido !== '—' ? ` (${g.partido})` : ''}

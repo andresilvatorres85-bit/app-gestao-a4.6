@@ -182,16 +182,24 @@ export function opcoesDoFiltro(registros, filtros, filtro) {
 }
 
 // Agrupa registros filtrados por número de emenda (um cartão por emenda).
+// O número da emenda se repete entre exercícios (código do autor + sequencial
+// do ano: 20480001 existe em 2019, 2020, …), então cada cartão é uma emenda
+// de UM ano. A chave também identifica o cartão aberto (`?det=` na URL).
+export const chaveEmenda = (r) => `${r.ano}-${r.emenda}`
+
 export function agruparPorEmenda(registros) {
   const grupos = new Map()
   for (const r of registros) {
-    if (!grupos.has(r.emenda)) grupos.set(r.emenda, [])
-    grupos.get(r.emenda).push(r)
+    const k = chaveEmenda(r)
+    if (!grupos.has(k)) grupos.set(k, [])
+    grupos.get(k).push(r)
   }
-  return [...grupos.entries()].map(([emenda, itens]) => {
+  return [...grupos.entries()].map(([chave, itens]) => {
     const r0 = itens[0]
     return {
-      emenda,
+      chave,
+      emenda: r0.emenda,
+      ano: r0.ano,
       autor: r0.autor,
       partido: r0.partido,
       autorUF: r0.autorUF,
@@ -260,16 +268,19 @@ export function registrosInconsistentes(registros, { tipo = null, gravidade = nu
 export function agruparInconsistencias(registros) {
   const grupos = new Map()
   for (const r of registros) {
-    if (!grupos.has(r.emenda)) grupos.set(r.emenda, [])
-    grupos.get(r.emenda).push(r)
+    const k = chaveEmenda(r)
+    if (!grupos.has(k)) grupos.set(k, [])
+    grupos.get(k).push(r)
   }
   return [...grupos.entries()]
-    .map(([emenda, itens]) => {
+    .map(([chave, itens]) => {
       const r0 = itens[0]
       const alertas = itens.flatMap((i) => i.alertas)
       const tipos = [...new Set(alertas.map((a) => a.tipo))]
       return {
-        emenda,
+        chave,
+        emenda: r0.emenda,
+        ano: r0.ano,
         autor: r0.autor,
         partido: r0.partido,
         autorUF: r0.autorUF,
@@ -308,7 +319,7 @@ export function resumoInconsistencias(registros) {
   }
   return {
     qtdRegistros: comAlerta.length,
-    qtdEmendas: new Set(comAlerta.map((r) => r.emenda)).size,
+    qtdEmendas: new Set(comAlerta.map(chaveEmenda)).size,
     valor: comAlerta.reduce((s, r) => s + r.valor, 0),
     baseRegistros: registros.length,
     porTipo,
@@ -321,7 +332,7 @@ export function resumoInconsistencias(registros) {
 export function resumo(registros) {
   return {
     valorTotal: registros.reduce((s, r) => s + r.valor, 0),
-    qtdEmendas: new Set(registros.map((r) => r.emenda)).size,
+    qtdEmendas: new Set(registros.map(chaveEmenda)).size,
     qtdParlamentares: new Set(registros.map((r) => r.autor)).size,
   }
 }
@@ -454,7 +465,7 @@ export function valorPorPartido(registros) {
     if (!m.has(p)) m.set(p, { partido: p, valor: 0, emendas: new Set() })
     const o = m.get(p)
     o.valor += r.valor
-    o.emendas.add(r.emenda)
+    o.emendas.add(chaveEmenda(r))
   }
   return [...m.values()]
     .map((o) => ({ partido: o.partido, valor: o.valor, qtd: o.emendas.size }))
