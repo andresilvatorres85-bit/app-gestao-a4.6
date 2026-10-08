@@ -21,7 +21,8 @@ function completarPeloHistorico(registros, historico) {
     porChave.get(k).push(h)
   }
   return registros.map((r) => {
-    const cands = porChave.get(chaveEmenda(r))
+    // restos a pagar: a emenda está no histórico do ano em que foi apresentada
+    const cands = porChave.get(chaveEmenda({ ano: r.anoOrigem || r.ano, emenda: r.emenda }))
     if (!cands) return r
     const h = cands.find((c) => c.funcional === r.funcional && String(c.gnd) === String(r.gnd))
       ?? cands.find((c) => c.funcional === r.funcional)
@@ -34,11 +35,20 @@ function completarPeloHistorico(registros, historico) {
 
 export default function AbaEmendasExec({ registros, historico = [], detalhe, abrirDetalhe, filtrosTexto }) {
   const completos = useMemo(() => completarPeloHistorico(registros, historico), [registros, historico])
-  const grupos = useMemo(() => agruparPorEmenda(completos), [completos])
+  // Dotação Inicial zerada = emenda de outro exercício inscrita em restos a
+  // pagar: vai para o final da página, com outra cor e os valores de RP.
+  const grupos = useMemo(() => {
+    const todos = agruparPorEmenda(completos).map((g) => ({ ...g, restos: !g.exec.ini }))
+    return [...todos.filter((g) => !g.restos), ...todos.filter((g) => g.restos)]
+  }, [completos])
+  const nRestos = grupos.filter((g) => g.restos).length
   return (
     <>
       <section aria-label="Emendas">
-        <p className="contagem">{fmtInt(grupos.length)} emenda(s)</p>
+        <p className="contagem">
+          {fmtInt(grupos.length)} emenda(s)
+          {nRestos > 0 && ` · ${fmtInt(grupos.length - nRestos)} do exercício e ${fmtInt(nRestos)} inscrita(s) em restos a pagar (ao final)`}
+        </p>
         <div className="grade">
           {grupos.map((g) => (
             <CartaoEmenda

@@ -185,7 +185,9 @@ export function opcoesDoFiltro(registros, filtros, filtro) {
 // O número da emenda se repete entre exercícios (código do autor + sequencial
 // do ano: 20480001 existe em 2019, 2020, …), então cada cartão é uma emenda
 // de UM ano. A chave também identifica o cartão aberto (`?det=` na URL).
-export const chaveEmenda = (r) => `${r.ano}-${r.emenda}`
+// `anoOrigem` (só na execução): emenda de exercício anterior inscrita em restos
+// a pagar — não se mistura com a emenda de mesmo número do exercício.
+export const chaveEmenda = (r) => `${r.ano}-${r.emenda}${r.anoOrigem ? `-${r.anoOrigem}` : ''}`
 
 export function agruparPorEmenda(registros) {
   const grupos = new Map()
@@ -200,6 +202,7 @@ export function agruparPorEmenda(registros) {
       chave,
       emenda: r0.emenda,
       ano: r0.ano,
+      anoOrigem: r0.anoOrigem,
       autor: r0.autor,
       partido: r0.partido,
       autorUF: r0.autorUF,
@@ -227,8 +230,18 @@ export const ESTAGIOS_EXEC = [
   { id: 'liq', rotulo: 'Liquidado' },
   { id: 'pago', rotulo: 'Pago' },
 ]
+// Emendas de exercícios anteriores inscritas em restos a pagar (Dotação
+// Inicial zerada no arquivo de execução do ano).
+export const ESTAGIOS_RP = [
+  { id: 'rpInsc', rotulo: 'RP Inscrito' },
+  { id: 'rpNpPagar', rotulo: 'RP Não-Proc a Pagar' },
+  { id: 'rpNpPago', rotulo: 'RP Não-Proc Pago' },
+  { id: 'rpPPagar', rotulo: 'RP Proc a Pagar' },
+  { id: 'rpPPago', rotulo: 'RP Proc Pago' },
+  { id: 'rpPago', rotulo: 'RP Pago' },
+]
 export const somaExecucao = (itens) => Object.fromEntries(
-  ESTAGIOS_EXEC.map(({ id }) => [id, itens.reduce((s, i) => s + (i[id] || 0), 0)]))
+  [...ESTAGIOS_EXEC, ...ESTAGIOS_RP].map(({ id }) => [id, itens.reduce((s, i) => s + (i[id] || 0), 0)]))
 
 // ---------------------------------------------------------------------------
 // Aba "Inconsistências"
