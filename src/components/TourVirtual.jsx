@@ -13,6 +13,7 @@ const TODAS_ETAPAS = [
       "é aberto automaticamente e destacado no cabeçalho. Esc encerra o tour.",
     itens: [
       ["Cabeçalho", "Botões dos módulos: CALENDÁRIO, MÉTRICAS, LEXOR, LOA, Proposições, Cartilhas, CONHECIMENTO e CONFIGURAÇÕES."],
+      ["Atualizar dados", "Busca atualizações nas planilhas do repositório (LEXOR, LOA, PLOA) e republica o app; avisa quando a nova versão estiver no ar."],
       ["Tour", "Este botão reabre o tutorial sempre que precisar."],
       ["Sair", "Encerra a sessão no dispositivo."],
     ],

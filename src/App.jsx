@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays, Library, Compass } from "lucide-react";
 import TourVirtual from "./components/TourVirtual.jsx";
+import AtualizarDados from "./components/AtualizarDados.jsx";
 import { AcessoContext, calcularAcesso, temAcesso } from "./acessos.js";
 import { useCabecalhoAjustavel } from "./components/useCabecalhoAjustavel.js";
 import { supabase } from "./lib/supabaseClient.js";
@@ -206,6 +207,7 @@ export default function App() {
             ))}
           </nav>
           <div className="topbar-acoes">
+            <AtualizarDados />
             <button className="logout-btn" data-tour="tour" onClick={() => setTourAberto(true)} title="Tour virtual: conheça os módulos do aplicativo">
               <Compass size={14} /> <span className="logout-txt">Tour</span>
             </button>

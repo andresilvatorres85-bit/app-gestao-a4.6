@@ -42,6 +42,15 @@ jobs:
           LEXOR_XLSX: ""
         run: python gerar_lexor.py
 
+      - name: Gerar base LOA (baixa as planilhas do repo de dados)
+        # Execucao (LOA_despesa_execucao*), PLOA e historico de emendas ->
+        # public/dados.json. Se falhar (rede, planilha corrompida), segue com o
+        # dados.json ja commitado: o script so grava o arquivo no final.
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/processar_dados.py
+
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
@@ -56,6 +65,13 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
+
+      - name: Registrar versao dos dados
+        # Lido pelo botao "Atualizar dados" para saber quando a nova versao
+        # entrou no ar.
+        run: |
+          echo "{\"geradoEm\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"run\":${{ github.run_number }}}" > dist/versao.json
+          cat dist/versao.json
 
       - name: Preparar Pages
         uses: actions/configure-pages@v5
