@@ -31,6 +31,8 @@ import {
   IDX_PL, IDX_AUTOGRAFO, fmtBi, FASE_ROTULOS,
 } from './ploa.js'
 import { useUrlState } from './useUrlState.js'
+import { SECOES } from './secoes.js'
+import { useAcesso } from '../acessos.js'
 import {
   exportarPPTX, exportarPPTXHistorico, exportarSlidePPTX,
   exportarPPTXPLOA, exportarPPTXHistoricoPLOA,
@@ -77,54 +79,9 @@ const EXEC_EMENDAS_ABAS = new Set([
   'exec-emendas-dashboard', 'exec-emendas', 'exec-emendas-historico',
 ])
 
-// Navegação em dois níveis. Cada seção responde por UMA base de dados:
-// "Resultado LEXOR" pelas emendas apresentadas (`Historico_emendas_apresentadas
-// .xlsx`) e "PLOA" pelas despesas por fase de elaboração
-// (`PLOA_Despesas_Elaboracao.xlsx`).
-//
-// O id da SUBABA continua sendo o único valor escrito na URL (`?aba=…`), e a
-// seção é deduzida dele. Isso preserva todos os links já compartilhados —
-// `?aba=historico` continua abrindo o Histórico das emendas — sem precisar de
-// um parâmetro novo nem de migração.
-const SECOES = [
-  {
-    id: 'lexor',
-    rotulo: 'Resultado LEXOR',
-    descricao: 'Emendas parlamentares apresentadas ao PLOA',
-    subabas: [
-      { id: 'dashboard', rotulo: 'Dashboard' },
-      { id: 'emendas', rotulo: 'Emendas' },
-      { id: 'estrategia', rotulo: 'Estratégia' },
-      { id: 'historico', rotulo: 'Histórico' },
-      { id: 'inconsistencias', rotulo: 'Inconsistências' },
-    ],
-  },
-  {
-    id: 'ploa',
-    rotulo: 'PLOA',
-    descricao: 'Despesas do órgão 52000 por fase de elaboração',
-    subabas: [
-      { id: 'ploa-dashboard', rotulo: 'Dashboard PLOA' },
-      { id: 'ploa-historico', rotulo: 'Histórico PLOA' },
-    ],
-  },
-  {
-    id: 'execucao',
-    rotulo: 'EXECUÇÃO LOA',
-    descricao: 'Despesa por execução do órgão 52000 (LOA)',
-    subabas: [
-      { id: 'exec-dashboard', rotulo: 'Dashboard LOA' },
-      { id: 'exec-historico', rotulo: 'Histórico LOA' },
-      { id: 'exec-emendas-dashboard', rotulo: 'Dashboard Emendas' },
-      { id: 'exec-emendas', rotulo: 'Emendas LOA' },
-      { id: 'exec-emendas-historico', rotulo: 'Histórico Emendas' },
-    ],
-  },
-]
 const SECAO_DA_ABA = Object.fromEntries(
   SECOES.flatMap((s) => s.subabas.map((sub) => [sub.id, s.id]))
 )
-const PRIMEIRA_SUBABA = Object.fromEntries(SECOES.map((s) => [s.id, s.subabas[0].id]))
 
 export default function LoaApp() {
   const [dados, setDados] = useState(null)
@@ -168,7 +125,18 @@ export default function LoaApp() {
   const registros = dados?.registros ?? []
   // Seção ativa, deduzida da subaba — a URL guarda só a subaba (ver SECOES).
   const secaoId = SECAO_DA_ABA[aba] ?? 'lexor'
-  const secao = SECOES.find((s) => s.id === secaoId)
+  // Seções e subabas liberadas para o usuário (CONFIGURAÇÕES › Acessos).
+  const { pode } = useAcesso()
+  const secoesVis = useMemo(() => SECOES
+    .filter((s) => pode(`loa.${s.id}`))
+    .map((s) => ({ ...s, subabas: s.subabas.filter((a) => pode(`loa.${s.id}.${a.id}`)) }))
+    .filter((s) => s.subabas.length), [pode])
+  const abaPermitida = secoesVis.some((s) => s.subabas.some((a) => a.id === aba))
+  const primeiraPermitida = secoesVis[0]?.subabas[0]?.id
+  useEffect(() => {
+    if (!abaPermitida && primeiraPermitida) irParaAba(primeiraPermitida)
+  }, [abaPermitida, primeiraPermitida, irParaAba])
+  const secao = secoesVis.find((s) => s.id === secaoId) ?? { rotulo: '', subabas: [] }
 
   // ------------------------------------------------------------ base PLOA ---
   // Base independente da das emendas: outro arquivo, outro escopo (o órgão
@@ -773,18 +741,25 @@ export default function LoaApp() {
       : secaoId === 'ploa' && aba !== 'ploa-emendas'
         ? opcoesPLOA(ploaRegistros, filtros, f)
         : opcoesDoFiltro(registros, filtros, f)
+  if (!abaPermitida) {
+    return (
+      <div className="loa-app">
+        {!primeiraPermitida && <p className="vazio">Sem acesso às abas da LOA.</p>}
+      </div>
+    )
+  }
   return (
     <div className="loa-app">
       <header className="cabecalho" data-secao={secaoId}>
         {/* Nível 1: a base de dados. Cada seção responde por uma planilha. */}
         <nav className="secoes" role="tablist" aria-label="Seções">
-          {SECOES.map((s) => (
+          {secoesVis.map((s) => (
             <button
               key={s.id}
               role="tab"
               aria-selected={secaoId === s.id}
               className={`secao secao-${s.id}${secaoId === s.id ? ' ativa' : ''}`}
-              onClick={() => irParaAba(PRIMEIRA_SUBABA[s.id])}
+              onClick={() => irParaAba(s.subabas[0].id)}
               title={s.descricao}
             >
               {s.rotulo}

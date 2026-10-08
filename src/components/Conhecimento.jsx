@@ -7,6 +7,7 @@ import { useRotina } from "./useRotina.js";
 import Recebimento from "./Recebimento.jsx";
 import Contatos from "./Contatos.jsx";
 import RotinaAsseOrc from "./RotinaAsseOrc.jsx";
+import { useAcesso } from "../acessos.js";
 
 // Cores por tipo de legislação (na ordem das seções). Cada seção usa uma cor
 // no título e na borda/realce dos seus cards.
@@ -22,24 +23,27 @@ export default function Conhecimento({ session }) {
   const contatos = useContatos(session);
   const rotina = useRotina(session);
 
+  const { pode } = useAcesso();
   const ABAS = [
     ["legislacao", "Legislação"],
     ["recebimento", "Recebimento Função"],
     ["rotina", "Rotina Asse Orç"],
     ["contatos", "Contatos"],
-  ];
+  ].filter(([id]) => pode(`conhecimento.${id}`));
+  // Aba atual retirada do usuário → primeira liberada.
+  const atual = ABAS.some(([id]) => id === aba) ? aba : ABAS[0]?.[0];
 
   return (
     <div className="view-pad conhec-wrap">
       <div className="conhec-subnav">
         {ABAS.map(([id, rot]) => (
-          <button key={id} className={`chip ${aba === id ? "chip-active" : ""}`} onClick={() => setAba(id)}>{rot}</button>
+          <button key={id} className={`chip ${atual === id ? "chip-active" : ""}`} onClick={() => setAba(id)}>{rot}</button>
         ))}
       </div>
-      {aba === "legislacao" && <Legislacao leg={legislacao} />}
-      {aba === "recebimento" && <Recebimento rec={recebimento} />}
-      {aba === "rotina" && <RotinaAsseOrc rotina={rotina} />}
-      {aba === "contatos" && <Contatos contatos={contatos} />}
+      {atual === "legislacao" && <Legislacao leg={legislacao} />}
+      {atual === "recebimento" && <Recebimento rec={recebimento} />}
+      {atual === "rotina" && <RotinaAsseOrc rotina={rotina} />}
+      {atual === "contatos" && <Contatos contatos={contatos} />}
     </div>
   );
 }
