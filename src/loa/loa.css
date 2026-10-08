@@ -931,6 +931,7 @@
   font-size: 0.68rem; font-weight: 600; padding: 0.12rem 0.5rem;
   border-radius: 999px; background: var(--superficie-2); color: var(--tinta-2);
 }
+.loa-app .tag-ano { background: light-dark(#e6f2ea, #1d3326); color: light-dark(#2e6b45, #8fd0a6); }
 .loa-app .tag-rp { background: light-dark(#e3edf9, #1d2c3f); color: var(--acento); }
 .loa-app .cartao-num { margin-left: auto; font-size: 0.68rem; color: var(--tinta-fraca); }
 

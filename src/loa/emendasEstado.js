@@ -66,10 +66,11 @@ export function emendasImpositivasPorEstado(registros) {
     const porRp = porUf.get(uf)
     if (!porRp.has(rp)) porRp.set(rp, new Map())
     const porEmenda = porRp.get(rp)
-    if (!porEmenda.has(r.emenda)) {
-      porEmenda.set(r.emenda, { emenda: r.emenda, valor: 0, oms: new Set(), objetos: new Set(), r0: r })
+    const k = `${r.ano}-${r.emenda}` // o número se repete entre exercícios
+    if (!porEmenda.has(k)) {
+      porEmenda.set(k, { emenda: r.emenda, valor: 0, oms: new Set(), objetos: new Set(), r0: r })
     }
-    const e = porEmenda.get(r.emenda)
+    const e = porEmenda.get(k)
     e.valor += r.valor || 0
     if (r.om) e.oms.add(r.om)
     if (r.objeto) e.objetos.add(r.objeto)

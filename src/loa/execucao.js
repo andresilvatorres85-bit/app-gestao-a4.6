@@ -173,13 +173,14 @@ export function emendasContencao(emendas) {
   for (const r of emendas) {
     const b = vBloq(r), g = vConting(r)
     if (!b && !g) continue
-    if (!mapa.has(r.emenda)) {
-      mapa.set(r.emenda, {
-        emenda: r.emenda, autor: r.autor, autorTipo: r.autorTipo, partido: r.partido,
+    const k = `${r.ano}-${r.emenda}` // o número se repete entre exercícios
+    if (!mapa.has(k)) {
+      mapa.set(k, {
+        emenda: r.emenda, ano: r.ano, autor: r.autor, autorTipo: r.autorTipo, partido: r.partido,
         autorUF: r.autorUF, modalidade: r.modalidade, rp: r.rp, bloq: 0, conting: 0,
       })
     }
-    const o = mapa.get(r.emenda)
+    const o = mapa.get(k)
     o.bloq += b; o.conting += g
   }
   return [...mapa.values()]

@@ -147,10 +147,10 @@ export default function AbaInconsistencias({ registros, detalhe, abrirDetalhe })
       <div className="grade">
         {grupos.map((g) => (
           <CartaoInconsistencia
-            key={g.emenda}
+            key={g.chave}
             grupo={g}
-            aberto={detalhe === g.emenda}
-            onToggle={() => abrirDetalhe(g.emenda)}
+            aberto={detalhe === g.chave}
+            onToggle={() => abrirDetalhe(g.chave)}
           />
         ))}
       </div>

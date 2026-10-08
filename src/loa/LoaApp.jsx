@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  carregarDados, filtrarRegistros, opcoesDoFiltro, agruparPorEmenda,
+  carregarDados, filtrarRegistros, opcoesDoFiltro, agruparPorEmenda, chaveEmenda,
   resumo, valorPorRP, valorImpositivas, impositivasPorCMilA, topAutores, valorPorPartido,
   resumoPorAno, rpPorAno, modalidadePorAno, impositivasPorAno,
   forcaPorAno, cmilaPorAno, partidosPorAno, autoresRecorrentes,
@@ -267,7 +267,7 @@ export default function LoaApp() {
     : `${anosHistTexto} · sem outros filtros`
   const contextoHistorico =
     `Emendas ao PLOA — ${escopo}. ${recorteHistorico}. ` +
-    `${fmtInt(new Set(filtrados.map((r) => r.emenda)).size)} emendas · ` +
+    `${fmtInt(new Set(filtrados.map(chaveEmenda)).size)} emendas · ` +
     `${fmtBRL(filtrados.reduce((s, r) => s + r.valor, 0))}. ` +
     `Extraído em ${new Date().toLocaleString('pt-BR')}.`
 
@@ -964,10 +964,10 @@ export default function LoaApp() {
               <div className="grade">
                 {grupos.map((g) => (
                   <CartaoEmenda
-                    key={g.emenda}
+                    key={g.chave}
                     grupo={g}
-                    aberto={detalhe === g.emenda}
-                    onToggle={() => abrirDetalhe(g.emenda)}
+                    aberto={detalhe === g.chave}
+                    onToggle={() => abrirDetalhe(g.chave)}
                   />
                 ))}
               </div>

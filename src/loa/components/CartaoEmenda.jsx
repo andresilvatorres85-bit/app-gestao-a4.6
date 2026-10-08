@@ -23,6 +23,7 @@ export default function CartaoEmenda({ grupo, aberto, onToggle, alerta = false }
           <span className="cartao-valor">{fmtBRL(grupo.valor)}</span>
         </div>
         <div className="cartao-linha2">
+          {grupo.ano && <span className="tag tag-ano" title="Exercício (ano da LOA) da emenda">{grupo.ano}</span>}
           <span className="tag">{grupo.partido}</span>
           <span className="tag">{grupo.autorUF}</span>
           {grupo.rps.map((rp) => (
@@ -62,6 +63,7 @@ export default function CartaoEmenda({ grupo, aberto, onToggle, alerta = false }
                 <p className="detalhe-item-titulo">Item {i + 1} de {grupo.itens.length} — {fmtBRL(r.valor)}</p>
               )}
               <dl>
+                <div><dt>Ano</dt><dd>{r.ano}</dd></div>
                 <div><dt>UO</dt><dd>{r.uoCod} — {r.uo}</dd></div>
                 {r.om && <div><dt>OM</dt><dd>{r.om}</dd></div>}
                 {r.objeto && <div><dt>Objeto</dt><dd>{r.objeto}</dd></div>}
