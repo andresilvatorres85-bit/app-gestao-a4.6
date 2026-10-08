@@ -12,7 +12,7 @@ const ETAPAS = [
       "Use Próximo/Anterior (ou as setas do teclado) para navegar; o módulo correspondente " +
       "é aberto automaticamente e destacado no cabeçalho. Esc encerra o tour.",
     itens: [
-      ["Cabeçalho", "Botões dos módulos: CALENDÁRIO, MÉTRICAS, LEXOR, LOA, Proposições, Cartilhas e CONHECIMENTO."],
+      ["Cabeçalho", "Botões dos módulos: CALENDÁRIO, MÉTRICAS, LEXOR, LOA, Proposições, Cartilhas, CONHECIMENTO e CONFIGURAÇÕES."],
       ["Tour", "Este botão reabre o tutorial sempre que precisar."],
       ["Sair", "Encerra a sessão no dispositivo."],
     ],
@@ -39,7 +39,6 @@ const ETAPAS = [
       ["Lançar", "Formulário para cadastrar um novo registro (protocolo gerado automaticamente)."],
       ["Alteração emenda", "Pedidos de alteração de objeto de emenda, com geração dos documentos (ofício, AO, GND)."],
       ["Histórico", "Lista completa dos registros, com busca, filtros e exclusão."],
-      ["Configurações", "Cadastro de partidos/espectro e de usuários."],
     ],
   },
   {
@@ -93,6 +92,16 @@ const ETAPAS = [
       ["Recebimento Função", "Roteiro para quem assume a função: o que receber e verificar."],
       ["Rotina Asse Orç", "Rotina Diária e atividades (PPA, PLDO, PLOA, PLN, MPV, CMO…) com tarefas e subtarefas reordenáveis."],
       ["Contatos", "Agenda de contatos institucionais."],
+    ],
+  },
+  {
+    aba: "config",
+    titulo: "CONFIGURAÇÕES",
+    texto: "Central de ajustes de todos os módulos, separados pelo título do módulo a que pertencem.",
+    itens: [
+      ["Geral", "Usuários do aplicativo e vínculo do e-mail de login ao nome."],
+      ["MÉTRICAS", "Partidos e espectro político usados nos lançamentos."],
+      ["LOA", "Listas de mandato e selos eleitorais (NÃO REELEITO, cargo em 2027) da aba Estratégia."],
     ],
   },
   {
