@@ -3,6 +3,7 @@ import {
   ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil, Check, ChevronDown, GripVertical,
 } from "lucide-react";
 import ChecklistCard from "./ChecklistCard.jsx";
+import { useAcesso } from "../acessos.js";
 
 // ---------------------------------------------------------------- utilidades
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
@@ -187,9 +188,13 @@ export default function Calendario({
   }
   function abrirDia(dia) { setCursor(startOfDay(dia)); setVista("dia"); }
 
+  // Partes liberadas para o usuário (CONFIGURAÇÕES › Acessos).
+  const { pode } = useAcesso();
+  const verAgenda = pode("calendario.agenda");
+
   return (
     <div className="view-pad cal-wrap">
-      <div className="cal-toolbar">
+      {verAgenda && <div className="cal-toolbar">
         <div className="cal-toolbar-esq">
           <button className="btn btn-primary btn-sm" onClick={() => novoEvento(cursor)}><Plus size={15} /> Criar</button>
           <button className="btn btn-ghost btn-sm" onClick={irHoje}>Hoje</button>
@@ -204,34 +209,34 @@ export default function Calendario({
             <button key={id} className={`chip ${vista === id ? "chip-active" : ""}`} onClick={() => setVista(id)}>{rot}</button>
           ))}
         </div>
-      </div>
+      </div>}
 
-      {erro && (
+      {verAgenda && erro && (
         <div className="lexor-aviso-erro">
           A agenda não pôde ser lida ou gravada. Rode o script
           <code> supabase_calendario.sql </code> no SQL Editor do Supabase para criar a tabela.
         </div>
       )}
 
-      <div className="cal-corpo">
+      <div className={`cal-corpo${verAgenda ? "" : " cal-corpo-sem-agenda"}`}>
         <div className="cal-lateral">
-          <BarraCalendarios
+          {verAgenda && <BarraCalendarios
             calendarios={calendarios} ocultos={ocultos} onToggle={toggleCal}
             onRenomear={renomearAgenda} onExcluir={excluirAgenda} onCriar={criarAgenda}
-            onReordenar={reordenarAgendas} />
+            onReordenar={reordenarAgendas} />}
 
-          <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias" tom="vermelho"
+          {pode("calendario.pendencias") && <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias" tom="vermelho"
             itens={(checklists.itens || []).filter((i) => i.lista === "pendencias")}
             adicionar={checklists.adicionar} alternar={checklists.alternar}
-            editar={checklists.editar} remover={checklists.remover} />
+            editar={checklists.editar} remover={checklists.remover} />}
 
-          <ChecklistCard titulo="ASSUNTOS BRIEFING" lista="briefing" tom="azul"
+          {pode("calendario.briefing") && <ChecklistCard titulo="ASSUNTOS BRIEFING" lista="briefing" tom="azul"
             itens={(checklists.itens || []).filter((i) => i.lista === "briefing")}
             adicionar={checklists.adicionar} alternar={checklists.alternar}
-            editar={checklists.editar} remover={checklists.remover} />
+            editar={checklists.editar} remover={checklists.remover} />}
         </div>
 
-        <div className="cal-principal">
+        {verAgenda && <div className="cal-principal">
           {!carregado ? (
             <div className="loading-state">Carregando agenda…</div>
           ) : vista === "mes" ? (
@@ -243,7 +248,7 @@ export default function Calendario({
               hoje={hoje} eventos={visiveis} estilo={estilo}
               aoDia={abrirDia} aoNovoHora={novoEvento} aoEditar={editarEvento} />
           )}
-        </div>
+        </div>}
       </div>
 
       {modal && (

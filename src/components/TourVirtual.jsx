@@ -4,7 +4,7 @@ import { X, ChevronLeft, ChevronRight, Check, Compass } from "lucide-react";
 
 // Roteiro do tour: uma etapa por módulo (aba do cabeçalho), com as abas
 // internas de cada um. `aba` abre o módulo correspondente ao avançar.
-const ETAPAS = [
+const TODAS_ETAPAS = [
   {
     titulo: "Bem-vindo ao GESTÃO A4.6",
     texto:
@@ -111,7 +111,9 @@ const ETAPAS = [
   },
 ];
 
-export default function TourVirtual({ aberto, onFechar, setAba, setView }) {
+export default function TourVirtual({ aberto, onFechar, setAba, setView, pode = () => true }) {
+  // Só os módulos liberados para o usuário (as etapas sem módulo ficam).
+  const ETAPAS = TODAS_ETAPAS.filter((e) => !e.aba || pode(e.aba));
   const [i, setI] = useState(0);
   const etapa = ETAPAS[i];
   const ultima = i === ETAPAS.length - 1;
@@ -154,7 +156,7 @@ export default function TourVirtual({ aberto, onFechar, setAba, setView }) {
   useEffect(() => {
     if (!aberto) return;
     if (etapa.aba) setAba(etapa.aba);
-    if (etapa.view) setView(etapa.view);
+    if (etapa.view && pode(`${etapa.aba}.${etapa.view}`)) setView(etapa.view);
     const btn = document.querySelector(seletor);
     // atributo (e não classe): o React reescreve className ao trocar de módulo.
     btn?.setAttribute("data-tour-destaque", "");

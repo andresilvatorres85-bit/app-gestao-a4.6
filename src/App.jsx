@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { Plus, LayoutDashboard, History, Check, X, LogOut, Settings, Gauge, FileText, Landmark, BookOpen, FileSignature, ScrollText, CalendarDays, Library, Compass } from "lucide-react";
 import TourVirtual from "./components/TourVirtual.jsx";
+import { AcessoContext, calcularAcesso, temAcesso } from "./acessos.js";
 import { useCabecalhoAjustavel } from "./components/useCabecalhoAjustavel.js";
 import { supabase } from "./lib/supabaseClient.js";
 import { HISTORICO_DATA } from "./data/historico.js";
@@ -87,6 +88,18 @@ export default function App() {
   const emailAtual = session?.user?.email || null;
   const autorAtual = nomePorEmail(usuarios, emailAtual);
 
+  // Acesso do usuário logado aos módulos/abas (CONFIGURAÇÕES › Acessos).
+  const acesso = useMemo(() => calcularAcesso(usuarios, emailAtual), [usuarios, emailAtual]);
+  const abasVis = useMemo(() => ABAS.filter(a => temAcesso(acesso.pode, a.id)), [acesso]);
+  const navVis = useMemo(() => NAV.filter(n => acesso.pode(`metricas.${n.id}`)), [acesso]);
+  useEffect(() => {
+    if (!usuariosCarregados || !abasVis.length) return;
+    if (!abasVis.some(a => a.id === aba)) setAba(abasVis[0].id);
+  }, [usuariosCarregados, abasVis, aba]);
+  useEffect(() => {
+    if (navVis.length && !navVis.some(n => n.id === view)) setView(navVis[0].id);
+  }, [navVis, view]);
+
   // Mede a altura real das barras fixas e publica em --topbar-h / --subnav-h,
   // para que o conteúdo comece exatamente abaixo delas em qualquer tela.
   // A subnav some no celular (display:none), e aí sua altura medida é 0 — o
@@ -168,7 +181,11 @@ export default function App() {
     return <Login bgImage={bgImage} brasao={brasao} />;
   }
 
+  const abaOk = abasVis.some(a => a.id === aba);
+  const viewOk = navVis.some(n => n.id === view);
+
   return (
+    <AcessoContext.Provider value={acesso}>
     <div className="app-shell">
       <div className="app-bg" style={{ backgroundImage: `url(${bgImage})` }} />
 
@@ -182,7 +199,7 @@ export default function App() {
         </div>
         <div className="topbar-right">
           <nav className="abas" aria-label="Abas principais">
-            {ABAS.map(a => (
+            {abasVis.map(a => (
               <button key={a.id} data-tour={a.id} className={`aba-btn ${aba === a.id ? "aba-btn-active" : ""}`} onClick={() => setAba(a.id)}>
                 <a.icon size={15} strokeWidth={1.75} /> {a.label}
               </button>
@@ -199,9 +216,9 @@ export default function App() {
         </div>
       </header>
 
-      {aba === "metricas" && (
+      {aba === "metricas" && abaOk && (
         <nav className="subnav" ref={subnavRef} aria-label="Seções de Métricas">
-          {NAV.map(n => (
+          {navVis.map(n => (
             <button key={n.id} className={`subnav-btn ${view === n.id ? "subnav-btn-active" : ""}`} onClick={() => setView(n.id)}>
               <n.icon size={15} strokeWidth={1.75} /> {n.label}
             </button>
@@ -210,7 +227,17 @@ export default function App() {
       )}
 
       <main className={`main${aba === "loa" ? " main-loa" : aba === "cartilhas" ? " main-cartilhas" : ""}`}>
-        {aba === "calendario" ? (
+        {!usuariosCarregados ? (
+          <div className="loading-state">Carregando…</div>
+        ) : !abaOk ? (
+          <div className="sem-acesso">
+            <h2>Acesso não liberado</h2>
+            <p>{acesso.semCadastro
+              ? `O e-mail ${emailAtual} ainda não está cadastrado em Usuários.`
+              : "Nenhum módulo está liberado para o seu usuário."}{" "}
+              Peça ao administrador para liberar o acesso em CONFIGURAÇÕES › Geral › Acessos.</p>
+          </div>
+        ) : aba === "calendario" ? (
           <Suspense fallback={<div className="loading-state">Carregando agenda…</div>}>
             <Calendario eventos={calendario.eventos} calendarios={calendario.calendarios}
               inserir={calendario.inserir} atualizar={calendario.atualizar} excluir={calendario.excluir}
@@ -245,7 +272,7 @@ export default function App() {
           !partidosCarregados || !usuariosCarregados
             ? <div className="loading-state">Carregando…</div>
             : <Configuracoes partidos={partidos} usuarios={usuarios} emailAtual={emailAtual} />
-        ) : !loadedNovos || !partidosCarregados || !usuariosCarregados ? (
+        ) : !loadedNovos || !partidosCarregados || !viewOk ? (
           <div className="loading-state">Carregando…</div>
         ) : view === "dashboard" ? (
           <Dashboard allRecords={allRecords} novos={novos} objetoEmendas={objetoEmendas.itens}
@@ -262,9 +289,9 @@ export default function App() {
         )}
       </main>
 
-      {aba === "metricas" && (
+      {aba === "metricas" && abaOk && (
         <nav className="bottomnav">
-          {NAV.map(n => (
+          {navVis.map(n => (
             <button key={n.id} className={`bottomnav-btn ${view === n.id ? "bottomnav-btn-active" : ""}`} onClick={() => setView(n.id)}>
               <n.icon size={19} strokeWidth={1.75} />
               <span>{n.label}</span>
@@ -273,7 +300,7 @@ export default function App() {
         </nav>
       )}
 
-      <TourVirtual aberto={tourAberto} onFechar={() => setTourAberto(false)} setAba={setAba} setView={setView} />
+      <TourVirtual pode={(id) => temAcesso(acesso.pode, id)} aberto={tourAberto} onFechar={() => setTourAberto(false)} setAba={setAba} setView={setView} />
 
       {toast && (
         <div className={`toast toast-${toast.tipo}`}>
@@ -282,5 +309,6 @@ export default function App() {
       )}
       {!online && <div className="toast toast-erro">Sem conexão com o servidor — verifique sua internet.</div>}
     </div>
+    </AcessoContext.Provider>
   );
 }

@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient.js";
 // Gerencia os nomes que aparecem em "Registrado por" e os associa ao e-mail
 // de login. A criação do login em si é feita no painel do Supabase; aqui só
 // cadastramos nome + e-mail para o preenchimento automático funcionar.
-export default function Usuarios({ usuarios, emailAtual }) {
+export default function Usuarios({ usuarios, emailAtual, somenteLeitura = false }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [erro, setErro] = useState("");
@@ -51,7 +51,11 @@ export default function Usuarios({ usuarios, emailAtual }) {
         A criação do login (e-mail e senha) continua sendo feita no painel do Supabase.
       </p>
 
-      <form className="partido-form" onSubmit={adicionar}>
+      {somenteLeitura && (
+        <p className="config-help"><strong>Somente leitura:</strong> apenas administradores incluem, alteram ou excluem usuários.</p>
+      )}
+
+      {!somenteLeitura && <form className="partido-form" onSubmit={adicionar}>
         <Field label="Nome" required>
           <input className="input" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Maj Silva" />
         </Field>
@@ -62,7 +66,7 @@ export default function Usuarios({ usuarios, emailAtual }) {
         <button className="btn btn-primary btn-sm" type="submit" disabled={salvando}>
           <Plus size={15} /> Adicionar
         </button>
-      </form>
+      </form>}
       {erro && <div className="alert alert-error" style={{ marginTop: 8 }}>{erro}</div>}
 
       <div className="partido-count">{ordenados.length} usuários cadastrados</div>
@@ -88,7 +92,7 @@ export default function Usuarios({ usuarios, emailAtual }) {
                       : (u.email || <span className="muted">sem e-mail associado</span>)}
                   </td>
                   <td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
-                    {editId === u.id ? (
+                    {somenteLeitura ? null : editId === u.id ? (
                       <>
                         <button className="icon-btn edit" title="Salvar" onClick={() => salvarEdicao(u.id)}><Check size={15} /></button>
                         <button className="icon-btn" title="Cancelar" onClick={() => setEditId(null)}><X size={15} /></button>
@@ -96,7 +100,7 @@ export default function Usuarios({ usuarios, emailAtual }) {
                     ) : (
                       <>
                         <button className="icon-btn edit" title="Editar" onClick={() => iniciarEdicao(u)}><Pencil size={14} /></button>
-                        <button className="icon-btn" title="Excluir" onClick={() => excluir(u.id)}><Trash2 size={14} /></button>
+                        {!(ehAtual && u.admin) && <button className="icon-btn" title="Excluir" onClick={() => excluir(u.id)}><Trash2 size={14} /></button>}
                       </>
                     )}
                   </td>
