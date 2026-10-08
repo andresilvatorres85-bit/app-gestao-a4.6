@@ -136,7 +136,9 @@ function normalizarInconsistencia(item) {
 const LOA_DADOS_URL = './dados.json'
 
 export async function carregarDados() {
-  const resp = await fetch(LOA_DADOS_URL)
+  // no-cache: revalida com o servidor, para que uma atualização recém-publicada
+  // (botão "Atualizar dados") apareça sem esperar o cache do navegador.
+  const resp = await fetch(LOA_DADOS_URL, { cache: 'no-cache' })
   if (!resp.ok) throw new Error(`Falha ao carregar dados (${resp.status})`)
   const dados = await resp.json()
   for (const r of dados.registros) {
