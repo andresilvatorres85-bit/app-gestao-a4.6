@@ -121,6 +121,7 @@ import sys
 import time
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import openpyxl
@@ -603,7 +604,10 @@ def listar_xlsx_github():
     url = f"https://api.github.com/repos/{REPO_DADOS}/contents/"
     with _abrir(url) as r:
         itens = json.load(r)
-    return [i["download_url"] for i in itens if i["name"].lower().endswith(".xlsx")]
+    # A API devolve o download_url sem codificar espaços e acentos
+    # ("Prospecção de Propostas…"), que o urllib recusa: codifica o caminho.
+    return [urllib.parse.quote(i["download_url"], safe=":/%")
+            for i in itens if i["name"].lower().endswith(".xlsx")]
 
 
 def baixar(url, destino):
@@ -1264,7 +1268,7 @@ def main():
     else:
         os.makedirs("/tmp/xlsx_dados", exist_ok=True)
         arquivos = [
-            baixar(u, os.path.join("/tmp/xlsx_dados", os.path.basename(u)))
+            baixar(u, os.path.join("/tmp/xlsx_dados", urllib.parse.unquote(os.path.basename(u))))
             for u in listar_xlsx_github()
         ]
     if not arquivos:
