@@ -1115,6 +1115,12 @@ def _num_emenda(d):
     return ""
 
 
+def _ano_emenda(d):
+    """Ano da emenda em "Emenda (Número/Ano)" ("20470005 - 2019" -> "2019")."""
+    m = re.search(r"(20\d{2})\s*$", str(d.get("Emenda (Número/Ano)") or "").strip())
+    return m.group(1) if m else ""
+
+
 def _norm_modalidade(m):
     """"BANCADA ESTADUAL (RP 7)" -> "BANCADA ESTADUAL" (alinha com a base de emendas)."""
     return re.sub(r"\s*\(RP\s*\d+\)\s*$", "", str(m or "").strip()).strip()
@@ -1192,8 +1198,12 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
             if modalidade and modalidade != EXEC_MODALIDADE_NAO_EMENDA:
                 uf = str(d.get("Autor (UF)") or "").strip()
                 cmila, _ = deduzir_cmila({"Autor (UF)": uf})
+                ano_emenda = _ano_emenda(d)
                 emendas.append({
                     "ano": ano,
+                    # Emenda de exercício anterior, presente no arquivo por ter
+                    # sido inscrita em restos a pagar (Dotação Inicial zerada).
+                    "anoOrigem": ano_emenda if ano_emenda and ano_emenda != ano else "",
                     "emenda": _num_emenda(d),
                     "rp": rp,
                     "valor": aut,  # Autorizado
@@ -1219,6 +1229,13 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                     "emp": _money(d.get("Empenhado")),
                     "liq": _money(d.get("Liquidado")),
                     "pago": _money(d.get("Pago")),
+                    # Restos a pagar (emendas de exercícios anteriores).
+                    "rpInsc": _money(d.get("RP Inscrito")),
+                    "rpNpPagar": _money(d.get("RP Não-Proc a Pagar")),
+                    "rpNpPago": _money(d.get("RP Não-Proc Pago")),
+                    "rpPPagar": _money(d.get("RP Proc a Pagar")),
+                    "rpPPago": _money(d.get("RP Proc Pago")),
+                    "rpPago": _money(d.get("RP Pago")),
                     # Contenção de gastos da emenda (Bloqueio/Contingenciamento).
                     "bloq": _money(d.get("Bloqueio")),
                     "conting": _money(d.get("Contingenciamento")),
@@ -1376,7 +1393,8 @@ def main():
     n_om = n_casa = 0
     for em in exec_emendas:
         e = str(em.get("emenda") or "")
-        om, objeto = om_por_chave.get((em["ano"], e)) or om_por_num.get(e) or ("", "")
+        ano_em = em.get("anoOrigem") or em["ano"]  # restos a pagar: ano da emenda
+        om, objeto = om_por_chave.get((ano_em, e)) or om_por_num.get(e) or ("", "")
         if om:
             em["om"] = om
         if objeto:
@@ -1393,7 +1411,8 @@ def main():
             del r[chave]
     for em in exec_emendas:  # campos vazios e valores zerados saem do JSON
         for chave in [k for k, v in em.items()
-                      if v == "" or (k in ("ini", "cont", "emp", "liq", "pago") and v == 0)]:
+                      if v == "" or (k in ("ini", "cont", "emp", "liq", "pago", "rpInsc", "rpNpPagar",
+                                         "rpNpPago", "rpPPagar", "rpPPago", "rpPago") and v == 0)]:
             del em[chave]
     exec_emendas_anos = sorted({e["ano"] for e in exec_emendas})
     if exec_registros:

@@ -953,15 +953,21 @@
 
 /* detalhe */
 .loa-app .cartao-exec {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.35rem 0.6rem;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(8.6rem, 1fr)); gap: 0.35rem 0.6rem;
   margin-top: 0.6rem; padding: 0.5rem 0.6rem; border-radius: 8px; background: var(--superficie-2);
 }
 .loa-app .cartao-exec.compacto { margin: 0.5rem 0 0.2rem; }
 .loa-app .cartao-exec-item { display: flex; flex-direction: column; min-width: 0; }
 .loa-app .cartao-exec-rot { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--tinta-fraca); }
-.loa-app .cartao-exec-val { font-size: 0.78rem; font-weight: 700; color: var(--tinta-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loa-app .cartao-exec-val { font-size: 0.78rem; font-weight: 700; color: var(--tinta-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .loa-app .cartao-exec .exec-cont.positivo .cartao-exec-val { color: light-dark(#a3412f, #e58b78); }
 .loa-app .cartao-exec .exec-pago.positivo .cartao-exec-val { color: light-dark(#2e6b45, #8fd0a6); }
+.loa-app .cartao.cartao-restos {
+  background: light-dark(#fbf5e8, #2a2418); border-color: light-dark(#e3cf9f, #5c4a22);
+}
+.loa-app .cartao.cartao-restos .cartao-exec { background: light-dark(#f3e7c8, #3a311d); }
+.loa-app .tag-restos { background: light-dark(#f1dfb2, #4a3b17); color: light-dark(#7a5a12, #e8c875); }
+.loa-app .cartao-exec.restos .exec-rpPago.positivo .cartao-exec-val { color: light-dark(#2e6b45, #8fd0a6); }
 .loa-app .cartao-detalhe { border-top: 1px solid var(--hairline); padding: 0.8rem 0.95rem; }
 .loa-app .detalhe-item + .detalhe-item { border-top: 1px dashed var(--hairline); margin-top: 0.7rem; padding-top: 0.7rem; }
 .loa-app .detalhe-item-titulo { margin: 0 0 0.4rem; font-size: 0.72rem; font-weight: 700; color: var(--tinta-fraca); }
