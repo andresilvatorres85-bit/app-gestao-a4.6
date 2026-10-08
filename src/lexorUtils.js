@@ -19,7 +19,7 @@ export const CABECALHO = {
 // Cancelamento compensatório padrão — igual em todos os espelhos, exceto o
 // valor, que acompanha a soma dos acréscimos (GND 3 + GND 4).
 export const CANCELAMENTO_PADRAO = {
-  sequencial: "000003565",
+  sequencial: "3655",
   fonte: "1000",
   gnd: "9",
   gndNome: "Reserva de Contingência",
