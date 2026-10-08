@@ -210,10 +210,25 @@ export function agruparPorEmenda(registros) {
       oms: [...new Set(itens.map((i) => i.om).filter(Boolean))],
       objetos: [...new Set(itens.map((i) => i.objeto).filter(Boolean))],
       inconsistencias: itens.flatMap((i) => i.inconsistencias || []),
+      // Estágios da execução (só na base de emendas da EXECUÇÃO LOA; na base
+      // de emendas apresentadas somam zero e não são exibidos).
+      exec: somaExecucao(itens),
       itens,
     }
   })
 }
+
+// Dotação Inicial → Autorizado → Contenção → Empenhado → Liquidado → Pago.
+export const ESTAGIOS_EXEC = [
+  { id: 'ini', rotulo: 'Dotação inicial' },
+  { id: 'valor', rotulo: 'Autorizado' },
+  { id: 'cont', rotulo: 'Contenção de gastos' },
+  { id: 'emp', rotulo: 'Empenhado' },
+  { id: 'liq', rotulo: 'Liquidado' },
+  { id: 'pago', rotulo: 'Pago' },
+]
+export const somaExecucao = (itens) => Object.fromEntries(
+  ESTAGIOS_EXEC.map(({ id }) => [id, itens.reduce((s, i) => s + (i[id] || 0), 0)]))
 
 // ---------------------------------------------------------------------------
 // Aba "Inconsistências"

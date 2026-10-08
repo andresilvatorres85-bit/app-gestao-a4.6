@@ -1,11 +1,27 @@
-import { fmtBRL, RP_LABEL } from '../dados.js'
+import { fmtBRL, RP_LABEL, ESTAGIOS_EXEC, somaExecucao } from '../dados.js'
 
 // Cartão de emenda da aba "Emendas".
 // `grupo.inconsistencias` é uma lista de OBJETOS ({tipo, gravidade, rotulo,
 // descricao, evidencia, ...}) produzidos pelo pipeline. Aqui usamos apenas o
 // suficiente para sinalizar a emenda e remeter à aba "Inconsistências", que
 // tem a visualização completa (CartaoInconsistencia.jsx).
-export default function CartaoEmenda({ grupo, aberto, onToggle, alerta = false }) {
+// Quadro com os estágios da execução (subaba Emendas LOA).
+function QuadroExecucao({ valores, compacto = false }) {
+  return (
+    <div className={`cartao-exec${compacto ? ' compacto' : ''}`}>
+      {ESTAGIOS_EXEC.map(({ id, rotulo }) => (
+        <div key={id} className={`cartao-exec-item exec-${id}${valores[id] > 0 ? ' positivo' : ''}`}>
+          <span className="cartao-exec-rot">{rotulo}</span>
+          <span className="cartao-exec-val">{fmtBRL(valores[id] || 0)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// `execucao`: cartão da subaba Emendas LOA — mostra os estágios da execução
+// (LOA_despesa_execucao) e os dados completados pelo histórico de emendas.
+export default function CartaoEmenda({ grupo, aberto, onToggle, alerta = false, execucao = false }) {
   const incons = grupo.inconsistencias || []
   const rotulos = incons.map((i) => i.rotulo).filter((v, i, a) => a.indexOf(v) === i)
   const frase = rotulos.join(' · ')
@@ -52,6 +68,7 @@ export default function CartaoEmenda({ grupo, aberto, onToggle, alerta = false }
             )}
           </p>
         )}
+        {execucao && <QuadroExecucao valores={grupo.exec} />}
         {alerta && frase && <p className="cartao-frase-alerta" role="alert">⚠ {frase}</p>}
       </button>
 
@@ -65,15 +82,17 @@ export default function CartaoEmenda({ grupo, aberto, onToggle, alerta = false }
               <dl>
                 <div><dt>Ano</dt><dd>{r.ano}</dd></div>
                 <div><dt>UO</dt><dd>{r.uoCod} — {r.uo}</dd></div>
+                {execucao && r.acao && <div><dt>Ação</dt><dd>{r.acaoCod} — {r.acao}</dd></div>}
                 {r.om && <div><dt>OM</dt><dd>{r.om}</dd></div>}
                 {r.objeto && <div><dt>Objeto</dt><dd>{r.objeto}</dd></div>}
-                <div><dt>Funcional</dt><dd>{r.funcional}</dd></div>
-                <div><dt>Autor (UF)</dt><dd>{r.autorUF}</dd></div>
-                <div><dt>Localidade</dt><dd>{r.localidade}</dd></div>
-                <div><dt>GND (Cod)</dt><dd>{r.gnd}</dd></div>
+                <div><dt>Funcional</dt><dd>{r.funcional || '—'}</dd></div>
+                <div><dt>Autor (UF)</dt><dd>{r.autorUF || '—'}</dd></div>
+                <div><dt>Localidade</dt><dd>{r.localidade || '—'}</dd></div>
+                <div><dt>GND (Cod)</dt><dd>{r.gnd || '—'}</dd></div>
                 <div><dt>Mod. Aplic. (Cod)</dt><dd>{r.modAplic || '—'}</dd></div>
                 <div><dt>C Mil A</dt><dd>{r.cmila}{r.cmilaFallback ? ' (município de MG não identificado — regra de fallback)' : ''}</dd></div>
               </dl>
+              {execucao && grupo.itens.length > 1 && <QuadroExecucao valores={somaExecucao([r])} compacto />}
               <p className="detalhe-just-titulo">Emenda (Justificativa)</p>
               <p className="detalhe-just">{r.justificativa || '—'}</p>
               {(r.inconsistencias || []).length > 0 && (
