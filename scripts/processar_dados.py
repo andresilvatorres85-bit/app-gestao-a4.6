@@ -1206,6 +1206,19 @@ def ler_execucao(caminho_xlsx, uos_nao_catalogadas=None):
                     "orgao": orgao,
                     "uoCod": uo_cod,
                     "uo": uo_nome,
+                    # Classificação da linha (cartões da subaba Emendas LOA).
+                    "funcional": str(d.get("Funcional") or "").strip(),
+                    "acaoCod": str(d.get("Ação (Cod)") or "").strip(),
+                    "acao": str(d.get("Ação") or "").strip(),
+                    "gnd": gnd,
+                    "modAplic": str(d.get("Mod. Aplic. (Cod)") or "").strip(),
+                    # Execução da emenda: Dotação Inicial → Autorizado (valor) →
+                    # Contenção de Gastos → Empenhado → Liquidado → Pago.
+                    "ini": _money(d.get("Dotação Inicial")),
+                    "cont": _money(d.get("Contenção de Gastos")),
+                    "emp": _money(d.get("Empenhado")),
+                    "liq": _money(d.get("Liquidado")),
+                    "pago": _money(d.get("Pago")),
                     # Contenção de gastos da emenda (Bloqueio/Contingenciamento).
                     "bloq": _money(d.get("Bloqueio")),
                     "conting": _money(d.get("Contingenciamento")),
@@ -1378,8 +1391,9 @@ def main():
     for r in exec_registros:  # enxuga o JSON: campos textuais vazios saem
         for chave in [k for k, v in r.items() if v == ""]:
             del r[chave]
-    for em in exec_emendas:
-        for chave in [k for k, v in em.items() if v == ""]:
+    for em in exec_emendas:  # campos vazios e valores zerados saem do JSON
+        for chave in [k for k, v in em.items()
+                      if v == "" or (k in ("ini", "cont", "emp", "liq", "pago") and v == 0)]:
             del em[chave]
     exec_emendas_anos = sorted({e["ano"] for e in exec_emendas})
     if exec_registros:

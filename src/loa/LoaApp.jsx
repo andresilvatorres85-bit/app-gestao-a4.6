@@ -1078,6 +1078,7 @@ export default function LoaApp() {
         {aba === 'exec-emendas' && (
           <AbaEmendasExec
             registros={execEmFiltrados}
+            historico={registros}
             detalhe={detalhe}
             abrirDetalhe={abrirDetalhe}
             filtrosTexto={filtrosTextoDashExecEm}
