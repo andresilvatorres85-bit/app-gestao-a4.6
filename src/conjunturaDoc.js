@@ -24,12 +24,6 @@ export const dataBR = (iso) => {
   return d ? `${d}/${m}/${a}` : "";
 };
 
-// Data e hora em Brasília de um timestamp (o Supabase devolve em UTC).
-export const quandoBR = (iso) => {
-  const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-};
-
 export const horaBR = (iso) => {
   const d = new Date(iso);
   return isNaN(d) ? "" : d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
