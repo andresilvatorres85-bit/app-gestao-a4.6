@@ -7,6 +7,8 @@ import { useRotina } from "./useRotina.js";
 import Recebimento from "./Recebimento.jsx";
 import Contatos from "./Contatos.jsx";
 import RotinaAsseOrc from "./RotinaAsseOrc.jsx";
+import Conjuntura from "./Conjuntura.jsx";
+import { useConjuntura } from "./useConjuntura.js";
 import { useAcesso } from "../acessos.js";
 
 // Cores por tipo de legislação (na ordem das seções). Cada seção usa uma cor
@@ -15,13 +17,15 @@ const PALETA_SECOES = ["#3B6FB0", "#3F9D6B", "#C6543F", "#7A5AC2", "#C79A3A", "#
 // Seções padrão de legislação (opções da lista suspensa ao criar/editar).
 const SECOES_PADRAO = ["Legislação principal", "Legislação de emendas", "Execução orçamentária", "Legislação complementar"];
 
-// Módulo CONHECIMENTO: abas "Legislação", "Recebimento Função" e "Contatos".
+// Módulo CONHECIMENTO: abas "Legislação", "Recebimento Função", "Rotina Asse
+// Orç", "Contatos" e "Conjuntura".
 export default function Conhecimento({ session }) {
   const [aba, setAba] = useState("legislacao");
   const legislacao = useLegislacao(session);
   const recebimento = useRecebimento(session);
   const contatos = useContatos(session);
   const rotina = useRotina(session);
+  const conjuntura = useConjuntura(session);
 
   const { pode } = useAcesso();
   const ABAS = [
@@ -29,6 +33,7 @@ export default function Conhecimento({ session }) {
     ["recebimento", "Recebimento Função"],
     ["rotina", "Rotina Asse Orç"],
     ["contatos", "Contatos"],
+    ["conjuntura", "Conjuntura"],
   ].filter(([id]) => pode(`conhecimento.${id}`));
   // Aba atual retirada do usuário → primeira liberada.
   const atual = ABAS.some(([id]) => id === aba) ? aba : ABAS[0]?.[0];
@@ -44,6 +49,7 @@ export default function Conhecimento({ session }) {
       {atual === "recebimento" && <Recebimento rec={recebimento} />}
       {atual === "rotina" && <RotinaAsseOrc rotina={rotina} />}
       {atual === "contatos" && <Contatos contatos={contatos} />}
+      {atual === "conjuntura" && <Conjuntura conjuntura={conjuntura} />}
     </div>
   );
 }
