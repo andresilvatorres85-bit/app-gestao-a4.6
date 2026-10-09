@@ -160,6 +160,37 @@ partir da planilha. Para carregar uma nova safra:
 O script imprime um resumo de consistência (propostas sem ação cadastrada, UO
 divergente, sem valor, sem autor) que serve de checagem antes da exportação.
 
+## Relatório diário de Conjuntura (CONHECIMENTO › Conjuntura)
+
+De segunda a sexta, às 8h (horário de Brasília), o workflow **Relatório de
+Conjuntura** (`.github/workflows/conjuntura.yml`) roda `scripts/conjuntura.py`:
+
+1. busca no **Tavily** as notícias do dia sobre o Orçamento Federal, só nos
+   portais da lista `FONTES` do script (G1, O Globo, CNN, Poder360, Metrópoles,
+   Valor, InfoMoney, Gazeta do Povo, Estadão, Folha, Veja, Jovem Pan, Oeste e
+   Congresso Nacional/CMO);
+2. o **Claude** redige o relatório (panorama e meta fiscal; bloqueios e
+   alocação; Executivo x Congresso/CMO; pontos de atenção e próximos passos;
+   fontes), descartando o que não foi publicado no dia;
+3. o resultado é gravado na tabela `conjuntura_relatorios` do Supabase e
+   aparece na aba **Conjuntura**, com seletor de data e exportação em DOCX e PDF.
+
+Configuração (uma vez):
+
+1. No Supabase, rode `supabase_conjuntura.sql` no **SQL Editor**.
+2. No GitHub, em **Settings → Secrets and variables → Actions**, crie:
+   - `TAVILY_API_KEY` — chave do Tavily (app.tavily.com → API Keys);
+   - `ANTHROPIC_API_KEY` — chave da API do Claude (platform.claude.com);
+   - `SUPABASE_SERVICE_ROLE_KEY` — Supabase → **Project Settings → API** →
+     chave `service_role` (só o workflow usa; nunca vai para o site).
+   A URL do Supabase vem do secret `VITE_SUPABASE_URL`, que já existe.
+3. Para testar sem esperar o horário: **Actions → Relatório de Conjuntura →
+   Run workflow** (dá para informar outra data no formato AAAA-MM-DD).
+
+Custos aproximados por dia útil: ~34 créditos do Tavily (~750 por mês; o
+plano gratuito tem 1.000) e uma chamada ao Claude (alguns centavos de dólar).
+Se a geração falhar, a aba mostra o motivo no relatório daquele dia.
+
 ## Atualizações futuras
 
 Qualquer alteração no código (`git push` na branch `main`) republica o site

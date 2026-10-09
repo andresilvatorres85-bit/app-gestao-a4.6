@@ -25,6 +25,7 @@ export const CATALOGO = [
   { id: "cartilhas", rotulo: "Cartilhas" },
   { id: "conhecimento", rotulo: "CONHECIMENTO", filhos: folhas([
     ["legislacao", "Legislação"], ["recebimento", "Recebimento Função"], ["rotina", "Rotina Asse Orç"], ["contatos", "Contatos"],
+    ["conjuntura", "Conjuntura"],
   ]) },
   { id: "config", rotulo: "CONFIGURAÇÕES", filhos: [
     { id: "geral", rotulo: "Geral", filhos: folhas([["usuarios", "Usuários"]]) },

@@ -1383,3 +1383,26 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 .atualiz-pronto { border-color: var(--brand); }
 .atualiz-erro { border-color: rgba(224,122,106,0.6); }
 .atualiz-erro .atualiz-icone { color: #e07a6a; }
+
+/* ===== CONHECIMENTO › Conjuntura ===== */
+.conj-wrap { max-width: 980px; }
+.conj-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.conj-tit { margin: 0 0 4px; font-size: 18px; color: var(--ink); }
+.conj-sub { margin: 0; }
+.conj-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.conj-data { width: auto; min-width: 150px; }
+.conj-falha { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+.conj-rel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; }
+.conj-resumo { margin: 0 0 6px; font-size: 14.5px; line-height: 1.55; color: var(--ink); font-weight: 500; }
+.conj-secao { margin-top: 18px; }
+.conj-secao h3 { margin: 0 0 8px; font-size: 15px; color: var(--accent, #6ea1e0); }
+.conj-sub-secao h4, .conj-obs h4 { margin: 12px 0 6px; font-size: 13.5px; color: var(--ink); }
+.conj-itens { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+.conj-itens li { font-size: 13.8px; line-height: 1.55; color: var(--ink); }
+.conj-ref { font-size: 11.5px; font-weight: 600; text-decoration: none; color: var(--accent, #6ea1e0); margin-left: 1px; }
+.conj-ref:hover { text-decoration: underline; }
+.conj-fontes { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.conj-fontes a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.conj-fontes a:hover { text-decoration: underline; }
+.conj-obs .conj-itens li { font-size: 12.8px; color: var(--muted); }
+@media (max-width: 640px) { .conj-rel { padding: 14px; } }

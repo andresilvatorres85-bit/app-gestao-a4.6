@@ -1,0 +1,45 @@
+name: Relatório de Conjuntura
+
+on:
+  schedule:
+    # 11:00 UTC = 08:00 no horario de Brasilia (UTC-3), de segunda a sexta.
+    # O agendamento do GitHub Actions pode atrasar alguns minutos sob carga.
+    - cron: "0 11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      data:
+        description: "Data do relatorio (AAAA-MM-DD). Vazio = hoje."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conjuntura
+  cancel-in-progress: false
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install anthropic requests
+
+      - name: Gerar relatorio e gravar no Supabase
+        env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATA_RELATORIO: ${{ inputs.data }}
+        run: python scripts/conjuntura.py
