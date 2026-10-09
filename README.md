@@ -182,7 +182,8 @@ Configuração (uma vez):
    - `TAVILY_API_KEY` — chave do Tavily (app.tavily.com → API Keys);
    - `ANTHROPIC_API_KEY` — chave da API do Claude (platform.claude.com);
    - `SUPABASE_SERVICE_ROLE_KEY` — Supabase → **Project Settings → API** →
-     chave `service_role` (só o workflow usa; nunca vai para o site).
+     chave `service_role` (aba "Legacy API keys") ou uma chave secreta
+     `sb_secret_...` (aba "API Keys"); só o workflow usa, nunca vai para o site.
    A URL do Supabase vem do secret `VITE_SUPABASE_URL`, que já existe.
 3. Para testar sem esperar o horário: **Actions → Relatório de Conjuntura →
    Run workflow** (dá para informar outra data no formato AAAA-MM-DD).

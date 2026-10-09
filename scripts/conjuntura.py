@@ -310,10 +310,15 @@ def gravar(linha):
     if not (url and chave):
         print(json.dumps(linha, ensure_ascii=False, indent=2))
         return
+    headers = {"apikey": chave, "Content-Type": "application/json",
+               "Prefer": "resolution=merge-duplicates,return=minimal"}
+    # A chave service_role antiga é um JWT e vai também no Authorization; a
+    # chave secreta nova (sb_secret_...) só pode ir no cabeçalho apikey.
+    if chave.startswith("eyJ"):
+        headers["Authorization"] = f"Bearer {chave}"
     r = requests.post(
         f"{url.rstrip('/')}/rest/v1/conjuntura_relatorios?on_conflict=data",
-        headers={"apikey": chave, "Authorization": f"Bearer {chave}", "Content-Type": "application/json",
-                 "Prefer": "resolution=merge-duplicates,return=minimal"},
+        headers=headers,
         data=json.dumps(linha), timeout=60,
     )
     if not r.ok:
