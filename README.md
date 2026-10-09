@@ -189,7 +189,8 @@ Configuração (uma vez):
    Run workflow** (dá para informar outra data no formato AAAA-MM-DD).
 
 Custos aproximados por dia útil: ~34 créditos do Tavily (~750 por mês; o
-plano gratuito tem 1.000) e uma chamada ao Claude (alguns centavos de dólar).
+plano gratuito tem 1.000) e uma chamada ao Claude (cerca de US$ 0,15 a 0,40 por
+dia, US$ 4 a 9 por mês).
 Se a geração falhar, a aba mostra o motivo no relatório daquele dia.
 
 ## Atualizações futuras
