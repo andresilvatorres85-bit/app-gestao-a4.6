@@ -2,9 +2,15 @@ name: Relatório de Conjuntura
 
 on:
   schedule:
-    # 11:00 UTC = 08:00 no horario de Brasilia (UTC-3), de segunda a sexta.
-    # O agendamento do GitHub Actions pode atrasar alguns minutos sob carga.
-    - cron: "0 11 * * 1-5"
+    # 08:03 de Brasilia (11:03 UTC), de segunda a sexta. O agendamento do
+    # GitHub nao tem hora garantida (horarios cheios, como :00, chegam a
+    # atrasar horas), entao ha horarios de reserva: o script so gera o
+    # relatorio na primeira execucao do dia e ignora as demais. O disparo
+    # exato das 08:00 vem do Supabase (supabase_conjuntura_cron.sql).
+    - cron: "3 11 * * 1-5"
+    - cron: "33 11 * * 1-5"
+    - cron: "13 12 * * 1-5"
+    - cron: "13 13 * * 1-5"
   workflow_dispatch:
     inputs:
       data:

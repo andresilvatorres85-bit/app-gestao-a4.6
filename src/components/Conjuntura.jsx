@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
   FileDown, FileText, ExternalLink, AlertTriangle, ChevronLeft, ChevronRight, CalendarDays, Clock,
-  Newspaper, TrendingUp, Ban, Landmark, Siren, CalendarClock, Info, Sparkles,
+  Newspaper, TrendingUp, Ban, Landmark, Siren, CalendarClock, Info, Sparkles, Search,
 } from "lucide-react";
-import { dataBR, horaBR, partesComRefs, exportarConjunturaDocx, exportarConjunturaPdf } from "../conjunturaDoc.js";
+import { dataBR, horaBR, periodoTexto, partesComRefs, exportarConjunturaDocx, exportarConjunturaPdf } from "../conjunturaDoc.js";
 
 // Aba "Conjuntura" (CONHECIMENTO): relatório diário sobre o Orçamento Público
 // Federal, gerado de segunda a sexta às 08:00 pelo workflow conjuntura.yml.
@@ -83,6 +83,7 @@ export default function Conjuntura({ conjuntura }) {
           <div className="conj-meta">
             <span><CalendarDays size={14} /> {dataBR(rel.data)} · {diaSemana(rel.data)}</span>
             {rel.gerado_em && <span><Clock size={14} /> gerado às {horaBR(rel.gerado_em)}</span>}
+            {rel.conteudo?.janela && <span title="Do horário da busca anterior até o horário desta busca"><Search size={14} /> {periodoTexto(rel)}</span>}
             {temConteudo && <span><Newspaper size={14} /> {fontes.length} {fontes.length === 1 ? "fonte" : "fontes"} · {veiculos} {veiculos === 1 ? "veículo" : "veículos"}</span>}
           </div>
         </div>
@@ -188,7 +189,7 @@ function Bloco({ id, num, titulo, Icone, cor, itens, refs, compacto }) {
       </h3>
       {arr.length ? (
         <ul className="conj-itens">{arr.map((t, i) => <li key={i}><Texto texto={t} {...refs} /></li>)}</ul>
-      ) : <p className="conj-sem-itens">Nenhuma notícia sobre este tema hoje.</p>}
+      ) : <p className="conj-sem-itens">Nenhuma notícia sobre este tema no período.</p>}
     </section>
   );
 }

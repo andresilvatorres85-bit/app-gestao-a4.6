@@ -165,13 +165,15 @@ divergente, sem valor, sem autor) que serve de checagem antes da exportação.
 De segunda a sexta, às 8h (horário de Brasília), o workflow **Relatório de
 Conjuntura** (`.github/workflows/conjuntura.yml`) roda `scripts/conjuntura.py`:
 
-1. busca no **Tavily** as notícias do dia sobre o Orçamento Federal, só nos
+1. busca no **Tavily** as notícias sobre o Orçamento Federal publicadas desde
+   a busca anterior (o relatório do dia útil anterior; na segunda-feira, o da
+   sexta) até o horário da busca atual, sem repetir as já citadas, só nos
    portais da lista `FONTES` do script (G1, O Globo, CNN, Poder360, Metrópoles,
    Valor, InfoMoney, Gazeta do Povo, Estadão, Folha, Veja, Jovem Pan, Oeste e
    Congresso Nacional/CMO);
 2. o **Claude** redige o relatório (panorama e meta fiscal; bloqueios e
    alocação; Executivo x Congresso/CMO; pontos de atenção e próximos passos;
-   fontes), descartando o que não foi publicado no dia;
+   fontes), descartando o que foi publicado fora dessa janela;
 3. o resultado é gravado na tabela `conjuntura_relatorios` do Supabase e
    aparece na aba **Conjuntura**, com seletor de data e exportação em DOCX e PDF.
 
@@ -185,7 +187,14 @@ Configuração (uma vez):
      chave `service_role` (aba "Legacy API keys") ou uma chave secreta
      `sb_secret_...` (aba "API Keys"); só o workflow usa, nunca vai para o site.
    A URL do Supabase vem do secret `VITE_SUPABASE_URL`, que já existe.
-3. Para testar sem esperar o horário: **Actions → Relatório de Conjuntura →
+3. Horário exato das 08:00: o agendamento do GitHub Actions não tem hora
+   garantida (já atrasou horas). O workflow tem horários de reserva (08:03,
+   08:33, 09:13 e 10:13) e só gera o relatório na primeira execução do dia.
+   Para o disparo exato, publique a Edge Function
+   `supabase/functions/disparar-conjuntura` (com **Verify JWT desligado**), crie
+   o secret `CONJUNTURA_CRON_SECRET` e rode `supabase_conjuntura_cron.sql`
+   (troque a URL do projeto e o secret nos pontos marcados).
+4. Para testar sem esperar o horário: **Actions → Relatório de Conjuntura →
    Run workflow** (dá para informar outra data no formato AAAA-MM-DD).
 
 Custos aproximados por dia útil: ~34 créditos do Tavily (~750 por mês; o
