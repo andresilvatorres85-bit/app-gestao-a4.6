@@ -17,9 +17,11 @@ Brasília:
 Variáveis de ambiente (Secrets do repositório):
   TAVILY_API_KEY, ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 Opcional: DATA_RELATORIO=AAAA-MM-DD (gera o relatório de outro dia).
-Execução agendada (GITHUB_EVENT_NAME=schedule): se o relatório do dia já foi
-gerado com sucesso, não faz nada — o workflow tem horários de reserva porque
-o agendamento do GitHub atrasa.
+Uma busca por dia (cada busca consome créditos do Tavily e da API do Claude):
+nas execuções automáticas — horários do workflow (GITHUB_EVENT_NAME=schedule)
+e disparo das 08:00 pelo Supabase (AGENDADO=1) — se já houve busca no dia,
+com sucesso ou não, o script para antes de chamar o Tavily e o Claude. Só a
+execução manual ("Run workflow") busca de novo.
 Sem as chaves do Supabase, imprime o JSON em vez de gravar (teste local).
 """
 
@@ -360,12 +362,13 @@ def relatorios_anteriores(dia):
     return r.json()
 
 
-def ja_gerado(dia):
+def ja_buscado(dia):
+    """Já houve busca neste dia (com sucesso ou com erro)?"""
     base, headers = _supabase()
     if not base:
         return False
     r = requests.get(base, headers=headers, timeout=60, params={
-        "select": "data", "status": "eq.ok", "data": f"eq.{dia.isoformat()}"})
+        "select": "data", "data": f"eq.{dia.isoformat()}"})
     r.raise_for_status()
     return bool(r.json())
 
@@ -418,8 +421,9 @@ def gravar(linha):
 def main():
     agora = datetime.now(TZ)
     dia = date.fromisoformat(os.environ["DATA_RELATORIO"]) if os.environ.get("DATA_RELATORIO") else agora.date()
-    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and ja_gerado(dia):
-        log(f"Relatório de {dia} já gerado; horário de reserva ignorado.")
+    automatico = os.environ.get("GITHUB_EVENT_NAME") == "schedule" or os.environ.get("AGENDADO") == "1"
+    if automatico and ja_buscado(dia):
+        log(f"Já houve busca em {dia}; execução automática ignorada (nenhum crédito consumido).")
         return
     linha = {"data": dia.isoformat(), "gerado_em": agora.isoformat(), "modelo": MODELO}
     try:

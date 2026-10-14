@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
         "User-Agent": "gestao-a4.6-conjuntura",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ ref: "main" }),
+      // agendado=1: o script não busca de novo se já houve busca no dia
+      // (uma busca por dia, para não consumir créditos em dobro).
+      body: JSON.stringify({ ref: "main", inputs: { agendado: "1" } }),
     },
   );
   if (r.status === 204) return json({ ok: true });

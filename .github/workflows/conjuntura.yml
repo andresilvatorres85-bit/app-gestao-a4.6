@@ -4,8 +4,9 @@ on:
   schedule:
     # 08:03 de Brasilia (11:03 UTC), de segunda a sexta. O agendamento do
     # GitHub nao tem hora garantida (horarios cheios, como :00, chegam a
-    # atrasar horas), entao ha horarios de reserva: o script so gera o
-    # relatorio na primeira execucao do dia e ignora as demais. O disparo
+    # atrasar horas), entao ha horarios de reserva: o script so busca na
+    # primeira execucao automatica do dia e ignora as demais antes de gastar
+    # creditos do Tavily/Claude. O disparo
     # exato das 08:00 vem do Supabase (supabase_conjuntura_cron.sql).
     - cron: "3 11 * * 1-5"
     - cron: "33 11 * * 1-5"
@@ -15,6 +16,10 @@ on:
     inputs:
       data:
         description: "Data do relatorio (AAAA-MM-DD). Vazio = hoje."
+        required: false
+        default: ""
+      agendado:
+        description: "1 = disparo automatico (Supabase): nao busca se ja houve busca no dia."
         required: false
         default: ""
 
@@ -48,4 +53,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DATA_RELATORIO: ${{ inputs.data }}
+          AGENDADO: ${{ inputs.agendado }}
         run: python scripts/conjuntura.py

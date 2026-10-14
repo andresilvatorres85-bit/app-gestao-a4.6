@@ -189,7 +189,9 @@ Configuração (uma vez):
    A URL do Supabase vem do secret `VITE_SUPABASE_URL`, que já existe.
 3. Horário exato das 08:00: o agendamento do GitHub Actions não tem hora
    garantida (já atrasou horas). O workflow tem horários de reserva (08:03,
-   08:33, 09:13 e 10:13) e só gera o relatório na primeira execução do dia.
+   08:33, 09:13 e 10:13). Só a primeira execução automática do dia busca
+   (com sucesso ou não); as demais param antes de chamar o Tavily e o Claude,
+   sem consumir créditos. Só o "Run workflow" manual busca de novo no mesmo dia.
    Para o disparo exato, publique a Edge Function
    `supabase/functions/disparar-conjuntura` (com **Verify JWT desligado**), crie
    o secret `CONJUNTURA_CRON_SECRET` e rode `supabase_conjuntura_cron.sql`
