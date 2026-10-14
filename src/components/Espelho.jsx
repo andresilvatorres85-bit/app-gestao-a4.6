@@ -197,6 +197,9 @@ export default function Espelho({ proposta, exercicio }) {
       <div className="lx-row lx-autor-row">
         <Campo rotulo="AUTOR" valor={e.autor || "a definir"} copiar={e.autor} className="lx-flex" />
       </div>
+      <div className="lx-row">
+        <Campo rotulo="Nº PROPOSTA" valor={e.nrProposta || "—"} copiar={e.nrProposta} className="lx-flex" />
+      </div>
 
       {/* -------------------------------------------------------------- rodapé */}
       <div className="lx-rodape">
