@@ -203,6 +203,10 @@ export function montarEspelho(p, exercicioForcado) {
     cancelamento: { ...CANCELAMENTO_PADRAO, valor: total },
     justificativa,
     autor: [p.parlamentar, p.partido ? `(${p.partido})` : ""].filter(Boolean).join(" "),
+    // Nº da proposta (Controle_LEXOR); na consolidadora, também as que ela reúne.
+    nrProposta: p.consolidada && p.itens?.length
+      ? `${p.nr} (reúne as propostas ${p.itens.map((i) => i.nr).filter(Boolean).join(", ")})`
+      : String(p.nr || ""),
     negociado,
     temAcao: !!acao,
   };
