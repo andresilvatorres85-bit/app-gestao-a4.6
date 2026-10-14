@@ -7,3 +7,4 @@ Controle_LEXOR.xlsx
 .env.local
 .DS_Store
 *.log
+__pycache__/

@@ -2,13 +2,24 @@ name: Relatório de Conjuntura
 
 on:
   schedule:
-    # 11:00 UTC = 08:00 no horario de Brasilia (UTC-3), de segunda a sexta.
-    # O agendamento do GitHub Actions pode atrasar alguns minutos sob carga.
-    - cron: "0 11 * * 1-5"
+    # 08:03 de Brasilia (11:03 UTC), de segunda a sexta. O agendamento do
+    # GitHub nao tem hora garantida (horarios cheios, como :00, chegam a
+    # atrasar horas), entao ha horarios de reserva: o script so busca na
+    # primeira execucao automatica do dia e ignora as demais antes de gastar
+    # creditos do Tavily/Claude. O disparo
+    # exato das 08:00 vem do Supabase (supabase_conjuntura_cron.sql).
+    - cron: "3 11 * * 1-5"
+    - cron: "33 11 * * 1-5"
+    - cron: "13 12 * * 1-5"
+    - cron: "13 13 * * 1-5"
   workflow_dispatch:
     inputs:
       data:
         description: "Data do relatorio (AAAA-MM-DD). Vazio = hoje."
+        required: false
+        default: ""
+      agendado:
+        description: "1 = disparo automatico (Supabase): nao busca se ja houve busca no dia."
         required: false
         default: ""
 
@@ -42,4 +53,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DATA_RELATORIO: ${{ inputs.data }}
+          AGENDADO: ${{ inputs.agendado }}
         run: python scripts/conjuntura.py

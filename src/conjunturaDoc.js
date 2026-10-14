@@ -29,6 +29,14 @@ export const horaBR = (iso) => {
   return isNaN(d) ? "" : d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 };
 
+// Período coberto pela busca: do horário da busca anterior até o desta busca
+// (relatórios antigos, sem a janela gravada, cobriam só o próprio dia).
+export function periodoTexto(rel) {
+  const j = rel?.conteudo?.janela;
+  if (!j?.inicio || !j?.fim) return `Notícias de ${dataBR(rel?.data)}`;
+  return `Notícias de ${dataBR(j.inicio)} ${horaBR(j.inicio)} a ${dataBR(j.fim)} ${horaBR(j.fim)}`;
+}
+
 // Divide o texto nas referências "[n]" → [{ texto } | { ref: n }].
 export function partesComRefs(texto) {
   return String(texto || "").split(/(\[\d+\])/g).filter(Boolean).map((p) => {
@@ -124,7 +132,7 @@ export async function exportarConjunturaDocx(rel) {
         }),
         new Paragraph({
           spacing: { after: 200 },
-          children: [run(`Notícias de ${dataBR(rel.data)} · gerado às ${horaBR(rel.gerado_em)}`, { size: 18, color: CINZA })],
+          children: [run(`${periodoTexto(rel)} · gerado às ${horaBR(rel.gerado_em)}`, { size: 18, color: CINZA })],
         }),
         ...(c.resumo ? [new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after: 120 }, children: runsDoItem(c.resumo, fontes) })] : []),
         ...corpo,
@@ -173,7 +181,7 @@ export function construirConjunturaPdf(rel) {
   escrever("Subassessoria Parlamentar de Orçamento · A4.6", { tam: 9, cor: [107, 117, 104], apos: 3 });
   escrever(TITULO, { tam: 16, cor: [31, 56, 100], estilo: "bold", apos: 0 });
   doc.setDrawColor(31, 56, 100); doc.setLineWidth(0.6); doc.line(M, y, M + L, y); y += 5;
-  escrever(`Notícias de ${dataBR(rel.data)} · gerado às ${horaBR(rel.gerado_em)}`, { tam: 9, cor: [107, 117, 104], apos: 4 });
+  escrever(`${periodoTexto(rel)} · gerado às ${horaBR(rel.gerado_em)}`, { tam: 9, cor: [107, 117, 104], apos: 4 });
   if (c.resumo) escrever(c.resumo, { apos: 3 });
 
   for (const s of SECOES) {
