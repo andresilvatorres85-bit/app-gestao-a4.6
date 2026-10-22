@@ -17,7 +17,8 @@ export const CABECALHO = {
 };
 
 // Cancelamento compensatório padrão — igual em todos os espelhos, exceto o
-// valor, que acompanha a soma dos acréscimos (GND 3 + GND 4).
+// valor, que acompanha a soma dos acréscimos (GND 3 + GND 4), e o sequencial,
+// que nas emendas de bancada e de comissão é outro (SEQUENCIAL_COLETIVAS).
 export const CANCELAMENTO_PADRAO = {
   sequencial: "3655",
   fonte: "1000",
@@ -28,6 +29,10 @@ export const CANCELAMENTO_PADRAO = {
   id: "0",
   rp: "2",
 };
+export const SEQUENCIAL_COLETIVAS = "3656";
+
+// Emenda de bancada (RP 7) ou de comissão (RP 8)?
+const ehColetiva = (p) => /bancada|comiss/i.test(p.tipo || "") || ["7", "8"].includes(String(p.rp || ""));
 
 // Descrições da classificação orçamentária. Editar aqui se a SOF alterar.
 export const ESFERAS = {
@@ -200,7 +205,11 @@ export function montarEspelho(p, exercicioForcado) {
     linhas,
     total,
     rp: p.rp || "6",
-    cancelamento: { ...CANCELAMENTO_PADRAO, valor: total },
+    cancelamento: {
+      ...CANCELAMENTO_PADRAO,
+      ...(ehColetiva(p) ? { sequencial: SEQUENCIAL_COLETIVAS } : {}),
+      valor: total,
+    },
     justificativa,
     autor: [p.parlamentar, p.partido ? `(${p.partido})` : ""].filter(Boolean).join(" "),
     // Nº da proposta (Controle_LEXOR); na consolidadora, também as que ela reúne.
