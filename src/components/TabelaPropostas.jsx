@@ -2,7 +2,7 @@ import { FileText, Square, CheckSquare, Trash2 } from "lucide-react";
 import { Badge } from "./UI.jsx";
 import {
   moeda, valorTotal, pendencias, situacaoDe, SITUACOES,
-  STATUS_LEXOR, STATUS_LEXOR_PADRAO,
+  STATUS_LEXOR, chaveStatus, statusDaLinha,
 } from "../lexorUtils.js";
 
 // Tabela de propostas usada nos dois cards do módulo LEXOR: o da planilha e o
@@ -57,7 +57,7 @@ export default function TabelaPropostas({
           {itens.map(p => {
             const probs = pendencias(p);
             const sit = situacaoDe(p);
-            const status = statusLexor[p.nr] || STATUS_LEXOR_PADRAO;
+            const status = statusDaLinha(statusLexor, p);   // status da linha (parlamentar)
             return (
               <tr key={chave(p)} className={selecionadas.has(chave(p)) ? "row-sel" : ""}>
                 <td className="col-check">
@@ -106,10 +106,10 @@ export default function TabelaPropostas({
                 <td>
                   <select className={`select-status status-${status.toLowerCase()}`}
                     value={status} disabled={erroStatus}
-                    onChange={e => aoMudarStatus(p.nr, e.target.value)}>
+                    onChange={e => aoMudarStatus(p, e.target.value)}>
                     {STATUS_LEXOR.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
-                  {salvando === p.nr && <span className="salvando">salvando…</span>}
+                  {salvando === chaveStatus(p) && <span className="salvando">salvando…</span>}
                 </td>
                 {consolidadora && (
                   <td className="col-acao">

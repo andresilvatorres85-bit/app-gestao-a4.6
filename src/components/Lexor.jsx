@@ -11,7 +11,7 @@ import { useAcesso } from "../acessos.js";
 import { PROPOSTAS_LEXOR, ACOES_LEXOR } from "../data/lexor.js";
 import {
   moeda, valorTotal, exercicioDe, situacaoDe, SITUACOES,
-  STATUS_LEXOR_PADRAO, STATUS_DESCONSIDERAR,
+  STATUS_LEXOR_PADRAO, STATUS_DESCONSIDERAR, chaveStatus, statusDaLinha,
 } from "../lexorUtils.js";
 import {
   podeJuntar, proximoNumero, montarConsolidada, autorSugerido,
@@ -83,28 +83,43 @@ export default function Lexor() {
     return () => { vivo = false; supabase.removeChannel(canal); };
   }, []);
 
-  const mudarStatus = useCallback(async (nr, novo) => {
-    const anterior = statusLexor[nr] || STATUS_LEXOR_PADRAO;
-    setStatusLexor(prev => ({ ...prev, [nr]: novo }));   // resposta imediata na tela
-    setSalvando(nr);
+  // Muda o status só da linha editada (chaveStatus). Se o número tinha um
+  // status gravado para todas as linhas (formato antigo, por nr), as outras
+  // linhas do mesmo número ganham registro próprio com o status que já
+  // tinham, para não mudarem junto.
+  const mudarStatus = useCallback(async (p, novo) => {
+    const chave = chaveStatus(p);
+    const registros = { [chave]: novo };
+    if (chave !== String(p.nr) && statusLexor[p.nr]) {
+      for (const irma of PROPOSTAS_LEXOR) {
+        const k = chaveStatus(irma);
+        if (irma.nr === p.nr && k !== chave && !statusLexor[k]) registros[k] = statusLexor[p.nr];
+      }
+    }
+    const anteriores = Object.fromEntries(Object.keys(registros).map(k => [k, statusLexor[k]]));
+    setStatusLexor(prev => ({ ...prev, ...registros }));   // resposta imediata na tela
+    setSalvando(chave);
     const { data: sessao } = await supabase.auth.getUser();
-    const { error } = await supabase.from("lexor_status").upsert({
-      nr,
-      status: novo,
-      atualizado_por: sessao?.user?.email || null,
-      atualizado_em: new Date().toISOString(),
-    }, { onConflict: "nr" });
+    const agora = new Date().toISOString();
+    const { error } = await supabase.from("lexor_status").upsert(
+      Object.entries(registros).map(([nr, status]) => ({
+        nr, status, atualizado_por: sessao?.user?.email || null, atualizado_em: agora,
+      })), { onConflict: "nr" });
     setSalvando(null);
     if (error) {
-      setStatusLexor(prev => ({ ...prev, [nr]: anterior }));   // desfaz se falhou
+      setStatusLexor(prev => {   // desfaz se falhou
+        const volta = { ...prev };
+        for (const [k, v] of Object.entries(anteriores)) { if (v) volta[k] = v; else delete volta[k]; }
+        return volta;
+      });
       setErroStatus(true);
     }
   }, [statusLexor]);
 
   // Uma proposta marcada como "Desconsiderar" sai da tabela principal e passa
-  // para o card das desconsideradas, no fim da página.
+  // para o card das desconsideradas, no fim da página (só a linha marcada).
   const desconsiderada = useCallback(
-    nr => statusLexor[nr] === STATUS_DESCONSIDERAR, [statusLexor]);
+    p => statusDaLinha(statusLexor, p) === STATUS_DESCONSIDERAR, [statusLexor]);
 
   // ---------------------------------------------- propostas consolidadoras
   useEffect(() => {
@@ -127,14 +142,14 @@ export default function Lexor() {
     [consolidadas, indicePropostas]);
 
   const listaConsolidadas = useMemo(
-    () => todasConsolidadas.filter(p => !desconsiderada(p.nr)),
+    () => todasConsolidadas.filter(p => !desconsiderada(p)),
     [todasConsolidadas, desconsiderada]);
 
   // Card das desconsideradas: propostas da planilha e consolidadoras juntas,
   // na ordem em que aparecem na origem.
   const listaDesconsideradas = useMemo(() => [
-    ...PROPOSTAS_LEXOR.filter(p => desconsiderada(p.nr)),
-    ...todasConsolidadas.filter(p => desconsiderada(p.nr)),
+    ...PROPOSTAS_LEXOR.filter(p => desconsiderada(p)),
+    ...todasConsolidadas.filter(p => desconsiderada(p)),
   ], [todasConsolidadas, desconsiderada]);
 
   const totalPaginasDesc = Math.max(1, Math.ceil(listaDesconsideradas.length / PAGE_SIZE));
@@ -214,7 +229,7 @@ export default function Lexor() {
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     return PROPOSTAS_LEXOR.filter(p => {
-      if (desconsiderada(p.nr)) return false;
+      if (desconsiderada(p)) return false;
       if (uf !== "Todas" && p.uf !== uf) return false;
       if (acao !== "Todas" && p.acao !== acao) return false;
       if (cmdo !== "Todos" && p.cmdo !== cmdo) return false;
