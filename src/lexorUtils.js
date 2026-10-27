@@ -221,6 +221,20 @@ export function montarEspelho(p, exercicioForcado) {
   };
 }
 
+// Chave do status "LEXOR" de uma linha (tabela lexor_status, coluna nr).
+// Quando a mesma proposta aparece para mais de um parlamentar (uid "nr#k"),
+// cada linha tem o seu status: "nr|PARLAMENTAR". Nas demais, o próprio nr —
+// assim os status já gravados continuam valendo.
+export const chaveStatus = (p) =>
+  !p.consolidada && String(p.uid || "").includes("#") && p.parlamentar
+    ? `${p.nr}|${String(p.parlamentar).trim().toUpperCase()}`
+    : String(p.nr);
+
+// Status da linha: o dela; se ainda não tiver um próprio, o gravado antes por
+// nr (quando o status valia para todas as linhas do mesmo número).
+export const statusDaLinha = (statusLexor, p) =>
+  statusLexor[chaveStatus(p)] || statusLexor[p.nr] || STATUS_LEXOR_PADRAO;
+
 // Informações que faltam para montar o espelho. A ausência de autor não entra
 // aqui: ela define a prospecção, tratada em situacaoDe().
 export function pendencias(p) {
