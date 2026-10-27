@@ -77,6 +77,26 @@ export function orgaoDeUO(uoCod, uoNome) {
   return 'MINISTÉRIO DA DEFESA'
 }
 
+// Ação Orçamentária (AO). O código da Ação é o 4º segmento da classificação
+// funcional-programática (Função.Subfunção.Programa.AÇÃO.Subtítulo), p.ex.
+// "05.244.2058.1211.0014" → "1211". As bases de PLOA e Execução já trazem
+// `acaoCod` pronto do pipeline; a base de emendas apresentadas traz só o
+// `funcional`, então o código é derivado em `carregarDados`.
+export function acaoCodDeFuncional(funcional) {
+  const partes = String(funcional ?? '').split('.')
+  return partes.length >= 4 ? partes[3].trim() : ''
+}
+
+// Mapa acaoCod -> nome da ação, preenchido em `carregarDados` a partir de todas
+// as bases. Serve só para o rótulo legível do filtro ("código — nome"); o
+// filtro em si opera sobre o código, que é único e estável entre exercícios.
+const ACAO_NOMES = new Map()
+export function aoLabel(cod) {
+  if (!cod) return '(sem ação)'
+  const nome = ACAO_NOMES.get(cod)
+  return nome ? `${cod} — ${nome}` : cod
+}
+
 // Definição dos filtros, na ordem de exibição.
 // `campo` é a chave do registro no dados.json; `rotulo` é o texto exibido.
 // "Ano" vem primeiro por ser o recorte mais amplo: ele decide o exercício
@@ -93,6 +113,7 @@ export const FILTROS = [
   { id: 'autor',     campo: 'autor',      rotulo: 'Autor' },
   { id: 'partido',   campo: 'partido',    rotulo: 'Partido' },
   { id: 'gnd',       campo: 'gnd',        rotulo: 'GND (Cod)' },
+  { id: 'ao',        campo: 'acaoCod',    rotulo: 'Ação Orçamentária', formatar: aoLabel },
   { id: 'cmila',     campo: 'cmila',      rotulo: 'C Mil A' },
 ]
 
@@ -145,8 +166,27 @@ export async function carregarDados() {
     // A Força vem calculada do pipeline; o cálculo local é só reserva para
     // um dados.json anterior a esse campo.
     r.orgao = r.orgao || orgaoDeUO(r.uoCod, r.uo)
+    // A base de emendas apresentadas não traz `acaoCod`: deriva do funcional.
+    if (!r.acaoCod) r.acaoCod = acaoCodDeFuncional(r.funcional)
     r.inconsistencias = (r.inconsistencias || []).map(normalizarInconsistencia).filter(Boolean)
   }
+
+  // Monta o mapa acaoCod -> nome para os rótulos do filtro de Ação. As bases de
+  // dotação (PLOA/Execução) vêm primeiro porque trazem os nomes acentuados;
+  // first-wins preserva essa grafia. A base de emendas da execução também pode
+  // precisar do código derivado do funcional.
+  ACAO_NOMES.clear()
+  const registrarNomes = (lista) => {
+    for (const r of lista ?? []) {
+      if (!r.acaoCod) r.acaoCod = acaoCodDeFuncional(r.funcional)
+      if (r.acaoCod && r.acao && !ACAO_NOMES.has(r.acaoCod)) ACAO_NOMES.set(r.acaoCod, r.acao)
+    }
+  }
+  registrarNomes(dados.ploa?.registros)
+  registrarNomes(dados.execucao?.registros)
+  registrarNomes(dados.execucao?.emendas)
+  registrarNomes(dados.registros)
+
   return dados
 }
 
