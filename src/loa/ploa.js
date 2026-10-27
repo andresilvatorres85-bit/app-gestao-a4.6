@@ -62,7 +62,7 @@ export const AGREGADOS = [
 // (modalidade, autor, partido, C Mil A…) descrevem uma emenda parlamentar e
 // não existem numa dotação: aplicá-los aqui zeraria a aba inteira assim que
 // alguém selecionasse um partido na aba das emendas e viesse para cá.
-export const FILTROS_PLOA_IDS = ['ano', 'orgao', 'uo', 'uocod', 'rp', 'gnd']
+export const FILTROS_PLOA_IDS = ['ano', 'orgao', 'uo', 'uocod', 'rp', 'gnd', 'ao']
 export const FILTROS_PLOA = FILTROS.filter((f) => FILTROS_PLOA_IDS.includes(f.id))
 
 // Filtra dotações. Mesma assinatura de `filtrarRegistros`, inclusive o

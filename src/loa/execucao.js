@@ -18,7 +18,7 @@ export { fmtBi, fmtVar, variacao, AGREGADOS }
 // Filtros aplicáveis a uma dotação de execução — os mesmos do PLOA (uma dotação
 // não tem autor, partido, C Mil A…). O campo de cada filtro casa com a chave do
 // registro no dados.json (ano, orgao, uo, uoCod, rp, gnd).
-export const FILTROS_EXEC_IDS = ['ano', 'orgao', 'uo', 'uocod', 'rp', 'gnd']
+export const FILTROS_EXEC_IDS = ['ano', 'orgao', 'uo', 'uocod', 'rp', 'gnd', 'ao']
 export const FILTROS_EXEC = FILTROS.filter((f) => FILTROS_EXEC_IDS.includes(f.id))
 
 export function filtrarExecucao(registros, filtros, ignorar = null) {
