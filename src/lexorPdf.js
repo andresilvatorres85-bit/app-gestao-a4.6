@@ -1,7 +1,6 @@
 import { jsPDF } from "jspdf";
 import "jspdf-autotable"; // registra doc.autoTable(...)
-import { valorTotal, moeda } from "./lexorUtils.js";
-import { ACOES_LEXOR } from "./data/lexor.js";
+import { valorTotal, moeda, acaoDaProposta } from "./lexorUtils.js";
 
 // Título centralizado conforme o filtro de situação selecionado.
 const TITULOS = {
@@ -15,7 +14,7 @@ const VERDE = [78, 154, 107];
 const CINZA_CLARO = [235, 240, 236];
 
 function acaoTexto(p) {
-  const a = ACOES_LEXOR[p.acao];
+  const a = acaoDaProposta(p);
   return a?.descricao ? `${p.acao} – ${a.descricao}` : (p.acao || "—");
 }
 function autorTexto(p) {

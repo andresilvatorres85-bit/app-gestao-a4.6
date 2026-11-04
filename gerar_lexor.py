@@ -183,7 +183,20 @@ def cientifica(v):
 
 
 def partes_fp(fp):
-    """Quebra a Funcional Programática '10.52921.05.363.6112.21GN.0000'."""
+    """Quebra a Funcional Programática '10.52921.05.363.6112.21GN.0000'.
+
+    Quando o Excel converteu a célula em número (ex.: 1.05212105122003e+23),
+    sobram 15 dígitos significativos: a esfera (2 dígitos) e a UO (5) ainda
+    são confiáveis e são recuperadas; o restante vem das outras colunas.
+    """
+    if isinstance(fp, (int, float)) or cientifica(fp):
+        try:
+            dig = f"{int(float(fp)):d}"
+        except (TypeError, ValueError, OverflowError):
+            return {}
+        if len(dig) >= 20 and dig[:2] in ("10", "20"):
+            return {"esfera": dig[:2], "uo": dig[2:7], "numerica": True}
+        return {}
     p = [x.strip() for x in limpa(fp).split(".")]
     if len(p) < 7:
         return {}
@@ -237,7 +250,12 @@ def main():
 
     # ---------- aba Ações: tabela de apoio (o "PROCV" do modelo do Word) ----------
     aba = wb["Ações"]
+    # A mesma ação pode aparecer em mais de uma linha, uma por UO (ex.: 2000
+    # para o Comando do Exército e para a IMBEL), com sequencial SOF próprio.
+    # acoes[cod] fica com a PRIMEIRA linha; acoes_uo["cod|uo"] guarda cada
+    # variante das ações repetidas, para o espelho escolher pela UO.
     acoes = {}
+    acoes_uo = {}
     uos = {}
     for r in range(2, aba.max_row + 1):
         cod = limpa(aba.cell(r, 5).value).upper()
@@ -247,7 +265,7 @@ def main():
         uo_nome = limpa(aba.cell(r, 11).value)
         if uo_cod:
             uos[uo_cod] = uo_nome
-        acoes[cod] = {
+        dados_acao = {
             "descricao": limpa(aba.cell(r, 7).value),
             "subtitulo": limpa(aba.cell(r, 6).value) or "XXXX",
             "orgaoCod": limpa(aba.cell(r, 8).value),
@@ -260,10 +278,20 @@ def main():
             "seq": limpa(aba.cell(r, 15).value),
             "cnpj": limpa(aba.cell(r, 16).value),
         }
+        acoes.setdefault(cod, dados_acao)
+        acoes_uo[f"{cod}|{uo_cod}"] = dados_acao
+    # só as ações com mais de uma UO precisam da tabela por UO
+    uos_por_acao = {}
+    for chave in acoes_uo:
+        cod, uo_cod = chave.split("|", 1)
+        uos_por_acao.setdefault(cod, set()).add(uo_cod)
+    acoes_uo = {k: v for k, v in acoes_uo.items() if len(uos_por_acao[k.split("|", 1)[0]]) > 1}
 
     # ---------- aba SIOPLEx: uma proposta por linha ----------
     ws = wb["SIOPLEx"]
     props = []
+    fp_numerica = []   # Funcional Programática convertida em número pelo Excel
+    uo_ambigua = []    # UO tirada da aba Ações, onde a ação tem mais de uma UO
     for r in range(2, ws.max_row + 1):
         nr = limpa(ws.cell(r, 1).value)
         if not nr:
@@ -279,13 +307,21 @@ def main():
             acao = acao[:-2]
 
         tipo, repetida = classifica_tipo(ws.cell(r, 2).value)
-        uo_cod = fp.get("uo", "") or acoes.get(acao, {}).get("uoCod", "")
+        uo_cod = fp.get("uo", "")
+        uo_da_aba = not uo_cod
+        if uo_da_aba:
+            uo_cod = acoes.get(acao, {}).get("uoCod", "")
 
         # Valores ORIGINAIS (M/N/O) vêm do Controle_LEXOR. Os NEGOCIADOS e o
         # Parlamentar/Partido passam a vir da Prospecção (ver expansão abaixo).
         gnd3 = num(ws.cell(r, 13).value)
         gnd4 = num(ws.cell(r, 14).value)
         total = num(ws.cell(r, 15).value) or (gnd3 + gnd4)
+
+        if fp.get("numerica"):
+            fp_numerica.append(nr)
+        if uo_da_aba and len(uos_por_acao.get(acao, ())) > 1:
+            uo_ambigua.append(nr)
 
         registro = {
             "nr": nr,
@@ -346,7 +382,8 @@ def main():
     # ---------- relatório de consistência ----------
     sem_acao = [p["nr"] for p in props if not p.get("acao") or p.get("acao") not in acoes]
     div_uo = [p["nr"] for p in props
-              if p.get("acao") in acoes and p.get("uo") and p["uo"] != acoes[p["acao"]]["uoCod"]]
+              if p.get("acao") in acoes and p.get("uo")
+              and p["uo"] not in uos_por_acao.get(p["acao"], {acoes[p["acao"]]["uoCod"]})]
     sem_valor = [p["nr"] for p in props
                  if p.get("gnd3", 0) + p.get("gnd4", 0)
                  + p.get("gnd3n", 0) + p.get("gnd4n", 0) == 0]
@@ -367,7 +404,11 @@ def main():
 // Correções aplicadas na conversão:
 //   · Ação em notação científica recuperada da Funcional Programática ({len([p for p in props if p.get("acao") == "2E74"])} casos de 2E74)
 //   · Zeros à esquerda restaurados em Função / Subfunção / Programa
-//   · UO lida da Funcional Programática (a tabela Ações é ambígua por ação)
+//   · UO lida da Funcional Programática (a tabela Ações é ambígua por ação);
+//     se o Excel converteu a célula em número, esfera e UO são recuperadas
+//     dos dígitos ({len(fp_numerica)} propostas: {", ".join(fp_numerica) or "nenhuma"})
+//   · Ação com mais de uma UO na aba Ações: o espelho usa a linha da UO da
+//     proposta (ACOES_UO_LEXOR) — descrição, sequencial SOF etc.
 //   · Objeto e Justificativa convertidos de CAIXA ALTA para caixa de frase
 //   · Tipo de emenda padronizado em 3 categorias (+ marca de repetida)
 //
@@ -377,9 +418,11 @@ def main():
 //   · {len(sem_valor)} propostas sem valor em GND 3 e GND 4
 //   · {len(negociados)} propostas com valor negociado (prevalece sobre o valor original)
 //   · {len(sem_autor)} propostas sem parlamentar autor definido
+//   · {len(uo_ambigua)} propostas com UO tirada da aba Ações em ação com mais de uma UO (conferir): {", ".join(uo_ambigua) or "nenhuma"}
 """
 
     js = cab + "\nexport const ACOES_LEXOR = " + json.dumps(acoes, ensure_ascii=False, indent=0) + ";\n"
+    js += "\nexport const ACOES_UO_LEXOR = " + json.dumps(acoes_uo, ensure_ascii=False, indent=0) + ";\n"
     js += "\nexport const UO_LEXOR = " + json.dumps(uos, ensure_ascii=False, indent=0) + ";\n"
     js += "\nexport const PROPOSTAS_LEXOR = " + json.dumps(props, ensure_ascii=False, separators=(",", ":")) + ";\n"
 
@@ -392,6 +435,8 @@ def main():
     print(f"  UO divergente:      {len(div_uo)}")
     print(f"  sem valor:          {len(sem_valor)}")
     print(f"  sem autor:          {len(sem_autor)}")
+    print(f"  FP em número (UO recuperada): {len(fp_numerica)} {fp_numerica}")
+    print(f"  UO da aba Ações em ação com mais de uma UO (conferir): {len(uo_ambigua)} {uo_ambigua}")
 
 
 if __name__ == "__main__":
