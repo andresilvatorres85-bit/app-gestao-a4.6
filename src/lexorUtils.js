@@ -1,4 +1,9 @@
-import { ACOES_LEXOR, UO_LEXOR } from "./data/lexor.js";
+import { ACOES_LEXOR, ACOES_UO_LEXOR, UO_LEXOR } from "./data/lexor.js";
+
+// Linha da aba Ações da proposta. Quando a ação tem mais de uma linha (uma por
+// UO, ex.: 2000 do Comando do Exército e da IMBEL), vale a da UO da proposta.
+export const acaoDaProposta = (p) =>
+  (ACOES_UO_LEXOR || {})[`${p.acao}|${p.uo}`] || ACOES_LEXOR[p.acao] || null;
 
 // Reproduz a lógica da mala direta do Word no layout do relatório oficial do
 // Lexor: cada campo vem da planilha SIOPLEx (dados da proposta) ou da aba
@@ -145,7 +150,7 @@ function justificativaConsolidada(p) {
 
 // Reúne tudo que o espelho precisa imprimir.
 export function montarEspelho(p, exercicioForcado) {
-  const acao = ACOES_LEXOR[p.acao] || null;
+  const acao = acaoDaProposta(p);
   const uoCod = p.uo || acao?.uoCod || "";
   const uoNome = nomeUO(uoCod) || acao?.uoNome || "";
   const exercicio = exercicioForcado || exercicioDe(p) || "";
@@ -241,7 +246,7 @@ export function pendencias(p) {
   const lista = [];
   if (!p.acao) lista.push("sem código de ação");
   else if (!ACOES_LEXOR[p.acao]) lista.push(`ação ${p.acao} não cadastrada na aba Ações`);
-  else if (!ACOES_LEXOR[p.acao].seq && !ACOES_SEM_SEQUENCIAL.includes(p.acao)) {
+  else if (!acaoDaProposta(p).seq && !ACOES_SEM_SEQUENCIAL.includes(p.acao)) {
     lista.push("ação sem Sequencial SOF");
   }
   if (!valorTotal(p)) lista.push("sem valor em GND 3 e GND 4");
