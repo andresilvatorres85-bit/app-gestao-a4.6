@@ -11,7 +11,7 @@ import { useAcesso } from "../acessos.js";
 import { PROPOSTAS_LEXOR, ACOES_LEXOR } from "../data/lexor.js";
 import {
   moeda, valorTotal, exercicioDe, situacaoDe, SITUACOES,
-  STATUS_LEXOR_PADRAO, STATUS_DESCONSIDERAR, chaveStatus, statusDaLinha,
+  STATUS_LEXOR_PADRAO, STATUS_DESCONSIDERAR, STATUS_EXPORTADO, chaveStatus, statusDaLinha,
 } from "../lexorUtils.js";
 import {
   podeJuntar, proximoNumero, montarConsolidada, autorSugerido,
@@ -37,6 +37,7 @@ export default function Lexor() {
   const [erroStatus, setErroStatus] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [paginaDesc, setPaginaDesc] = useState(1);
+  const [paginaExp, setPaginaExp] = useState(1);
   const [selecionadas, setSelecionadas] = useState(() => new Set());
   const [espelhosDe, setEspelhosDe] = useState(null); // array de propostas em exibição
   const [consolidadas, setConsolidadas] = useState([]);  // registros do Supabase
@@ -121,6 +122,12 @@ export default function Lexor() {
   const desconsiderada = useCallback(
     p => statusDaLinha(statusLexor, p) === STATUS_DESCONSIDERAR, [statusLexor]);
 
+  // Uma proposta marcada como "Exportado" passa para o card "Propostas
+  // Exportadas", deixando na tabela de origem só o que ainda falta exportar.
+  // Voltando para "Aguardando" ou "Confeccionado", ela retorna à origem.
+  const exportada = useCallback(
+    p => statusDaLinha(statusLexor, p) === STATUS_EXPORTADO, [statusLexor]);
+
   // ---------------------------------------------- propostas consolidadoras
   useEffect(() => {
     let vivo = true;
@@ -142,8 +149,17 @@ export default function Lexor() {
     [consolidadas, indicePropostas]);
 
   const listaConsolidadas = useMemo(
-    () => todasConsolidadas.filter(p => !desconsiderada(p)),
-    [todasConsolidadas, desconsiderada]);
+    () => todasConsolidadas.filter(p => !desconsiderada(p) && !exportada(p)),
+    [todasConsolidadas, desconsiderada, exportada]);
+
+  // Card das exportadas: propostas da planilha e consolidadoras juntas.
+  const listaExportadas = useMemo(() => [
+    ...PROPOSTAS_LEXOR.filter(p => exportada(p)),
+    ...todasConsolidadas.filter(p => exportada(p)),
+  ], [todasConsolidadas, exportada]);
+
+  const totalPaginasExp = Math.max(1, Math.ceil(listaExportadas.length / PAGE_SIZE));
+  const pageExp = listaExportadas.slice((paginaExp - 1) * PAGE_SIZE, paginaExp * PAGE_SIZE);
 
   // Card das desconsideradas: propostas da planilha e consolidadoras juntas,
   // na ordem em que aparecem na origem.
@@ -229,7 +245,7 @@ export default function Lexor() {
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     return PROPOSTAS_LEXOR.filter(p => {
-      if (desconsiderada(p)) return false;
+      if (desconsiderada(p) || exportada(p)) return false;
       if (uf !== "Todas" && p.uf !== uf) return false;
       if (acao !== "Todas" && p.acao !== acao) return false;
       if (cmdo !== "Todos" && p.cmdo !== cmdo) return false;
@@ -240,9 +256,13 @@ export default function Lexor() {
       return [p.nr, p.beneficiario, p.cidade, p.objeto, p.proponente, p.parlamentar, p.acao]
         .some(c => (c || "").toString().toLowerCase().includes(termo));
     });
-  }, [busca, uf, acao, cmdo, tipo, situacao, casa, indiceCasa, desconsiderada]);
+  }, [busca, uf, acao, cmdo, tipo, situacao, casa, indiceCasa, desconsiderada, exportada]);
 
   useEffect(() => { setPagina(1); setPaginaDesc(1); }, [busca, uf, acao, cmdo, tipo, situacao, casa]);
+  // Cards que encolhem quando uma proposta volta à origem: não ficar numa
+  // página que deixou de existir.
+  useEffect(() => { if (paginaExp > totalPaginasExp) setPaginaExp(totalPaginasExp); }, [paginaExp, totalPaginasExp]);
+  useEffect(() => { if (paginaDesc > totalPaginasDesc) setPaginaDesc(totalPaginasDesc); }, [paginaDesc, totalPaginasDesc]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE));
   const pageItems = filtradas.slice((pagina - 1) * PAGE_SIZE, pagina * PAGE_SIZE);
@@ -280,7 +300,7 @@ export default function Lexor() {
   }
 
   function abrirSelecionadas() {
-    const lista = [...filtradas, ...todasConsolidadas, ...listaDesconsideradas]
+    const lista = [...filtradas, ...todasConsolidadas, ...listaExportadas, ...listaDesconsideradas]
       .filter(p => selecionadas.has(chaveDe(p)));
     if (lista.length) setEspelhosDe(lista);
   }
@@ -485,6 +505,50 @@ export default function Lexor() {
         aoExcluir={excluirConsolidada}
         vazio="Selecione duas ou mais propostas da mesma ação e use “Juntar propostas”."
       />
+
+      <h2 className="lexor-subtitulo">
+        Propostas Exportadas
+        <span className="lexor-subtitulo-sub">
+          {listaExportadas.length === 0
+            ? "nenhuma proposta exportada"
+            : `${listaExportadas.length} proposta(s) já exportada(s) para o LEXOR`}
+        </span>
+      </h2>
+
+      <TabelaPropostas
+        consolidadora
+        itens={pageExp}
+        selecionadas={selecionadas}
+        aoAlternar={alternar}
+        aoAlternarTodos={() => {
+          const todos = pageExp.every(p => selecionadas.has(chaveDe(p)));
+          setSelecionadas(prev => {
+            const set = new Set(prev);
+            for (const p of pageExp) todos ? set.delete(chaveDe(p)) : set.add(chaveDe(p));
+            return set;
+          });
+        }}
+        aoAbrirEspelho={p => setEspelhosDe([p])}
+        statusLexor={statusLexor}
+        aoMudarStatus={mudarStatus}
+        salvando={salvando}
+        erroStatus={erroStatus}
+        aoMudarAutor={mudarAutorConsolidada}
+        aoExcluir={excluirConsolidada}
+        vazio="Marque uma proposta como “Exportado” na coluna LEXOR para movê-la para cá."
+      />
+
+      {listaExportadas.length > PAGE_SIZE && (
+        <div className="pagination">
+          <button className="icon-btn" disabled={paginaExp <= 1}
+            onClick={() => setPaginaExp(p => p - 1)}><ChevronLeft size={16} /></button>
+          <span className="page-info">
+            Página {paginaExp} de {totalPaginasExp} · {listaExportadas.length} exportadas
+          </span>
+          <button className="icon-btn" disabled={paginaExp >= totalPaginasExp}
+            onClick={() => setPaginaExp(p => p + 1)}><ChevronRight size={16} /></button>
+        </div>
+      )}
 
       <h2 className="lexor-subtitulo">
         Propostas desconsideradas
