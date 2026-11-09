@@ -122,6 +122,28 @@ export default function Lexor() {
   const desconsiderada = useCallback(
     p => statusDaLinha(statusLexor, p) === STATUS_DESCONSIDERAR, [statusLexor]);
 
+  // Filtros do módulo (busca, UF, ação, C Mil A, tipo, situação, casa), os
+  // mesmos para a tabela principal e para todos os cards. Na consolidadora,
+  // UF e C Mil A podem reunir vários valores ("PR/SC", "CMS / CMSE") e a busca
+  // também procura nos números das propostas que ela reúne.
+  const passaFiltro = useCallback(p => {
+    const termo = busca.trim().toLowerCase();
+    if (uf !== "Todas" && !String(p.uf || "").split("/").includes(uf)) return false;
+    if (acao !== "Todas" && p.acao !== acao) return false;
+    if (cmdo !== "Todos" && !String(p.cmdo || "").split(" / ").includes(cmdo)) return false;
+    if (tipo !== "Todos" && p.tipo !== tipo) return false;
+    if (situacao !== "Todas" && situacaoDe(p) !== situacao) return false;
+    if (casa !== "Todas" && casaDoParlamentar(p, indiceCasa) !== casa) return false;
+    if (!termo) return true;
+    return [p.nr, p.beneficiario, p.cidade, p.objeto, p.proponente, p.parlamentar, p.acao,
+      ...(p.itens || []).map(i => i.nr)]
+      .some(c => (c || "").toString().toLowerCase().includes(termo));
+  }, [busca, uf, acao, cmdo, tipo, situacao, casa, indiceCasa]);
+  const filtroAtivo = !!busca.trim() || uf !== "Todas" || acao !== "Todas" || cmdo !== "Todos"
+    || tipo !== "Todos" || situacao !== "Todas" || casa !== "Todas";
+  const SEM_RESULTADO = "Nenhuma proposta encontrada com esses filtros.";
+  const noFiltro = filtroAtivo ? " no filtro" : "";
+
   // Uma proposta marcada como "Exportado" passa para o card "Propostas
   // Exportadas", deixando na tabela de origem só o que ainda falta exportar.
   // Voltando para "Aguardando" ou "Confeccionado", ela retorna à origem.
@@ -149,14 +171,14 @@ export default function Lexor() {
     [consolidadas, indicePropostas]);
 
   const listaConsolidadas = useMemo(
-    () => todasConsolidadas.filter(p => !desconsiderada(p) && !exportada(p)),
-    [todasConsolidadas, desconsiderada, exportada]);
+    () => todasConsolidadas.filter(p => !desconsiderada(p) && !exportada(p) && passaFiltro(p)),
+    [todasConsolidadas, desconsiderada, exportada, passaFiltro]);
 
   // Card das exportadas: propostas da planilha e consolidadoras juntas.
   const listaExportadas = useMemo(() => [
-    ...PROPOSTAS_LEXOR.filter(p => exportada(p)),
-    ...todasConsolidadas.filter(p => exportada(p)),
-  ], [todasConsolidadas, exportada]);
+    ...PROPOSTAS_LEXOR.filter(p => exportada(p) && passaFiltro(p)),
+    ...todasConsolidadas.filter(p => exportada(p) && passaFiltro(p)),
+  ], [todasConsolidadas, exportada, passaFiltro]);
 
   const totalPaginasExp = Math.max(1, Math.ceil(listaExportadas.length / PAGE_SIZE));
   const pageExp = listaExportadas.slice((paginaExp - 1) * PAGE_SIZE, paginaExp * PAGE_SIZE);
@@ -164,9 +186,9 @@ export default function Lexor() {
   // Card das desconsideradas: propostas da planilha e consolidadoras juntas,
   // na ordem em que aparecem na origem.
   const listaDesconsideradas = useMemo(() => [
-    ...PROPOSTAS_LEXOR.filter(p => desconsiderada(p)),
-    ...todasConsolidadas.filter(p => desconsiderada(p)),
-  ], [todasConsolidadas, desconsiderada]);
+    ...PROPOSTAS_LEXOR.filter(p => desconsiderada(p) && passaFiltro(p)),
+    ...todasConsolidadas.filter(p => desconsiderada(p) && passaFiltro(p)),
+  ], [todasConsolidadas, desconsiderada, passaFiltro]);
 
   const totalPaginasDesc = Math.max(1, Math.ceil(listaDesconsideradas.length / PAGE_SIZE));
   const pageDesc = listaDesconsideradas.slice((paginaDesc - 1) * PAGE_SIZE, paginaDesc * PAGE_SIZE);
@@ -242,23 +264,11 @@ export default function Lexor() {
     };
   }, []);
 
-  const filtradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    return PROPOSTAS_LEXOR.filter(p => {
-      if (desconsiderada(p) || exportada(p)) return false;
-      if (uf !== "Todas" && p.uf !== uf) return false;
-      if (acao !== "Todas" && p.acao !== acao) return false;
-      if (cmdo !== "Todos" && p.cmdo !== cmdo) return false;
-      if (tipo !== "Todos" && p.tipo !== tipo) return false;
-      if (situacao !== "Todas" && situacaoDe(p) !== situacao) return false;
-      if (casa !== "Todas" && casaDoParlamentar(p, indiceCasa) !== casa) return false;
-      if (!termo) return true;
-      return [p.nr, p.beneficiario, p.cidade, p.objeto, p.proponente, p.parlamentar, p.acao]
-        .some(c => (c || "").toString().toLowerCase().includes(termo));
-    });
-  }, [busca, uf, acao, cmdo, tipo, situacao, casa, indiceCasa, desconsiderada, exportada]);
+  const filtradas = useMemo(
+    () => PROPOSTAS_LEXOR.filter(p => !desconsiderada(p) && !exportada(p) && passaFiltro(p)),
+    [desconsiderada, exportada, passaFiltro]);
 
-  useEffect(() => { setPagina(1); setPaginaDesc(1); }, [busca, uf, acao, cmdo, tipo, situacao, casa]);
+  useEffect(() => { setPagina(1); setPaginaDesc(1); setPaginaExp(1); }, [busca, uf, acao, cmdo, tipo, situacao, casa]);
   // Cards que encolhem quando uma proposta volta à origem: não ficar numa
   // página que deixou de existir.
   useEffect(() => { if (paginaExp > totalPaginasExp) setPaginaExp(totalPaginasExp); }, [paginaExp, totalPaginasExp]);
@@ -478,8 +488,8 @@ export default function Lexor() {
         Propostas consolidadoras
         <span className="lexor-subtitulo-sub">
           {listaConsolidadas.length === 0
-            ? "nenhuma criada até agora"
-            : `${listaConsolidadas.length} proposta(s) reunindo várias emendas num só espelho`}
+            ? (filtroAtivo ? "nenhuma no filtro" : "nenhuma criada até agora")
+            : `${listaConsolidadas.length} proposta(s)${noFiltro} reunindo várias emendas num só espelho`}
         </span>
       </h2>
 
@@ -503,15 +513,15 @@ export default function Lexor() {
         erroStatus={erroStatus}
         aoMudarAutor={mudarAutorConsolidada}
         aoExcluir={excluirConsolidada}
-        vazio="Selecione duas ou mais propostas da mesma ação e use “Juntar propostas”."
+        vazio={filtroAtivo ? SEM_RESULTADO : "Selecione duas ou mais propostas da mesma ação e use “Juntar propostas”."}
       />
 
       <h2 className="lexor-subtitulo">
         Propostas Exportadas
         <span className="lexor-subtitulo-sub">
           {listaExportadas.length === 0
-            ? "nenhuma proposta exportada"
-            : `${listaExportadas.length} proposta(s) já exportada(s) para o LEXOR`}
+            ? (filtroAtivo ? "nenhuma no filtro" : "nenhuma proposta exportada")
+            : `${listaExportadas.length} proposta(s)${noFiltro} já exportada(s) para o LEXOR`}
         </span>
       </h2>
 
@@ -535,7 +545,7 @@ export default function Lexor() {
         erroStatus={erroStatus}
         aoMudarAutor={mudarAutorConsolidada}
         aoExcluir={excluirConsolidada}
-        vazio="Marque uma proposta como “Exportado” na coluna LEXOR para movê-la para cá."
+        vazio={filtroAtivo ? SEM_RESULTADO : "Marque uma proposta como “Exportado” na coluna LEXOR para movê-la para cá."}
       />
 
       {listaExportadas.length > PAGE_SIZE && (
@@ -554,8 +564,8 @@ export default function Lexor() {
         Propostas desconsideradas
         <span className="lexor-subtitulo-sub">
           {listaDesconsideradas.length === 0
-            ? "nenhuma proposta marcada"
-            : `${listaDesconsideradas.length} proposta(s) fora do lançamento no LEXOR`}
+            ? (filtroAtivo ? "nenhuma no filtro" : "nenhuma proposta marcada")
+            : `${listaDesconsideradas.length} proposta(s)${noFiltro} fora do lançamento no LEXOR`}
         </span>
       </h2>
 
@@ -579,7 +589,7 @@ export default function Lexor() {
         erroStatus={erroStatus}
         aoMudarAutor={mudarAutorConsolidada}
         aoExcluir={excluirConsolidada}
-        vazio="Marque uma proposta como “Desconsiderar” na coluna LEXOR para movê-la para cá."
+        vazio={filtroAtivo ? SEM_RESULTADO : "Marque uma proposta como “Desconsiderar” na coluna LEXOR para movê-la para cá."}
       />
 
       {listaDesconsideradas.length > PAGE_SIZE && (
