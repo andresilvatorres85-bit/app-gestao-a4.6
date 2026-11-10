@@ -12,7 +12,8 @@
 create table if not exists public.lexor_consolidadas (
   nr text primary key,                       -- '20279000', '20279001', …
   acao text not null,                        -- ação orçamentária comum às propostas
-  propostas jsonb not null,                  -- ["20270032","20270044"]
+  propostas jsonb not null,                  -- ["20270032","20270044|NOME DO PARLAMENTAR"]
+                                             -- (nr|PARLAMENTAR quando a proposta tem mais de um autor)
   parlamentar text,                          -- autor único da consolidadora
   partido text,
   criado_por text,

@@ -14,7 +14,7 @@ import {
   STATUS_LEXOR_PADRAO, STATUS_DESCONSIDERAR, STATUS_EXPORTADO, chaveStatus, statusDaLinha,
 } from "../lexorUtils.js";
 import {
-  podeJuntar, proximoNumero, montarConsolidada, autorSugerido,
+  podeJuntar, proximoNumero, montarConsolidada, autorSugerido, chaveLinha,
 } from "../lexorConsolidar.js";
 import { exportarWord } from "../lexorExport.js";
 import { exportarTabelaLexorPdf } from "../lexorPdf.js";
@@ -163,12 +163,9 @@ export default function Lexor() {
     return () => { vivo = false; };
   }, []);
 
-  const indicePropostas = useMemo(
-    () => new Map(PROPOSTAS_LEXOR.map(p => [p.nr, p])), []);
-
   const todasConsolidadas = useMemo(
-    () => consolidadas.map(c => montarConsolidada(c, indicePropostas)).filter(Boolean),
-    [consolidadas, indicePropostas]);
+    () => consolidadas.map(c => montarConsolidada(c)).filter(Boolean),
+    [consolidadas]);
 
   const listaConsolidadas = useMemo(
     () => todasConsolidadas.filter(p => !desconsiderada(p) && !exportada(p) && passaFiltro(p)),
@@ -209,7 +206,9 @@ export default function Lexor() {
     const registro = {
       nr,
       acao: escolhidas[0].acao,
-      propostas: escolhidas.map(p => p.nr),
+      // guarda a linha (autor) escolhida, para o espelho usar o Valor
+      // Negociado daquele parlamentar
+      propostas: escolhidas.map(chaveLinha),
       parlamentar, partido,
       criado_por: sessao?.user?.email || null,
     };
