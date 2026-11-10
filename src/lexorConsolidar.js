@@ -1,5 +1,30 @@
 import { PROPOSTAS_LEXOR } from "./data/lexor.js";
-import { valoresGND, valorTotal } from "./lexorUtils.js";
+import { valoresGND, valorTotal, chaveStatus } from "./lexorUtils.js";
+
+// A mesma proposta pode aparecer em várias linhas, uma por parlamentar, cada
+// uma com o seu Valor Negociado. A consolidadora guarda a linha escolhida
+// (chaveLinha: "nr" ou "nr|PARLAMENTAR"); registros antigos guardam só o nr.
+export const chaveLinha = chaveStatus;
+const norm = (s) => String(s || "").trim().toUpperCase();
+const PORNR = new Map();
+for (const p of PROPOSTAS_LEXOR) {
+  if (!PORNR.has(p.nr)) PORNR.set(p.nr, []);
+  PORNR.get(p.nr).push(p);
+}
+const temNegociado = (p) => !!((p.gnd3n || 0) || (p.gnd4n || 0) || (p.totaln || 0));
+
+// Linha da proposta para uma entrada da consolidadora: a do parlamentar
+// gravado; senão (registro antigo, só nr), a do autor da consolidadora; senão
+// a que tem Valor Negociado; senão a primeira.
+function linhaDaEntrada(entrada, autorConsolidada) {
+  const [nr, parlamentar] = String(entrada).split("|");
+  const linhas = PORNR.get(nr.split("#")[0]) || [];
+  if (linhas.length <= 1) return linhas[0] || null;
+  return (parlamentar && linhas.find(p => norm(p.parlamentar) === norm(parlamentar)))
+    || (autorConsolidada && linhas.find(p => norm(p.parlamentar) === norm(autorConsolidada)))
+    || linhas.find(temNegociado)
+    || linhas[0];
+}
 
 // Propostas consolidadoras: reúnem várias propostas da mesma ação orçamentária
 // num único espelho. Recebem numeração própria a partir de 20279000, para não
@@ -50,9 +75,10 @@ function unicos(itens) {
 
 // Transforma o registro salvo no Supabase numa proposta completa, pronta para
 // alimentar a tabela, o espelho e as funções de situação/pendência.
-export function montarConsolidada(registro, indice = null) {
-  const mapa = indice || new Map(PROPOSTAS_LEXOR.map(p => [p.nr, p]));
-  const itens = (registro.propostas || []).map(nr => mapa.get(nr)).filter(Boolean);
+export function montarConsolidada(registro) {
+  const itens = (registro.propostas || [])
+    .map(entrada => linhaDaEntrada(entrada, registro.parlamentar))
+    .filter(Boolean);
   if (itens.length === 0) return null;
 
   const base = itens[0];
@@ -74,7 +100,7 @@ export function montarConsolidada(registro, indice = null) {
     uid: registro.nr, // consolidadoras têm nr único → uid = nr
     consolidada: true,
     itens,
-    origem: registro.propostas,
+    origem: itens.map(p => p.nr),
     tipo: base.tipo,
     proponente: base.proponente,
     acao: base.acao,
