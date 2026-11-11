@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+
 export function Badge({ children, tone = "neutral" }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
@@ -22,5 +24,17 @@ export function Field({ label, required, children, hint }) {
       {children}
       {hint && <span className="field-hint">{hint}</span>}
     </label>
+  );
+}
+
+// Fundo das janelas (modais) de edição. Vai direto para o <body>: dentro do
+// conteúdo do app ele ficaria abaixo do cabeçalho fixo (o conteúdo forma uma
+// camada própria), e no celular o cabeçalho alto cobria o topo da janela.
+export function ModalFundo({ onFechar, children }) {
+  return createPortal(
+    <div className="modal-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+      {children}
+    </div>,
+    document.body,
   );
 }

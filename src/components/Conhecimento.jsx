@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { ExternalLink, Plus, Pencil, Trash2, X, Save } from "lucide-react";
+import { ModalFundo } from "./UI.jsx";
 import { useLegislacao } from "./useLegislacao.js";
 import { useRecebimento } from "./useRecebimento.js";
 import { useContatos } from "./useContatos.js";
@@ -156,7 +157,7 @@ function ModalLegislacao({ estado, secoes, onFechar, onSalvar }) {
   }
 
   return (
-    <div className="modal-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+    <ModalFundo onFechar={onFechar}>
       <form className="modal-caixa" onSubmit={salvar}>
         <div className="modal-cab">
           <h2>{estado.id ? "Editar legislação" : "Nova legislação"}</h2>
@@ -196,6 +197,6 @@ function ModalLegislacao({ estado, secoes, onFechar, onSalvar }) {
           </div>
         </div>
       </form>
-    </div>
+    </ModalFundo>
   );
 }

@@ -3,7 +3,7 @@ import {
   Search, Plus, Pencil, Trash2, X, ExternalLink, RefreshCw, Save, ClipboardList, FileDown,
 } from "lucide-react";
 import { exportarInfografico } from "../proposicaoInfografico.js";
-import { StatCard } from "./UI.jsx";
+import { StatCard, ModalFundo } from "./UI.jsx";
 import { Field } from "./UI.jsx";
 import {
   STATUS, STATUS_ORDEM, statusInfo, TIPOS, CASAS, rotuloCasa,
@@ -264,7 +264,7 @@ function ModalProposicao({ registro, onFechar, inserir, atualizar }) {
   }
 
   return (
-    <div className="modal-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+    <ModalFundo onFechar={onFechar}>
       <form className="modal-caixa" onSubmit={salvar}>
         <div className="modal-cab">
           <h2>{editando ? `Editar proposição ${registro.proposicao}` : "Nova proposição"}</h2>
@@ -342,6 +342,6 @@ function ModalProposicao({ registro, onFechar, inserir, atualizar }) {
           </button>
         </div>
       </form>
-    </div>
+    </ModalFundo>
   );
 }

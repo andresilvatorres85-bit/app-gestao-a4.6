@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Plus, Pencil, Trash2, X, Save, Search, Phone, Mail } from "lucide-react";
+import { ModalFundo } from "./UI.jsx";
 import { UFS } from "../constants.js";
 
 // Grupos de contatos (ordem de exibição).
@@ -217,7 +218,7 @@ function ModalContato({ estado, onFechar, onSalvar }) {
   }
 
   return (
-    <div className="modal-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+    <ModalFundo onFechar={onFechar}>
       <form className="modal-caixa" onSubmit={salvar}>
         <div className="modal-cab">
           <h2>{estado.id ? "Editar contato" : "Novo contato"}</h2>
@@ -246,7 +247,7 @@ function ModalContato({ estado, onFechar, onSalvar }) {
           </div>
         </div>
       </form>
-    </div>
+    </ModalFundo>
   );
 }
 
