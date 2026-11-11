@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import {
   ChevronLeft, ChevronRight, Plus, X, Trash2, Save, Clock, MapPin, AlignLeft, Repeat, Pencil, Check, ChevronDown, GripVertical,
 } from "lucide-react";
+import { ModalFundo } from "./UI.jsx";
 import ChecklistCard from "./ChecklistCard.jsx";
 import { useAcesso } from "../acessos.js";
 
@@ -568,7 +569,7 @@ function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar,
   }
 
   return (
-    <div className="modal-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+    <ModalFundo onFechar={onFechar}>
       <form className="modal-caixa cal-modal" onSubmit={salvar}>
         <div className="modal-cab">
           <h2>{estado.id ? "Editar evento" : "Novo evento"}</h2>
@@ -650,6 +651,6 @@ function ModalEvento({ estado, calendarios, estilo, nomeCal, onFechar, onSalvar,
           </div>
         </div>
       </form>
-    </div>
+    </ModalFundo>
   );
 }

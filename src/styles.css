@@ -926,6 +926,22 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
   width: min(900px, 100%); max-height: 92vh; display: flex; flex-direction: column;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
 }
+/* O fundo vai para o <body> (ModalFundo): herda a fonte e a cor do app. */
+.modal-fundo { font-family: var(--font-body); color: var(--ink); }
+@media (max-width: 640px) {
+  /* No celular a janela ocupa a tela toda, abaixo da barra de status, e
+     rola por dentro; cabeçalho e botões ficam sempre visíveis. */
+  .modal-fundo {
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    align-items: stretch;
+  }
+  .modal-caixa {
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    border-radius: 12px;
+  }
+  .modal-cab, .modal-rodape { padding: 12px 14px; }
+  .modal-corpo { padding: 14px; }
+}
 .modal-cab, .modal-rodape {
   display: flex; align-items: center; gap: 10px; padding: 14px 18px; flex: 0 0 auto;
 }
@@ -1073,6 +1089,10 @@ select.input option { background: var(--surface-solid); color: var(--ink); }
 
 @media (max-width: 860px) {
   .cal-corpo { flex-direction: column; }
+  /* Em coluna, a grade ocupa a largura da tela e rola por dentro se
+     precisar — antes ela alargava a página inteira no celular (e as
+     janelas de lançamento ficavam cortadas à direita). */
+  .cal-principal { width: 100%; align-self: stretch; overflow-x: auto; }
   .cal-lateral { flex: none; width: 100%; }
   .cal-cals { flex: none; width: 100%; }
   .cal-cals-lista { flex-flow: row wrap; }
