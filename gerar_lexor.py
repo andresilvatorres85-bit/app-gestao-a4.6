@@ -48,6 +48,19 @@ PROSPEC_URL = os.environ.get(
 LOCAL_PROSPEC = os.environ.get(
     "PROSPEC_XLSX", str(RAIZ / "Prospecção de Propostas de Emendas.xlsx"))
 
+# Memória da Prospecção: o último Parlamentar/Partido/Valor Negociado conhecido
+# de cada proposta. A planilha pode passar a trazer só as propostas ainda em
+# negociação; as que saírem dela (ex.: já exportadas) mantêm a última
+# informação em vez de virar "Não prospectada". A memória é publicada com o
+# site (prospeccao_memoria.json) e relida na atualização seguinte; a cópia do
+# repositório (MEMORIA_BASE) é a reserva, montada com o histórico da planilha.
+MEMORIA_BASE = RAIZ / "prospeccao_memoria.json"
+MEMORIA_SAIDA = RAIZ / "public" / "prospeccao_memoria.json"
+MEMORIA_URL = os.environ.get(
+    "PROSPEC_MEMORIA_URL",
+    "https://andresilvatorres85-bit.github.io/app-gestao-a4.6/prospeccao_memoria.json",
+)
+
 
 def obter_planilha():
     """Devolve o caminho do xlsx a processar.
@@ -82,13 +95,12 @@ def obter_prospeccao():
     return tmp
 
 
-def carregar_prospeccao():
-    """Lê a Prospecção e devolve { nr: [ {parlamentar, partido, gnd3n, gnd4n,
-    totaln}, ... ] }. Uma entrada por linha da planilha — a mesma proposta pode
-    ter várias, uma por parlamentar prospectado. Colunas (1-based): Nr Proposta
-    (2), Parlamentar (16), Partido (17), Valor Negociado GND 3 (19), GND 4 (20),
-    Total (21)."""
-    origem = obter_prospeccao()
+def ler_prospeccao(origem):
+    """Lê uma planilha de Prospecção e devolve { nr: [ {parlamentar, partido,
+    gnd3n, gnd4n, totaln}, ... ] }. Uma entrada por linha da planilha — a mesma
+    proposta pode ter várias, uma por parlamentar prospectado. Colunas
+    (1-based): Nr Proposta (2), Parlamentar (16), Partido (17), Valor Negociado
+    GND 3 (19), GND 4 (20), Total (21)."""
     wb = openpyxl.load_workbook(origem, data_only=True, read_only=True)
     ws = wb["Sheet1"] if "Sheet1" in wb.sheetnames else wb[wb.sheetnames[0]]
     por_nr = {}
@@ -105,6 +117,57 @@ def carregar_prospeccao():
         }
         por_nr.setdefault(nr, []).append(entrada)
     wb.close()
+    return por_nr
+
+
+def _ler_memoria_json(texto):
+    dados = json.loads(texto)
+    return dados.get("propostas", {}) if isinstance(dados, dict) else {}
+
+
+def carregar_memoria():
+    """Memória publicada (a mais recente) combinada com a do repositório."""
+    memoria = {}
+    if MEMORIA_BASE.is_file():
+        memoria = _ler_memoria_json(MEMORIA_BASE.read_text(encoding="utf-8"))
+    try:
+        req = urllib.request.Request(MEMORIA_URL, headers={"User-Agent": "gerar_lexor"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            publicada = _ler_memoria_json(r.read().decode("utf-8"))
+        for nr, item in publicada.items():
+            if item.get("visto", "") >= memoria.get(nr, {}).get("visto", ""):
+                memoria[nr] = item
+        print(f"Memória da Prospecção publicada: {len(publicada)} propostas")
+    except Exception as e:  # sem rede/sem arquivo publicado: fica a do repositório
+        print(f"  AVISO: memória publicada indisponível ({e}); usando só a do repositório")
+    return memoria
+
+
+def mesclar_memoria(memoria, atual, data):
+    """Atualiza a memória com a planilha atual: proposta presente na planilha
+    vale como está nela; ausente, mantém o que a memória tinha."""
+    for nr, entradas in atual.items():
+        memoria[nr] = {"visto": data, "entradas": entradas}
+    return memoria
+
+
+def carregar_prospeccao():
+    """Prospecção atual + memória: { nr: [entradas] }. As entradas vindas só
+    da memória levam "memoria": data em que a proposta foi vista na planilha."""
+    atual = ler_prospeccao(obter_prospeccao())
+    hoje = __import__("datetime").date.today().isoformat()
+    memoria = mesclar_memoria(carregar_memoria(), atual, hoje)
+    MEMORIA_SAIDA.parent.mkdir(parents=True, exist_ok=True)
+    MEMORIA_SAIDA.write_text(json.dumps({"atualizadoEm": hoje, "propostas": memoria},
+                                        ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    por_nr = {}
+    for nr, item in memoria.items():
+        if nr in atual:
+            por_nr[nr] = atual[nr]
+        else:
+            por_nr[nr] = [dict(e, memoria=item.get("visto", "")) for e in item.get("entradas", [])]
+    n_mem = sum(1 for nr in por_nr if nr not in atual)
+    print(f"Prospecção: {len(atual)} propostas na planilha + {n_mem} mantidas da memória")
     return por_nr
 
 # Siglas que devem continuar em caixa alta ao converter texto de CAIXA ALTA
@@ -371,6 +434,9 @@ def main():
             rec["gnd3n"] = extra.get("gnd3n", 0)
             rec["gnd4n"] = extra.get("gnd4n", 0)
             rec["totaln"] = extra.get("totaln", 0)
+            # Data em que a proposta foi vista pela última vez na Prospecção,
+            # quando os dados vêm da memória (ela saiu da planilha).
+            rec["prospMemoria"] = extra.get("memoria", "") if rec["parlamentar"] else ""
             # id único: nr quando não duplica; nr#k quando a mesma proposta se
             # repete para vários parlamentares (necessário na seleção/espelho).
             uid = nr if n == 1 else f"{nr}#{k + 1}"

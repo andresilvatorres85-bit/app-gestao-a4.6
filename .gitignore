@@ -8,3 +8,4 @@ Controle_LEXOR.xlsx
 .DS_Store
 *.log
 __pycache__/
+public/prospeccao_memoria.json
