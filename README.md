@@ -160,6 +160,17 @@ partir da planilha. Para carregar uma nova safra:
 O script imprime um resumo de consistência (propostas sem ação cadastrada, UO
 divergente, sem valor, sem autor) que serve de checagem antes da exportação.
 
+### Memória da Prospecção
+
+Parlamentar, Partido e Valores Negociados vêm da planilha "Prospecção de
+Propostas de Emendas.xlsx". Ela pode trazer só as propostas ainda em
+negociação: as que saírem dela (por exemplo, já exportadas) mantêm a última
+informação conhecida, guardada em `prospeccao_memoria.json` (publicada junto
+com o site e relida a cada atualização; a cópia do repositório é a reserva,
+montada com o histórico da planilha). Uma proposta presente na planilha usa
+sempre o que está nela. Na tabela, essas propostas aparecem com "*" na
+Situação; passando o mouse, aparece a data da versão de onde vieram os dados.
+
 ## Relatório diário de Conjuntura (CONHECIMENTO › Conjuntura)
 
 De segunda a sexta, às 8h (horário de Brasília), o workflow **Relatório de
