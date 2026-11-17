@@ -163,13 +163,16 @@ divergente, sem valor, sem autor) que serve de checagem antes da exportação.
 ### Memória da Prospecção
 
 Parlamentar, Partido e Valores Negociados vêm da planilha "Prospecção de
-Propostas de Emendas.xlsx". Ela pode trazer só as propostas ainda em
-negociação: as que saírem dela (por exemplo, já exportadas) mantêm a última
-informação conhecida, guardada em `prospeccao_memoria.json` (publicada junto
-com o site e relida a cada atualização; a cópia do repositório é a reserva,
-montada com o histórico da planilha). Uma proposta presente na planilha usa
-sempre o que está nela. Na tabela, essas propostas aparecem com "*" na
-Situação; passando o mouse, aparece a data da versão de onde vieram os dados.
+Propostas de Emendas.xlsx". O LEXOR mostra só as prospecções que estão na
+planilha atual: linha apagada da planilha (proposta inteira ou só um
+parlamentar dela) deixa de aparecer — **exceto** se já estiver com o status
+"Exportado". Para essas, parlamentar e valores continuam a ser os da última
+versão em que a linha estava na planilha, guardados em
+`prospeccao_memoria.json` (publicada junto com o site e relida a cada
+atualização; a cópia do repositório é a reserva, montada com o histórico da
+planilha). Na tabela, elas aparecem com "*" na Situação; passando o mouse,
+aparece a data da versão de onde vieram os dados. Proposta que saiu inteira
+da planilha e não tem linha exportada volta a aparecer sem prospecção.
 
 ## Relatório diário de Conjuntura (CONHECIMENTO › Conjuntura)
 

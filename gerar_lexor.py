@@ -143,31 +143,74 @@ def carregar_memoria():
     return memoria
 
 
+def _parl(e):
+    return str(e.get("parlamentar", "")).strip().upper()
+
+
 def mesclar_memoria(memoria, atual, data):
-    """Atualiza a memória com a planilha atual: proposta presente na planilha
-    vale como está nela; ausente, mantém o que a memória tinha."""
+    """Atualiza a memória com a planilha atual. Proposta presente na planilha
+    vale como está nela; os parlamentares que saíram da planilha ficam em
+    "antigas" (com a data em que foram vistos), para que as linhas já
+    exportadas continuem com parlamentar e valores. Proposta ausente da
+    planilha mantém o que a memória tinha."""
     for nr, entradas in atual.items():
-        memoria[nr] = {"visto": data, "entradas": entradas}
+        anterior = memoria.get(nr, {})
+        vistas = [dict(e, visto=e.get("visto") or anterior.get("visto", ""))
+                  for e in anterior.get("entradas", [])] + list(anterior.get("antigas", []))
+        presentes = {_parl(e) for e in entradas}
+        antigas = {}
+        for e in vistas:
+            p = _parl(e)
+            if p and p not in presentes and e.get("visto", "") >= antigas.get(p, {}).get("visto", ""):
+                antigas[p] = e
+        item = {"visto": data, "entradas": entradas}
+        if antigas:
+            item["antigas"] = list(antigas.values())
+        memoria[nr] = item
     return memoria
 
 
+def _entradas_memoria(item):
+    """Todas as entradas guardadas de uma proposta, cada uma com a data em
+    que foi vista na planilha."""
+    vistas = [dict(e, visto=e.get("visto") or item.get("visto", ""))
+              for e in item.get("entradas", [])] + list(item.get("antigas", []))
+    unicas = {}
+    for e in vistas:
+        p = _parl(e)
+        if p and e.get("visto", "") >= unicas.get(p, {}).get("visto", ""):
+            unicas[p] = e
+    return list(unicas.values())
+
+
 def carregar_prospeccao():
-    """Prospecção atual + memória: { nr: [entradas] }. As entradas vindas só
-    da memória levam "memoria": data em que a proposta foi vista na planilha."""
+    """{ nr: [entradas] } com as linhas da planilha atual e, separadas, as
+    linhas guardadas na memória ("memoria": data em que foram vistas). O
+    aplicativo só mostra as linhas da memória cujo status no LEXOR seja
+    "Exportado"; para número que saiu inteiro da planilha, vai ainda uma
+    linha sem prospecção ("base": 1), mostrada quando nenhuma linha
+    exportada daquele número aparece."""
     atual = ler_prospeccao(obter_prospeccao())
     hoje = __import__("datetime").date.today().isoformat()
     memoria = mesclar_memoria(carregar_memoria(), atual, hoje)
     MEMORIA_SAIDA.parent.mkdir(parents=True, exist_ok=True)
     MEMORIA_SAIDA.write_text(json.dumps({"atualizadoEm": hoje, "propostas": memoria},
                                         ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    por_nr = {}
+    por_nr = {nr: list(entradas) for nr, entradas in atual.items()}
+    n_mem = 0
     for nr, item in memoria.items():
-        if nr in atual:
-            por_nr[nr] = atual[nr]
-        else:
-            por_nr[nr] = [dict(e, memoria=item.get("visto", "")) for e in item.get("entradas", [])]
-    n_mem = sum(1 for nr in por_nr if nr not in atual)
-    print(f"Prospecção: {len(atual)} propostas na planilha + {n_mem} mantidas da memória")
+        presentes = {_parl(e) for e in atual.get(nr, [])}
+        guardadas = [e for e in _entradas_memoria(item) if _parl(e) not in presentes]
+        if not guardadas:
+            continue
+        n_mem += len(guardadas)
+        linhas = por_nr.setdefault(nr, [] if nr in atual else [{"base": 1}])
+        for e in guardadas:
+            d = {k: v for k, v in e.items() if k != "visto"}
+            d["memoria"] = e.get("visto", "")
+            linhas.append(d)
+    print(f"Prospecção: {len(atual)} propostas na planilha + {n_mem} linhas guardadas na memória"
+          " (aparecem só se exportadas)")
     return por_nr
 
 # Siglas que devem continuar em caixa alta ao converter texto de CAIXA ALTA
@@ -437,6 +480,7 @@ def main():
             # Data em que a proposta foi vista pela última vez na Prospecção,
             # quando os dados vêm da memória (ela saiu da planilha).
             rec["prospMemoria"] = extra.get("memoria", "") if rec["parlamentar"] else ""
+            rec["baseMemoria"] = 1 if extra.get("base") else 0
             # id único: nr quando não duplica; nr#k quando a mesma proposta se
             # repete para vários parlamentares (necessário na seleção/espelho).
             uid = nr if n == 1 else f"{nr}#{k + 1}"
