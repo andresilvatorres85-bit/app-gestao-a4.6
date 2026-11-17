@@ -100,7 +100,7 @@ export default function TabelaPropostas({
                 </td>
                 <td>
                   <span title={probs.length ? probs.join(" · ")
-                    : p.prospMemoria ? `Não está mais na planilha de Prospecção: parlamentar e valores da versão de ${p.prospMemoria.split("-").reverse().join("/")}` : undefined}>
+                    : p.prospMemoria ? `Exportada; não está mais na planilha de Prospecção: parlamentar e valores da versão de ${p.prospMemoria.split("-").reverse().join("/")}` : undefined}>
                     <Badge tone={SITUACOES[sit].tone}>{SITUACOES[sit].rotulo}{p.prospMemoria ? " *" : ""}</Badge>
                   </span>
                 </td>

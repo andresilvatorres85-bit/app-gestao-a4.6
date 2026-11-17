@@ -150,6 +150,18 @@ export default function Lexor() {
   const exportada = useCallback(
     p => statusDaLinha(statusLexor, p) === STATUS_EXPORTADO, [statusLexor]);
 
+  // Só aparecem as prospecções que estão na planilha atual. As linhas que
+  // saíram dela (guardadas na memória, p.prospMemoria) continuam só quando já
+  // estão "Exportado". Número que saiu inteiro da planilha mostra a linha sem
+  // prospecção (p.baseMemoria), a menos que alguma linha dele esteja exportada.
+  const visiveis = useMemo(() => {
+    const comExportada = new Set();
+    for (const p of PROPOSTAS_LEXOR)
+      if (p.prospMemoria && exportada(p)) comExportada.add(p.nr);
+    return PROPOSTAS_LEXOR.filter(p =>
+      p.prospMemoria ? exportada(p) : p.baseMemoria ? !comExportada.has(p.nr) : true);
+  }, [exportada]);
+
   // ---------------------------------------------- propostas consolidadoras
   useEffect(() => {
     let vivo = true;
@@ -173,9 +185,9 @@ export default function Lexor() {
 
   // Card das exportadas: propostas da planilha e consolidadoras juntas.
   const listaExportadas = useMemo(() => [
-    ...PROPOSTAS_LEXOR.filter(p => exportada(p) && passaFiltro(p)),
+    ...visiveis.filter(p => exportada(p) && passaFiltro(p)),
     ...todasConsolidadas.filter(p => exportada(p) && passaFiltro(p)),
-  ], [todasConsolidadas, exportada, passaFiltro]);
+  ], [visiveis, todasConsolidadas, exportada, passaFiltro]);
 
   const totalPaginasExp = Math.max(1, Math.ceil(listaExportadas.length / PAGE_SIZE));
   const pageExp = listaExportadas.slice((paginaExp - 1) * PAGE_SIZE, paginaExp * PAGE_SIZE);
@@ -183,9 +195,9 @@ export default function Lexor() {
   // Card das desconsideradas: propostas da planilha e consolidadoras juntas,
   // na ordem em que aparecem na origem.
   const listaDesconsideradas = useMemo(() => [
-    ...PROPOSTAS_LEXOR.filter(p => desconsiderada(p) && passaFiltro(p)),
+    ...visiveis.filter(p => desconsiderada(p) && passaFiltro(p)),
     ...todasConsolidadas.filter(p => desconsiderada(p) && passaFiltro(p)),
-  ], [todasConsolidadas, desconsiderada, passaFiltro]);
+  ], [visiveis, todasConsolidadas, desconsiderada, passaFiltro]);
 
   const totalPaginasDesc = Math.max(1, Math.ceil(listaDesconsideradas.length / PAGE_SIZE));
   const pageDesc = listaDesconsideradas.slice((paginaDesc - 1) * PAGE_SIZE, paginaDesc * PAGE_SIZE);
@@ -196,7 +208,7 @@ export default function Lexor() {
 
   async function juntarSelecionadas() {
     setErroJuntar("");
-    const escolhidas = PROPOSTAS_LEXOR.filter(p => selecionadas.has(chaveDe(p)));
+    const escolhidas = visiveis.filter(p => selecionadas.has(chaveDe(p)));
     const veredito = podeJuntar(escolhidas);
     if (!veredito.ok) { setErroJuntar(veredito.erro); return; }
 
@@ -249,7 +261,7 @@ export default function Lexor() {
 
   const opcoes = useMemo(() => {
     const ufs = new Set(), acoes = new Set(), cmdos = new Set(), tipos = new Set();
-    for (const p of PROPOSTAS_LEXOR) {
+    for (const p of visiveis) {
       if (p.uf) ufs.add(p.uf);
       if (p.acao) acoes.add(p.acao);
       if (p.cmdo) cmdos.add(p.cmdo);
@@ -261,11 +273,11 @@ export default function Lexor() {
       cmdos: [...cmdos].sort(),
       tipos: [...tipos].sort(),
     };
-  }, []);
+  }, [visiveis]);
 
   const filtradas = useMemo(
-    () => PROPOSTAS_LEXOR.filter(p => !desconsiderada(p) && !exportada(p) && passaFiltro(p)),
-    [desconsiderada, exportada, passaFiltro]);
+    () => visiveis.filter(p => !desconsiderada(p) && !exportada(p) && passaFiltro(p)),
+    [visiveis, desconsiderada, exportada, passaFiltro]);
 
   useEffect(() => { setPagina(1); setPaginaDesc(1); setPaginaExp(1); }, [busca, uf, acao, cmdo, tipo, situacao, casa]);
   // Cards que encolhem quando uma proposta volta à origem: não ficar numa
@@ -360,7 +372,7 @@ export default function Lexor() {
         <div>
           <h1 className="page-title">Espelhos de emenda — LEXOR</h1>
           <p className="page-sub">
-            {PROPOSTAS_LEXOR.length.toLocaleString("pt-BR")} propostas do Controle_LEXOR.
+            {visiveis.length.toLocaleString("pt-BR")} propostas do Controle_LEXOR.
             Selecione uma ou várias e gere os espelhos no formato oficial.
           </p>
         </div>
@@ -376,7 +388,7 @@ export default function Lexor() {
 
       <div className="stat-grid stat-grid-3">
         <StatCard label="Propostas no filtro" value={filtradas.length.toLocaleString("pt-BR")}
-          sub={`de ${PROPOSTAS_LEXOR.length.toLocaleString("pt-BR")} no total`} icon={ClipboardList} />
+          sub={`de ${visiveis.length.toLocaleString("pt-BR")} no total`} icon={ClipboardList} />
         <StatCard label="Valor somado" value={`R$ ${moeda(somaFiltrada)}`}
           sub="GND 3 + GND 4" icon={Wallet} />
         <StatCard label="Prospectadas" value={prospectadas.toLocaleString("pt-BR")}
