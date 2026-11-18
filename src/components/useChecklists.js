@@ -10,6 +10,7 @@ function mapItem(r) {
     lista: r.lista || "pendencias",
     texto: r.texto || "",
     feito: !!r.feito,
+    feitoEm: r.feito_em || null,   // preenchido pelo banco ao concluir
     pos: r.pos ?? 0,
     criadoPor: r.criado_por || "",
   };
@@ -63,7 +64,8 @@ export function useChecklists(session) {
   }, [recarregar]);
 
   const alternar = useCallback(async (id, feito) => {
-    setItens((prev) => ordenar(prev.map((i) => (i.id === id ? { ...i, feito } : i))));
+    setItens((prev) => ordenar(prev.map((i) => (i.id === id
+      ? { ...i, feito, feitoEm: feito ? new Date().toISOString() : null } : i))));
     const res = await supabase.from("checklist_itens").update({ feito }).eq("id", id);
     if (!res.error) recarregar();
     return res;

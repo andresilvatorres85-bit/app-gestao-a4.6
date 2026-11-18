@@ -28,6 +28,27 @@ drop policy if exists "checklist_delete_autenticados" on public.checklist_itens;
 create policy "checklist_delete_autenticados"
   on public.checklist_itens for delete to authenticated using (true);
 
+-- Data de conclusão: o app mostra os itens concluídos só nos últimos 10 dias.
+-- Preenchida pelo próprio banco ao marcar/desmarcar "feito". Itens que já
+-- estavam concluídos recebem a data de hoje (ficam visíveis por mais 10 dias).
+alter table public.checklist_itens add column if not exists feito_em timestamptz;
+update public.checklist_itens set feito_em = now() where feito and feito_em is null;
+
+create or replace function public.checklist_marca_feito_em() returns trigger
+language plpgsql as $$
+begin
+  if new.feito and (tg_op = 'INSERT' or not old.feito) then
+    new.feito_em := now();
+  elsif not new.feito then
+    new.feito_em := null;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists checklist_feito_em on public.checklist_itens;
+create trigger checklist_feito_em before insert or update of feito on public.checklist_itens
+  for each row execute function public.checklist_marca_feito_em();
+
 -- realtime (o app escuta mudanças em tempo real).
 -- Em bloco DO para não falhar se a tabela já estiver na publicação.
 do $$ begin

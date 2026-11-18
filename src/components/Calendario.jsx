@@ -101,13 +101,23 @@ function expandir(eventos, rIni, rFim) {
 }
 
 // =========================================================================
+// Itens concluídos ficam nos cards PENDÊNCIAS e ASSUNTOS BRIEFING só por 10
+// dias a partir da conclusão (feito_em); depois saem da tela (não são apagados).
+const DIAS_CONCLUIDOS = 10;
+function visivelNoCard(i) {
+  if (!i.feito || !i.feitoEm) return true;
+  return Date.now() - new Date(i.feitoEm).getTime() <= DIAS_CONCLUIDOS * 86400000;
+}
+
 export default function Calendario({
   eventos = [], calendarios = [], inserir, atualizar, excluir,
   excluirOcorrencia, atualizarOcorrencia,
   criarAgenda, renomearAgenda, excluirAgenda, reordenarAgendas,
-  checklists = {}, carregado, erro, vistaInicial = "semana",
+  checklists = {}, carregado, erro, vistaInicial,
 }) {
-  const [vista, setVista] = useState(vistaInicial);
+  // No celular abre na vista "Dia", no dia corrente; no computador, "Semana".
+  const [vista, setVista] = useState(() => vistaInicial ||
+    (typeof window !== "undefined" && window.matchMedia?.("(max-width: 860px)").matches ? "dia" : "semana"));
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
   const [modal, setModal] = useState(null);
   const [ocultos, setOcultos] = useState(() => {
@@ -227,12 +237,12 @@ export default function Calendario({
             onReordenar={reordenarAgendas} />}
 
           {pode("calendario.pendencias") && <ChecklistCard titulo="PENDÊNCIAS" lista="pendencias" tom="vermelho"
-            itens={(checklists.itens || []).filter((i) => i.lista === "pendencias")}
+            itens={(checklists.itens || []).filter((i) => i.lista === "pendencias" && visivelNoCard(i))}
             adicionar={checklists.adicionar} alternar={checklists.alternar}
             editar={checklists.editar} remover={checklists.remover} />}
 
           {pode("calendario.briefing") && <ChecklistCard titulo="ASSUNTOS BRIEFING" lista="briefing" tom="azul"
-            itens={(checklists.itens || []).filter((i) => i.lista === "briefing")}
+            itens={(checklists.itens || []).filter((i) => i.lista === "briefing" && visivelNoCard(i))}
             adicionar={checklists.adicionar} alternar={checklists.alternar}
             editar={checklists.editar} remover={checklists.remover} />}
         </div>
