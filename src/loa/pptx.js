@@ -374,7 +374,7 @@ const FMT_INT = '#,##0'
 function graficoBarras({
   cats, series, empilhado, proporcao, cores, legenda,
   vertical = false, formato = FMT_MI, tendencia = false,
-  rotulos = true, apagarAbaixo = 0,
+  rotulos = true, apagarAbaixo = 0, szRotulo = 1000,
 }) {
   // Robustez do pacote: nunca emitir um gráfico corrompido. Três defeitos de
   // dado quebravam o .pptx com "documento precisa de reparo" no PowerPoint:
@@ -430,7 +430,7 @@ function graficoBarras({
   const dLbls = (apagados = '', cor = TINTA_2, liga = rotulos) =>
     '<c:dLbls>' + apagados +
     `<c:numFmt formatCode="${formato}" sourceLinked="0"/>` + SEM_PINTURA +
-    txPr(1000, cor, true) + `<c:dLblPos val="${posRotulo}"/>` +
+    txPr(szRotulo, cor, true) + `<c:dLblPos val="${posRotulo}"/>` +
     `<c:showLegendKey val="0"/><c:showVal val="${liga ? 1 : 0}"/><c:showCatName val="0"/>` +
     '<c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>'
 
@@ -438,9 +438,9 @@ function graficoBarras({
   // percentuais da tela entram no slide. Texto fixo (rich text), na mesma
   // fonte/cor do rótulo comum.
   const rotuloTexto = (j, texto, cor) =>
-    `<c:dLbl><c:idx val="${j}"/><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1000" b="1">` +
+    `<c:dLbl><c:idx val="${j}"/><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${szRotulo}" b="1">` +
     `<a:solidFill><a:srgbClr val="${cor}"/></a:solidFill></a:defRPr></a:pPr>` +
-    `<a:r><a:rPr lang="pt-BR" sz="1000" b="1"><a:solidFill><a:srgbClr val="${cor}"/></a:solidFill></a:rPr>` +
+    `<a:r><a:rPr lang="pt-BR" sz="${szRotulo}" b="1"><a:solidFill><a:srgbClr val="${cor}"/></a:solidFill></a:rPr>` +
     `<a:t>${esc(texto)}</a:t></a:r></a:p></c:rich></c:tx>` + SEM_PINTURA +
     `<c:dLblPos val="${posRotulo}"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/>` +
     '<c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbl>'
@@ -622,10 +622,15 @@ function graficoLinhas({ cats, series, formato = FMT_BI, legenda = true, yMin, y
 // (a:tbl), não imagem: o texto continua editável e a tabela é redimensionável.
 // Sem `tableStyleId` — o pacote não carrega a peça de estilos de tabela, então
 // cada célula leva o próprio preenchimento.
+// `texto` pode ser uma lista de trechos ({ t, cor, b, sz }) para misturar
+// cores na mesma célula (valor + variação colorida, como na tela).
 function celula(texto, o = {}) {
+  const base = { sz: o.sz || 1100, b: o.b, cor: o.cor || TINTA_2 }
   const p = paragrafo({
     algn: o.algn || 'r',
-    runs: [{ t: texto, sz: o.sz || 1100, b: o.b, cor: o.cor || TINTA_2 }],
+    runs: Array.isArray(texto)
+      ? texto.map((r) => ({ ...base, ...Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined)) }))
+      : [{ t: texto, ...base }],
   })
   const fundo = o.fundo
     ? `<a:solidFill><a:srgbClr val="${o.fundo}"/></a:solidFill>`
@@ -659,7 +664,7 @@ function tabela(o) {
         `<a:tr h="${cm(0.78)}">` +
         linha
           .map((c, i) =>
-            celula(typeof c === 'object' ? c.t : c, {
+            celula(typeof c === 'object' ? (c.runs || c.t) : c, {
               algn: i === 0 ? 'l' : 'r',
               b: i === 0 || (typeof c === 'object' && c.b),
               sz,
@@ -998,9 +1003,18 @@ function umSlideGrafico(d, o) {
       id: 4, nome: 'Total', x: 19.6, y: 1.8, w: 11.2, h: 1.6, ancora: 'ctr',
       paragrafos: [{ algn: 'r', runs: [{ t: o.total || '', sz: 2000, b: true, cor: TINTA }] }],
     }),
-    o.tabela
-      ? tabela({ ...o.tabela, id: 5, nome: o.titulo, x: 1.4, y: 3.5, w: 31, h: 13.5 })
-      : quadroGrafico({ id: 5, nome: o.titulo, x: 1.4, y: 3.5, w: 31, h: 13.5, rel: 'rId2' }),
+    // Painel com gráfico E tabela (ex.: ciclo de aprovação): gráfico em cima,
+    // tabela embaixo, dividindo a mesma área.
+    o.tabela && o.grafico
+      ? (() => {
+          const hTab = 0.85 + 0.78 * o.tabela.linhas.length
+          const hGraf = 13.5 - hTab - 0.3
+          return quadroGrafico({ id: 5, nome: o.titulo, x: 1.4, y: 3.5, w: 31, h: hGraf, rel: 'rId2' }) +
+            tabela({ ...o.tabela, id: 7, nome: `${o.titulo} — tabela`, x: 1.4, y: 3.5 + hGraf + 0.3, w: 31, h: hTab })
+        })()
+      : o.tabela
+        ? tabela({ ...o.tabela, id: 5, nome: o.titulo, x: 1.4, y: 3.5, w: 31, h: 13.5 })
+        : quadroGrafico({ id: 5, nome: o.titulo, x: 1.4, y: 3.5, w: 31, h: 13.5, rel: 'rId2' }),
     forma({
       id: 6, nome: 'Rodapé', x: 1.6, y: 17.2, w: 30.6, h: 1.1,
       paragrafos: [{ runs: [{ t: `${o.recorte ?? d.recorte} · extraído em ${d.geradoEm}`, sz: 900, cor: FRACA }] }],
@@ -1461,7 +1475,7 @@ function paineisPLOA(d) {
     {
       id: 'ploa-ciclo',
       titulo: 'Evolução no ciclo de aprovação',
-      sub: 'Valor de cada Força em cada fase: PL · Ciclo Setorial · Ciclo Geral · Ciclo Plenário · Autógrafo',
+      sub: 'Valor de cada Força em cada fase (R$ bilhões) e variação sobre a fase anterior',
       // Total das QUATRO Forças: este painel ignora o filtro de Órgão, e
       // carimbar aqui o total do recorte filtrado contradiria o próprio gráfico.
       // No início do rito a última fase (autógrafo) é 0, então o total soma o PL.
@@ -1474,8 +1488,40 @@ function paineisPLOA(d) {
         series: d.ciclos.map((a) => ({
           nome: a.rotulo, cor: COR_AGREGADO[a.id] || ACENTO, valores: a.fases.map(bi),
         })),
-        vertical: true, legenda: true, formato: FMT_BI, rotulos: false,
+        // Rótulo de valor em cada barra (R$ bilhões, dito no subtítulo): 20
+        // barras por slide, então o número vai sem "bi" e em fonte menor.
+        vertical: true, legenda: true, formato: '#,##0.00', szRotulo: 800,
       }),
+      // A tabela da tela: valor de cada Força em cada fase e a variação sobre a
+      // fase anterior.
+      tabela: {
+        cabecalho: ['Força', ...FASES_PPTX],
+        larguras: [31 - 4.9 * FASES_PPTX.length, ...FASES_PPTX.map(() => 4.9)],
+        // As Forças e, por último, o total de cada fase (o número que a tela
+        // mostra sobre cada grupo de colunas).
+        linhas: [...d.ciclos, (() => {
+          const fases = FASES_PPTX.map((_, i) => d.ciclos.reduce((t, a) => t + (a.fases[i] || 0), 0))
+          return {
+            rotulo: 'Total', total: true, fases,
+            variacoes: fases.map((v, i) => (i === 0 || !fases[i - 1] ? null : ((v - fases[i - 1]) / fases[i - 1]) * 100)),
+          }
+        })()].map((a) => [
+          a.total ? { t: a.rotulo, b: true } : a.rotulo,
+          ...a.fases.map((v, i) => {
+            const p = a.variacoes?.[i] ?? null
+            const vari = i === 0 ? { t: 'partida', cor: FRACA }
+              : p === null || !Number.isFinite(p) ? { t: '—', cor: FRACA }
+              : p === 0 ? { t: 'sem alteração', cor: FRACA }
+              : { t: `${p > 0 ? '▲' : '▼'} ${fmtPct(Math.abs(p))}`, cor: p > 0 ? '0A6B4A' : 'A83A2C' }
+            const vazio = semAut && i === a.fases.length - 1
+            return {
+              b: a.total,
+              runs: [{ t: vazio ? '—' : `${biRot(v)}  `, b: a.total || undefined },
+                ...(vazio ? [] : [{ ...vari, b: true, sz: 850 }])],
+            }
+          }),
+        ]),
+      },
       planilha: planilha(FASES_PPTX, d.ciclos.map((a) => ({
         nome: a.rotulo, valores: a.fases.map(bi),
       }))),
