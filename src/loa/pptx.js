@@ -427,17 +427,29 @@ function graficoBarras({
 
   // `apagados` são os <c:dLbl> individuais (idx + delete) e, pelo schema,
   // precisam vir ANTES das propriedades comuns dentro de <c:dLbls>.
-  const dLbls = (apagados = '', cor = TINTA_2) =>
+  const dLbls = (apagados = '', cor = TINTA_2, liga = rotulos) =>
     '<c:dLbls>' + apagados +
     `<c:numFmt formatCode="${formato}" sourceLinked="0"/>` + SEM_PINTURA +
     txPr(1000, cor, true) + `<c:dLblPos val="${posRotulo}"/>` +
-    `<c:showLegendKey val="0"/><c:showVal val="${rotulos ? 1 : 0}"/><c:showCatName val="0"/>` +
+    `<c:showLegendKey val="0"/><c:showVal val="${liga ? 1 : 0}"/><c:showCatName val="0"/>` +
     '<c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>'
+
+  // Rótulo com texto próprio num ponto (ex.: "1,23 bi (12,3%)"): é como os
+  // percentuais da tela entram no slide. Texto fixo (rich text), na mesma
+  // fonte/cor do rótulo comum.
+  const rotuloTexto = (j, texto, cor) =>
+    `<c:dLbl><c:idx val="${j}"/><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1000" b="1">` +
+    `<a:solidFill><a:srgbClr val="${cor}"/></a:solidFill></a:defRPr></a:pPr>` +
+    `<a:r><a:rPr lang="pt-BR" sz="1000" b="1"><a:solidFill><a:srgbClr val="${cor}"/></a:solidFill></a:rPr>` +
+    `<a:t>${esc(texto)}</a:t></a:r></a:p></c:rich></c:tx>` + SEM_PINTURA +
+    `<c:dLblPos val="${posRotulo}"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/>` +
+    '<c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbl>'
 
   const sers = series
     .map((s, i) => {
       const col = String.fromCharCode(66 + i) // B, C, …
       const pinta = cores ? pontos(cores) : ''
+      const corRotulo = empilha ? corDoRotulo(s.cor) : TINTA_2
       // Segmento zerado (ou pequeno demais para caber o texto) não ganha
       // rótulo: no empilhado o "0,0 mi" ficava solto ao lado da barra e
       // colidia com o rótulo do segmento vizinho.
@@ -445,9 +457,15 @@ function graficoBarras({
         .map((v, j) => {
           const parte = totalCat[j] ? v / totalCat[j] : 0
           const some = v <= 0 || (apagarAbaixo > 0 && parte < apagarAbaixo)
-          return some ? `<c:dLbl><c:idx val="${j}"/><c:delete val="1"/></c:dLbl>` : ''
+          if (some) return `<c:dLbl><c:idx val="${j}"/><c:delete val="1"/></c:dLbl>`
+          const texto = Array.isArray(s.textos) ? s.textos[j] : null
+          if (texto) return rotuloTexto(j, texto, corRotulo)
+          return rotulos ? '' : `<c:dLbl><c:idx val="${j}"/><c:delete val="1"/></c:dLbl>`
         })
         .join('')
+      // Com textos próprios, os rótulos ficam ligados na série e os pontos
+      // sem texto são apagados um a um quando o gráfico não rotula valores.
+      const ligaSerie = rotulos || Array.isArray(s.textos)
       const reta = tendencia
         ? '<c:trendline><c:spPr><a:ln w="22225" cap="rnd">' +
           `<a:solidFill><a:srgbClr val="${corSerie(s.cor, cores && cores[0])}"/></a:solidFill>` +
@@ -460,7 +478,7 @@ function graficoBarras({
         `<c:spPr><a:solidFill><a:srgbClr val="${corSerie(s.cor, cores && cores[0])}"/></a:solidFill>` +
         '<a:ln w="19050"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln></c:spPr>' +
         '<c:invertIfNegative val="0"/>' + pinta +
-        dLbls(apagados, empilha ? corDoRotulo(s.cor) : TINTA_2) + reta +
+        dLbls(apagados, corRotulo, ligaSerie) + reta +
         refCat(cats) + refVal(s.valores, col) + '</c:ser>'
       )
     })
@@ -944,7 +962,11 @@ function paginarPainel(o) {
     return blocosCats.map((fatiaCats, i) => {
       const ini = base
       base += fatiaCats.length
-      const fatiaSeries = series.map((s) => ({ ...s, valores: s.valores.slice(ini, ini + fatiaCats.length) }))
+      const fatiaSeries = series.map((s) => ({
+        ...s,
+        valores: s.valores.slice(ini, ini + fatiaCats.length),
+        ...(Array.isArray(s.textos) ? { textos: s.textos.slice(ini, ini + fatiaCats.length) } : {}),
+      }))
       const { grafico, planilha } = construir(fatiaCats, fatiaSeries)
       return {
         ...o,
@@ -1139,8 +1161,12 @@ function paineisHistorico(d) {
       titulo: 'Emendas impositivas por ano',
       sub: 'RP6 (individual) + RP7 (bancada)',
       total: fmtMilhoes(d.serieImpositivo.reduce((a, b) => a + b, 0)),
+      // Como o total sobre cada coluna da tela: "(45,6%)" das emendas do ano.
       grafico: graficoBarras({
-        cats: anos,
+        cats: anos.map((a, i) => {
+          const p = pctDe(d.serieImpositivo[i], d.serieValor[i])
+          return p ? `${a} (${p})` : String(a)
+        }),
         series: d.impositivasPorAno.map((s) => ({
           nome: s.rotulo, cor: corSolida(s.cor), valores: s.valores.map((v) => v / 1e6),
         })),
@@ -1297,6 +1323,26 @@ const fmtBiTxt = (v) =>
   `R$ ${bi(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bi`
 const fmtMiTxt = (v) =>
   `R$ ${(v / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} mi`
+
+// Percentuais da tela levados aos rótulos do gráfico (texto próprio por ponto).
+//   pctDe  — participação no total ("12,3%"), como o "(12,3%)" das barras;
+//   varTxt — variação de → para ("▲ +4,5%"), como a coluna de variação.
+const biRot = (v) =>
+  `${bi(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} bi`
+const pctDe = (v, total) => (total > 0 && v > 0 ? fmtPct(((v || 0) / total) * 100) : '')
+const varTxt = (de, para) => {
+  if (!de) return ''
+  const p = (((para || 0) - de) / de) * 100
+  return `${p >= 0 ? '▲' : '▼'} ${p >= 0 ? '+' : '−'}${fmtPct(Math.abs(p))}`
+}
+// "1,23 bi (12,3%) · ▲ +4,5%" — partes vazias são omitidas.
+const rotuloBi = (v, pct, vari) =>
+  [`${biRot(v)}${pct ? ` (${pct})` : ''}`, vari].filter(Boolean).join(' · ')
+// Participação de cada série no total da categoria (coluna do ano), em texto.
+const pctNaColuna = (series) => series.map((s) => ({
+  ...s,
+  textos: s.valores.map((v, j) => pctDe(v, series.reduce((t, x) => t + (x.valores[j] || 0), 0))),
+}))
 const AQUA = '1BAF7A'
 const LARANJA = 'EB6834'
 // Cores institucionais das Forças (espelham as CSS --forca-*): MD cinza,
@@ -1338,12 +1384,18 @@ function paineisPLOA(d) {
   // existe para mostrar. Em UO e Ação a barra pedida é o PL (o autógrafo entra
   // como segunda série); a ordem aqui deixa o PL como primeira série. No início
   // do rito o autógrafo some e resta só a série do PL.
-  const parPLAutografo = (itens) => semAut
-    ? [{ nome: 'PL', cor: AZUL, valores: itens.map((x) => bi(x.pl)) }]
-    : [
-        { nome: 'PL', cor: AZUL, valores: itens.map((x) => bi(x.pl)) },
-        { nome: 'Autógrafo', cor: LARANJA, valores: itens.map((x) => bi(x.valor ?? x.autografo)) },
-      ]
+  // Rótulos como na tela: participação do PL no total e, no autógrafo, a
+  // variação sobre o PL.
+  const parPLAutografo = (itens) => {
+    const totalPLItens = itens.reduce((t, x) => t + (x.pl || 0), 0)
+    const pl = { nome: 'PL', cor: AZUL, valores: itens.map((x) => bi(x.pl)),
+      textos: itens.map((x) => rotuloBi(x.pl, pctDe(x.pl, totalPLItens))) }
+    if (semAut) return [pl]
+    return [pl, {
+      nome: 'Autógrafo', cor: LARANJA, valores: itens.map((x) => bi(x.valor ?? x.autografo)),
+      textos: itens.map((x) => rotuloBi(x.valor ?? x.autografo, '', varTxt(x.pl, x.valor ?? x.autografo))),
+    }]
+  }
 
   return [
     {
@@ -1354,7 +1406,13 @@ function paineisPLOA(d) {
       recorte: d.recorteForca,
       grafico: graficoBarras({
         cats: catsForca,
-        series: [{ nome: 'PL (R$ bilhões)', valores: d.agregados.map((a) => bi(a.pl)) }],
+        series: [{
+          nome: 'PL (R$ bilhões)', valores: d.agregados.map((a) => bi(a.pl)),
+          textos: (() => {
+            const t = d.agregados.reduce((s2, a) => s2 + (a.pl || 0), 0)
+            return d.agregados.map((a) => rotuloBi(a.pl, pctDe(a.pl, t)))
+          })(),
+        }],
         cores: d.agregados.map((a) => COR_AGREGADO[a.id] || ACENTO),
         formato: FMT_BI,
       }),
@@ -1592,9 +1650,10 @@ function paineisHistoricoPLOA(d) {
       recorte: d.recorteForca,
       grafico: graficoBarras({
         cats: d.forcasPorAno.anos,
-        series: d.forcasPorAno.series.map((s) => ({
+        // Rótulo em cada barra: participação da Força no total do exercício.
+        series: pctNaColuna(d.forcasPorAno.series.map((s) => ({
           nome: s.rotulo, cor: COR_AGREGADO[s.chave] || ACENTO, valores: s.valores.map(bi),
-        })),
+        }))),
         vertical: true, legenda: true, formato: FMT_BI, rotulos: false,
       }),
       planilha: planilha(d.forcasPorAno.anos, d.forcasPorAno.series.map((s) => ({
@@ -1909,12 +1968,16 @@ function painelPar(id, titulo, sub, itens, { vertical = false, paginavel = false
   const cats = itens.map((x) => x.rotulo)
   const aut = itens.map((x) => x.valor || 0)
   const ini = itens.map((x) => x.pl || 0)
+  const totalAut = aut.reduce((s, v) => s + v, 0)
+  // Como na tela: participação do autorizado no total e variação sobre a
+  // dotação inicial no rótulo da barra do autorizado.
   const series = [
-    { nome: 'Autorizado', cor: AZUL, valores: aut.map(biv) },
+    { nome: 'Autorizado', cor: AZUL, valores: aut.map(biv),
+      textos: aut.map((v, j) => rotuloBi(v, pctDe(v, totalAut), varTxt(ini[j], v))) },
     { nome: 'Dotação inicial', cor: CINZA_INI, valores: ini.map(biv) },
   ]
   return {
-    id, titulo, sub, total: fmtBiTxt(aut.reduce((s, v) => s + v, 0)),
+    id, titulo, sub, total: fmtBiTxt(totalAut),
     grafico: graficoBarras({ cats, series, vertical, legenda: true, formato: FMT_BI }),
     planilha: planilha(cats, series),
     ...(paginavel
@@ -2029,7 +2092,11 @@ function colunasExec(id, titulo, sub, anos, series, opts = {}) {
     grafico: graficoBarras({
       cats: anos, vertical: true, formato: fmt, legenda: series.length > 1,
       empilhado: opts.empilhado, proporcao: opts.proporcao, tendencia: opts.tendencia,
-      series: series.map((s) => ({ nome: s.rotulo, cor: s.cor, valores: s.valores.map(esc) })),
+      series: (() => {
+        const ss = series.map((s) => ({ nome: s.rotulo, cor: s.cor, valores: s.valores.map(esc) }))
+        return opts.percentual ? pctNaColuna(ss) : ss
+      })(),
+      rotulos: !opts.percentual,
     }),
     planilha: planilha(anos, series.map((s) => ({ nome: s.rotulo, valores: s.valores.map(esc) }))),
   }
@@ -2080,7 +2147,8 @@ function paineisHistoricoExec(d) {
         { rotulo: 'Contingenciamento', cor: VIOLETA, valores: d.contEmendas.series[1].valores },
       ], { empilhado: true, milhoes: true }),
     colunasExec('hexec-forca', 'Por Força, ao longo dos exercícios',
-      'Dotação autorizada por Força · ignora o filtro de Órgão', anos, d.forca.series.map(corForca)),
+      'Dotação autorizada por Força · ignora o filtro de Órgão', anos, d.forca.series.map(corForca),
+      { percentual: true }),
     colunasExec('hexec-fgrupo', 'Por Fonte Grupo (Cod/Desc)',
       'Composição do autorizado por grupo de fonte', anos, d.fgrupo.series.map(corFg), { empilhado: true }),
   ]
