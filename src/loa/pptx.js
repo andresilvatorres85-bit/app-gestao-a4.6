@@ -383,7 +383,7 @@ function graficoBarras({
   cats, series, empilhado, proporcao, cores, legenda,
   vertical = false, formato = FMT_MI, tendencia = false,
   rotulos = true, apagarAbaixo = 0, szRotulo = 1000, szEixo = 1100, szLegenda = 1200,
-  apagarMenorQue = 0,
+  apagarMenorQue = 0, eixoMax = null, areaPlot = null,
 }) {
   // Robustez do pacote: nunca emitir um gráfico corrompido. Três defeitos de
   // dado quebravam o .pptx com "documento precisa de reparo" no PowerPoint:
@@ -520,7 +520,10 @@ function graficoBarras({
     '<c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>'
 
   const valAx =
-    `<c:valAx><c:axId val="${ax2}"/><c:scaling><c:orientation val="minMax"/></c:scaling>` +
+    // `eixoMax` fixa o fim da escala: páginas de um mesmo painel ficam na
+    // mesma escala (a barra de 1 mi tem o mesmo tamanho nos dois slides).
+    `<c:valAx><c:axId val="${ax2}"/><c:scaling><c:orientation val="minMax"/>` +
+    `${eixoMax > 0 ? `<c:max val="${eixoMax}"/><c:min val="0"/>` : ''}</c:scaling>` +
     `<c:delete val="1"/><c:axPos val="${vertical ? 'l' : 'b'}"/>` +
     `<c:numFmt formatCode="${formato}" sourceLinked="0"/>` +
     '<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="none"/>' +
@@ -528,8 +531,16 @@ function graficoBarras({
     `<c:crossAx val="${ax1}"/><c:crosses val="${vertical ? 'autoZero' : 'max'}"/>` +
     '<c:crossBetween val="between"/></c:valAx>'
 
+  // `areaPlot` ({x, y, w, h} em fração do quadro) fixa onde as barras começam
+  // e terminam — com `eixoMax`, a mesma régua em todas as páginas do painel,
+  // independente da largura dos nomes no eixo.
+  const layoutPlot = areaPlot
+    ? '<c:layout><c:manualLayout><c:layoutTarget val="inner"/><c:xMode val="edge"/><c:yMode val="edge"/>' +
+      `<c:x val="${areaPlot.x}"/><c:y val="${areaPlot.y}"/><c:w val="${areaPlot.w}"/><c:h val="${areaPlot.h}"/>` +
+      '</c:manualLayout></c:layout>'
+    : '<c:layout/>'
   return envelope(
-    '<c:autoTitleDeleted val="1"/><c:plotArea><c:layout/>' + grafico + catAx + valAx +
+    `<c:autoTitleDeleted val="1"/><c:plotArea>${layoutPlot}` + grafico + catAx + valAx +
     SEM_PINTURA + '</c:plotArea>' +
     (legenda
       ? `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${txPr(szLegenda, TINTA_2)}</c:legend>`
@@ -1193,6 +1204,11 @@ function paineisDashboard(d) {
   ]
   const catsP = d.partidos.map((p) => p.partido)
   const serieP = [{ nome: 'Valor (R$ milhões)', cor: VIOLETA, valores: d.partidos.map((p) => p.valor / 1e6) }]
+  // Escala única das páginas de partidos: o maior valor com folga de 10%.
+  const escalaPartidos = Math.max(0, ...serieP[0].valores) * 1.1
+  // Área das barras igual em todas as páginas: 20% à esquerda para os nomes
+  // a 20 pt e folga à direita para o rótulo de valor da maior barra.
+  const AREA_PARTIDOS = { x: 0.2, y: 0.02, w: 0.68, h: 0.96 }
 
   return [
     {
@@ -1246,11 +1262,13 @@ function paineisDashboard(d) {
       total: fmtMilhoes(d.totalPartidos),
       grafico: graficoBarras({ cats: catsP, series: serieP, ...FONTE_20 }),
       planilha: planilha(catsP, serieP),
-      // A 20 pt cabem 12 partidos por slide sem sobrepor os nomes.
+      // A 20 pt cabem 12 partidos por slide sem sobrepor os nomes. Se não
+      // couberem num slide, metade vai em cada um (paginação equilibrada) e
+      // todos usam a escala do maior partido.
       paginavel: {
         cats: catsP, series: serieP, porBloco: 12,
         construir: (cats, series) => ({
-          grafico: graficoBarras({ cats, series, ...FONTE_20 }),
+          grafico: graficoBarras({ cats, series, ...FONTE_20, eixoMax: escalaPartidos, areaPlot: AREA_PARTIDOS }),
           planilha: planilha(cats, series),
         }),
       },
