@@ -918,8 +918,10 @@ function cartao(id, o) {
 
 // Cartão do "Visão geral": fundo branco, borda suave, um traço de cor acima do
 // rótulo (como o marcador dos painéis da tela), valor grande e nota.
-// Verde-oliva dos destaques do Resultado LEXOR (card do valor total e aviso).
-const VERDE_OLIVA = '556B2F'
+// Verde dos destaques do Resultado LEXOR (card do valor total e aviso): o
+// mesmo verde do tema do modelo (accent 6) em tom 25% mais escuro, da família
+// da faixa do título (A9D08E) e do fundo (E2EFDA).
+const VERDE_DESTAQUE = '548235'
 
 function cartaoVG(id, o) {
   const pad = 0.9
@@ -953,14 +955,14 @@ function slideCards(d) {
       id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1,
       paragrafos: [{ runs: [{ t: d.recorte, sz: 1200, cor: FRACA }] }],
     }),
-    // Destaque: o valor total, em faixa larga verde-oliva.
+    // Destaque: o valor total, em faixa larga verde (VERDE_DESTAQUE).
     cartaoVG(10, {
-      x: 1.6, y: 3.4, w: 30.6, h: 6.0, fundo: VERDE_OLIVA, cor: 'C5D69B',
-      rotulo: 'Valor total solicitado', corRotulo: 'DCE6C4', szRotulo: 1500,
-      valor: `R$ ${heroi.valor}`, unidade: heroi.unidade, szValor: 6600, corValor: 'FFFFFF', corUnidade: 'DCE6C4',
+      x: 1.6, y: 3.4, w: 30.6, h: 6.0, fundo: VERDE_DESTAQUE, cor: MODELO.barra,
+      rotulo: 'Valor total solicitado', corRotulo: MODELO.fundo, szRotulo: 1500,
+      valor: `R$ ${heroi.valor}`, unidade: heroi.unidade, szValor: 6600, corValor: 'FFFFFF', corUnidade: MODELO.fundo,
       antesValor: 200,
       notas: [`${fmtBRL(d.stats.valorTotal)} · ${fmtInt(d.stats.qtdEmendas)} emendas em ${fmtInt(d.qtdRegistros)} registros`],
-      corNota: 'EEF3E2', szNota: 1500,
+      corNota: 'F1F7EC', szNota: 1500,
     }),
     cartaoVG(20, {
       x: 1.6, y: 10.1, w: larg, h: 6.6, cor: AZUL,
@@ -1155,7 +1157,7 @@ function corpoRosca(o) {
   // Aviso (disclaimer) numa caixa clara no pé do slide, acima do rodapé.
   const aviso = o.aviso
     ? forma({
-        id: id++, nome: 'Aviso', x: 1.6, y: 15.1, w: 30.6, h: 1.95, fundo: VERDE_OLIVA,
+        id: id++, nome: 'Aviso', x: 1.6, y: 15.1, w: 30.6, h: 1.95, fundo: VERDE_DESTAQUE,
         raio: 8000, ancora: 'ctr', recuo: 0.4,
         paragrafos: [{ runs: [{ t: o.aviso, sz: 1250, cor: 'FFFFFF' }] }],
       })
