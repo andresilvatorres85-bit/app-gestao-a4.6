@@ -294,6 +294,7 @@ export default function LoaApp() {
       partidos,
       totalPartidos,
       semNumero: true, // títulos dos slides sem o "5." do modelo
+      avisoComissoes: true, // disclaimer no slide "Emendas parlamentares ao PLOA"
   })
   const baixarPPTX = () => exportarPPTX(cargaPPTX())
   const baixarSlide = (id) => exportarSlidePPTX(cargaPPTX(), id)

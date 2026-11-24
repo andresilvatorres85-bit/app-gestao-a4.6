@@ -1084,12 +1084,15 @@ function linhaGuia(id, x1, y1, x2, y2) {
   )
 }
 
+// Com aviso no pé do slide, o anel sobe e encolhe um pouco para abrir espaço.
+const ROSCA_COM_AVISO = { cx: 12.2, cy: 9.4, r: 3.8 }
+
 function corpoRosca(o) {
-  const { cx, cy, r } = ROSCA
+  const { cx, cy, r } = o.aviso ? ROSCA_COM_AVISO : ROSCA
   const { fatias } = fatiasRosca(o.rosca.itens)
   const GAP = 1.05
   const Y_MIN = 3.9
-  const Y_MAX = 16.7
+  const Y_MAX = o.aviso ? 14.3 : 16.7
   const rot = fatias.map((f) => {
     const lado = Math.sin(f.meio) >= 0 ? 1 : -1
     return {
@@ -1129,13 +1132,14 @@ function corpoRosca(o) {
   const centro = forma({
     id: id++, nome: 'Total no centro', x: cx - ri, y: cy - ri, w: 2 * ri, h: 2 * ri, ancora: 'ctr', recuo: 0,
     paragrafos: [
-      { algn: 'ctr', runs: [{ t: fmtMilhoes(o.rosca.total).replace(' mi', ''), sz: 2600, b: true, cor: TINTA }] },
+      // corpo proporcional ao anel, para o total caber no furo
+      { algn: 'ctr', runs: [{ t: fmtMilhoes(o.rosca.total).replace(' mi', ''), sz: Math.round((2400 * r) / ROSCA.r / 100) * 100, b: true, cor: TINTA }] },
       { algn: 'ctr', runs: [{ t: 'milhões · total', sz: 1200, cor: FRACA }] },
     ],
   })
   // Legenda como a da tela: cor, nome e "R$ X mi (Y%)".
   const legenda = forma({
-    id: id++, nome: 'Legenda', x: 24.4, y: 4.0, w: 8.4, h: 12.8, ancora: 'ctr', recuo: 0.1,
+    id: id++, nome: 'Legenda', x: 24.4, y: 4.0, w: 8.4, h: o.aviso ? 10.6 : 12.8, ancora: 'ctr', recuo: 0.1,
     paragrafos: fatias.flatMap((f, i) => [
       { antes: i === 0 ? 0 : 900, runs: [
         { t: '■ ', sz: 2000, cor: f.cor },
@@ -1145,7 +1149,15 @@ function corpoRosca(o) {
     ]),
   })
   const anel = quadroGrafico({ id: 5, nome: o.titulo, x: cx - r, y: cy - r, w: 2 * r, h: 2 * r, rel: 'rId2' })
-  return anel + rotulos + centro + legenda
+  // Aviso (disclaimer) numa caixa clara no pé do slide, acima do rodapé.
+  const aviso = o.aviso
+    ? forma({
+        id: id++, nome: 'Aviso', x: 1.6, y: 15.1, w: 30.6, h: 1.95, fundo: 'F7F9F4', borda: 'C9D3C0',
+        raio: 8000, ancora: 'ctr', recuo: 0.4,
+        paragrafos: [{ runs: [{ t: o.aviso, sz: 1250, cor: TINTA_2 }] }],
+      })
+    : ''
+  return anel + rotulos + centro + legenda + aviso
 }
 
 function umSlideGrafico(d, o) {
@@ -1217,6 +1229,10 @@ function paineisDashboard(d) {
       sub: 'Valor solicitado por identificador de resultado primário (RP)',
       total: fmtMilhoes(d.stats.valorTotal),
       rosca: { itens: rp, total: d.stats.valorTotal },
+      // Só no Resultado LEXOR (a carga pede); o Dashboard Emendas reaproveita o painel.
+      aviso: d.avisoComissoes && 'Os montantes nominais aprovados nas Comissões possuem caráter indicativo e não serão ' +
+        'integralmente convertidos em dotação orçamentária da Força. Os valores passarão por corte e ' +
+        'adequação técnica no âmbito do Relatório Setorial da Área Temática de Defesa',
       grafico: graficoRosca(rp, { externo: true, angulo: fatiasRosca(rp).angulo, buraco: ROSCA.buraco }),
       planilha: planilha(rp.map((x) => x.rotulo), [
         { nome: 'Valor (R$ milhões)', valores: rp.map((x) => x.valor / 1e6) },
