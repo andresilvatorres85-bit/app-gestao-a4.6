@@ -664,6 +664,8 @@ export default function LoaApp() {
     geradoEm: new Date().toLocaleString('pt-BR'),
     fonte: dados.fonte,
     porEstado: emendasImpositivasPorEstado(execEmFiltrados),
+    comissoes: emendasComissaoExercito(execEmFiltrados), // slides finais: emendas de comissão
+    semNumero: true, // títulos dos slides sem o "5." do modelo
   })
   const baixarPPTXEmendasEstado = () => exportarPPTXEmendasEstado(cargaEmendasEstado())
 

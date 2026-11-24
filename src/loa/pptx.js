@@ -2529,7 +2529,7 @@ async function bandeirasDe(ufs) {
 const FOLHA = {
   topo: 2.75, base: 18.45, x: 1.4, w: 31,
   hBloco: 1.25, hMod: 0.85, hCab: 0.72, gap: 0.35,
-  linha: 0.6, padLinha: 0.28,
+  linha: 0.56, padLinha: 0.24, // 14 pt ≈ 0,56 cm por linha de texto
   // caracteres por cm a 14 pt, com folga (o Calibri cabe ~4,3; fonte
   // substituta mais larga, ~3,5) — estima a quebra de linha
   charPorCm: 3.6,
@@ -2616,8 +2616,17 @@ function paginarFolhas(blocos, { tituloDe, d }) {
         let j = i, soma = 0
         while (j < t.linhas.length && soma + t.alturas[j] <= livre) soma += t.alturas[j++]
         if (j === i) j = i + 1
-        // não deixa a linha de TOTAL sozinha no slide seguinte
-        if (j === t.linhas.length - 1 && j - i > 2) j -= 1
+        // não deixa a linha de TOTAL sozinha no slide seguinte: tira uma linha
+        // a mais deste slide ou, se a tabela ainda nem começou, leva a tabela
+        // inteira para o slide seguinte
+        if (j === t.linhas.length - 1) {
+          if (j - i > 2) j -= 1
+          else if (i === 0 && y > FOLHA.topo + FOLHA.hBloco + 0.01) {
+            flush()
+            desenharCabecalho({ ...bl, nota: '(cont.)' })
+            continue
+          }
+        }
         desenharTabela(t, t.linhas.slice(i, j), t.alturas.slice(i, j), cont)
         i = j; cont = true
       }
