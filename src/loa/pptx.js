@@ -333,7 +333,11 @@ function envelope(interno) {
 // as fatias do PLOA caírem para 0,0000 no cache numérico do gráfico (que grava
 // com 4 casas) — tudo menos a maior fatia virava zero e a rosca saía com uma
 // única fatia de 100%.
-function graficoRosca(itens, { escala = 1e6, nomeSerie = 'Valor (R$ milhões)' } = {}) {
+// `externo`: sem rótulos nem legenda no gráfico e com a área de plotagem
+// ocupando o quadro inteiro — os rótulos externos, o total no centro e a
+// legenda com valores são desenhados no slide (ver corpoRosca), na geometria
+// exata da rosca, como na tela. `angulo` gira a primeira fatia (graus).
+function graficoRosca(itens, { escala = 1e6, nomeSerie = 'Valor (R$ milhões)', externo = false, angulo = 0, buraco = 48 } = {}) {
   // Recorte vazio → 0 fatias geraria faixa invertida `$A$2:$A$1` e ptCount=0,
   // que o PowerPoint acusa como arquivo corrompido. Uma fatia-placeholder mantém
   // o pacote válido (mesma rede de segurança de graficoBarras).
@@ -346,16 +350,20 @@ function graficoRosca(itens, { escala = 1e6, nomeSerie = 'Valor (R$ milhões)' }
   const dLbls =
     '<c:dLbls>' + SEM_PINTURA + txPr(1200, TINTA, true) +
     '<c:showLegendKey val="0"/><c:showVal val="0"/><c:showCatName val="0"/>' +
-    '<c:showSerName val="0"/><c:showPercent val="1"/><c:showBubbleSize val="0"/></c:dLbls>'
+    `<c:showSerName val="0"/><c:showPercent val="${externo ? 0 : 1}"/><c:showBubbleSize val="0"/></c:dLbls>`
+  const layout = externo
+    ? '<c:layout><c:manualLayout><c:layoutTarget val="inner"/><c:xMode val="edge"/><c:yMode val="edge"/>' +
+      '<c:x val="0"/><c:y val="0"/><c:w val="1"/><c:h val="1"/></c:manualLayout></c:layout>'
+    : '<c:layout/>'
   const ser =
     '<c:ser><c:idx val="0"/><c:order val="0"/>' + refNome(nomeSerie, 'B') +
     pontos(cores) + dLbls + refCat(cats) + refVal(vals, 'B') + '</c:ser>'
   return envelope(
-    '<c:autoTitleDeleted val="1"/><c:plotArea><c:layout/>' +
+    `<c:autoTitleDeleted val="1"/><c:plotArea>${layout}` +
     `<c:doughnutChart><c:varyColors val="1"/>${ser}${dLbls}` +
-    '<c:firstSliceAng val="0"/><c:holeSize val="48"/></c:doughnutChart>' +
+    `<c:firstSliceAng val="${Math.round(((angulo % 360) + 360) % 360)}"/><c:holeSize val="${buraco}"/></c:doughnutChart>` +
     SEM_PINTURA + '</c:plotArea>' +
-    `<c:legend><c:legendPos val="r"/><c:overlay val="0"/>${txPr(1200, TINTA_2)}</c:legend>` +
+    (externo ? '' : `<c:legend><c:legendPos val="r"/><c:overlay val="0"/>${txPr(1200, TINTA_2)}</c:legend>`) +
     '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/>'
   )
 }
@@ -374,7 +382,8 @@ const FMT_INT = '#,##0'
 function graficoBarras({
   cats, series, empilhado, proporcao, cores, legenda,
   vertical = false, formato = FMT_MI, tendencia = false,
-  rotulos = true, apagarAbaixo = 0, szRotulo = 1000,
+  rotulos = true, apagarAbaixo = 0, szRotulo = 1000, szEixo = 1100, szLegenda = 1200,
+  apagarMenorQue = 0,
 }) {
   // Robustez do pacote: nunca emitir um gráfico corrompido. Três defeitos de
   // dado quebravam o .pptx com "documento precisa de reparo" no PowerPoint:
@@ -456,7 +465,11 @@ function graficoBarras({
       const apagados = s.valores
         .map((v, j) => {
           const parte = totalCat[j] ? v / totalCat[j] : 0
-          const some = v <= 0 || (apagarAbaixo > 0 && parte < apagarAbaixo)
+          // `apagarMenorQue`: fração da MAIOR barra — segmento curto demais para o
+          // texto, mesmo sendo a categoria inteira.
+          const maxCat = Math.max(...totalCat, 0)
+          const some = v <= 0 || (apagarAbaixo > 0 && parte < apagarAbaixo) ||
+            (apagarMenorQue > 0 && v < apagarMenorQue * maxCat)
           if (some) return `<c:dLbl><c:idx val="${j}"/><c:delete val="1"/></c:dLbl>`
           const texto = Array.isArray(s.textos) ? s.textos[j] : null
           if (texto) return rotuloTexto(j, texto, corRotulo)
@@ -502,7 +515,7 @@ function graficoBarras({
     '<c:numFmt formatCode="General" sourceLinked="1"/>' +
     '<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>' +
     `<c:spPr><a:noFill/><a:ln w="9525"><a:solidFill><a:srgbClr val="${BORDA}"/></a:solidFill></a:ln></c:spPr>` +
-    txPr(1100, TINTA) +
+    txPr(szEixo, TINTA) +
     `<c:crossAx val="${ax2}"/><c:crosses val="autoZero"/><c:auto val="1"/>` +
     '<c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>'
 
@@ -519,7 +532,7 @@ function graficoBarras({
     '<c:autoTitleDeleted val="1"/><c:plotArea><c:layout/>' + grafico + catAx + valAx +
     SEM_PINTURA + '</c:plotArea>' +
     (legenda
-      ? `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${txPr(1200, TINTA_2)}</c:legend>`
+      ? `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${txPr(szLegenda, TINTA_2)}</c:legend>`
       : '') +
     '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/>'
   )
@@ -827,21 +840,24 @@ function faixaTitulo(id, runs, barra) {
   )
 }
 
-function moldura(titulo) {
+// `semNumero`: o título vai sem o "5." do modelo (Dashboard do Resultado LEXOR).
+const tirarNumero = (t) => String(t || '').replace(/^\d+\.\s*/, '')
+function moldura(titulo, semNumero = false) {
   const b = GEO.brasao
+  const t = semNumero ? tirarNumero(titulo) : prefixarTitulo(titulo || '')
   return (
-    faixaTitulo(9001, [{ t: prefixarTitulo(titulo || ''), sz: tamanhoTitulo(prefixarTitulo(titulo || '')) * 100 }], GEO.barra) +
+    faixaTitulo(9001, [{ t, sz: tamanhoTitulo(t) * 100 }], GEO.barra) +
     imagem({ id: 9003, nome: 'Brasão da Assessoria Parlamentar', rel: REL_BRASAO,
       x: pol(b.x), y: pol(b.y), w: pol(b.lado), h: pol(b.lado) })
   )
 }
 
-function slideCapaModelo() {
+function slideCapaModelo(semNumero = false) {
   const c = GEO.capa
   const corpo =
     imagem({ id: 9010, nome: 'Congresso Nacional e a Subassessoria de Orçamento', rel: REL_CAPA,
       x: 0, y: pol(c.imagem.y), w: LARG, h: pol(c.imagem.h) }) +
-    faixaTitulo(9011, [{ t: CAPA_TITULO, sz: 3600 }, { t: CAPA_SUFIXO, sz: 3200 }], c.barra) +
+    faixaTitulo(9011, [{ t: semNumero ? tirarNumero(CAPA_TITULO) : CAPA_TITULO, sz: 3600 }, { t: CAPA_SUFIXO, sz: 3200 }], c.barra) +
     imagem({ id: 9013, nome: 'Brasão da Assessoria Parlamentar', rel: REL_BRASAO,
       x: pol(c.brasao.x), y: pol(c.brasao.y), w: pol(c.brasao.lado), h: pol(c.brasao.lado) })
   return { capa: true, corpo }
@@ -889,34 +905,63 @@ function cartao(id, o) {
   })
 }
 
+// Cartão do "Visão geral": fundo branco, borda suave, um traço de cor acima do
+// rótulo (como o marcador dos painéis da tela), valor grande e nota.
+function cartaoVG(id, o) {
+  const pad = 0.9
+  return [
+    forma({ id, nome: o.rotulo, x: o.x, y: o.y, w: o.w, h: o.h,
+      fundo: o.fundo || 'FFFFFF', borda: o.fundo ? undefined : 'D5DDCF', raio: 5000 }),
+    forma({ id: id + 1, nome: `${o.rotulo} — marcador`, x: o.x + pad, y: o.y + pad, w: 1.6, h: 0.22,
+      fundo: o.cor }),
+    forma({
+      id: id + 2, nome: `${o.rotulo} — texto`, x: o.x + pad - 0.3, y: o.y + pad + 0.35,
+      w: o.w - 2 * pad + 0.6, h: o.h - 2 * pad - 0.35, ancora: o.ancora || 't', recuo: 0.3,
+      paragrafos: [
+        { runs: [{ t: o.rotulo.toUpperCase(), sz: o.szRotulo || 1400, b: true, cor: o.corRotulo || FRACA, spc: 150 }] },
+        { antes: o.antesValor ?? 400, runs: [
+          { t: o.valor, sz: o.szValor || 4400, b: true, cor: o.corValor || TINTA },
+          ...(o.unidade ? [{ t: ` ${o.unidade}`, sz: Math.round((o.szValor || 4400) * 0.5), b: true, cor: o.corUnidade || FRACA }] : []),
+        ] },
+        ...(o.notas || []).map((n, i) => ({ antes: i === 0 ? 500 : 150,
+          runs: [{ t: n, sz: o.szNota || 1400, cor: o.corNota || TINTA_2 }] })),
+      ],
+    }),
+  ].join('')
+}
+
 function slideCards(d) {
   const heroi = fmtCompacto(d.stats.valorTotal)
   const imp = fmtCompacto(d.totalImpositivas)
+  const larg = (30.6 - 2 * 0.8) / 3
   const corpo = [
     forma({
       id: 3, nome: 'Recorte', x: 1.6, y: 2.0, w: 29.2, h: 1,
-      paragrafos: [{ runs: [{ t: d.recorte, sz: 1100, cor: FRACA }] }],
+      paragrafos: [{ runs: [{ t: d.recorte, sz: 1200, cor: FRACA }] }],
     }),
-    cartao(4, {
-      x: 1.6, y: 4.2, w: 15.2, h: 12.4, algn: 'ctr', sz: 5400,
-      rotulo: 'Valor total solicitado',
-      valor: `R$ ${heroi.valor} ${heroi.unidade}`.trim(),
-      nota: `${fmtBRL(d.stats.valorTotal)} · ${fmtInt(d.stats.qtdEmendas)} emendas em ${fmtInt(d.qtdRegistros)} registros`,
+    // Destaque: o valor total, em faixa larga azul-escura (a cor do título).
+    cartaoVG(10, {
+      x: 1.6, y: 3.4, w: 30.6, h: 6.0, fundo: MODELO.titulo, cor: '8FB8E8',
+      rotulo: 'Valor total solicitado', corRotulo: 'C9D8EE', szRotulo: 1500,
+      valor: `R$ ${heroi.valor}`, unidade: heroi.unidade, szValor: 6600, corValor: 'FFFFFF', corUnidade: 'C9D8EE',
+      antesValor: 200,
+      notas: [`${fmtBRL(d.stats.valorTotal)} · ${fmtInt(d.stats.qtdEmendas)} emendas em ${fmtInt(d.qtdRegistros)} registros`],
+      corNota: 'E3ECF7', szNota: 1500,
     }),
-    cartao(5, {
-      x: 17.6, y: 4.2, w: 14.6, h: 3.8, algn: 'l',
+    cartaoVG(20, {
+      x: 1.6, y: 10.1, w: larg, h: 6.6, cor: AZUL,
       rotulo: 'Emendas', valor: fmtInt(d.stats.qtdEmendas),
-      nota: 'Emendas distintas no recorte',
+      notas: ['Emendas distintas no recorte'],
     }),
-    cartao(6, {
-      x: 17.6, y: 8.5, w: 14.6, h: 3.8, algn: 'l',
+    cartaoVG(30, {
+      x: 1.6 + larg + 0.8, y: 10.1, w: larg, h: 6.6, cor: VERDE,
       rotulo: 'Parlamentares', valor: fmtInt(d.stats.qtdParlamentares),
-      nota: 'Autores distintos das emendas',
+      notas: ['Autores distintos das emendas'],
     }),
-    cartao(7, {
-      x: 17.6, y: 12.8, w: 14.6, h: 3.8, algn: 'l',
-      rotulo: 'Impositivas', valor: `R$ ${imp.valor} ${imp.unidade}`.trim(),
-      nota: `RP6 + RP7 · ${fmtPct(d.pctImpositivas)} do total`,
+    cartaoVG(40, {
+      x: 1.6 + 2 * (larg + 0.8), y: 10.1, w: larg, h: 6.6, cor: MAGENTA,
+      rotulo: 'Impositivas', valor: `R$ ${imp.valor}`, unidade: imp.unidade,
+      notas: [`RP6 + RP7 · ${fmtPct(d.pctImpositivas)} do total`],
     }),
     forma({
       id: 8, nome: 'Fonte', x: 1.6, y: 17.1, w: 30.6, h: 1,
@@ -962,7 +1007,10 @@ function paginarPainel(o) {
   // devolve um novo `{ grafico, planilha }` para o bloco.
   if (o.paginavel && o.paginavel.cats.length > (o.paginavel.porBloco ?? MAX_BARRAS)) {
     const { cats, series, construir } = o.paginavel
-    const blocosCats = emBlocos(cats, o.paginavel.porBloco ?? MAX_BARRAS)
+    // Páginas equilibradas (13 itens a 12 por página = 7 + 6, e não 12 + 1).
+    const maxPorBloco = o.paginavel.porBloco ?? MAX_BARRAS
+    const nPaginas = Math.ceil(cats.length / maxPorBloco)
+    const blocosCats = emBlocos(cats, Math.ceil(cats.length / nPaginas))
     let base = 0
     return blocosCats.map((fatiaCats, i) => {
       const ini = base
@@ -990,6 +1038,105 @@ function slideGrafico(d, o) {
   return paginarPainel(o).map((pg) => umSlideGrafico(d, pg))
 }
 
+// ---------------------------------------------------- rosca como na tela ---
+// Mesma leitura do GraficoPizza da tela: a maior fatia vai para as 3 horas,
+// rótulo "Nome (12,3%)" fora do anel com linha-guia (anticolisão por lado),
+// o total no centro e, ao lado, a legenda com valor e percentual. O anel é o
+// gráfico nativo (editável); rótulos, centro e legenda são formas do slide,
+// posicionados pela geometria do anel (área de plotagem = quadro inteiro).
+const ROSCA = { cx: 12.2, cy: 10.4, r: 4.2, buraco: 70 }
+
+function fatiasRosca(itens) {
+  const soma = itens.reduce((s2, x) => s2 + x.valor, 0) || 1
+  let acc = 0
+  const cruas = itens.map((x) => {
+    const a0 = (acc / soma) * 2 * Math.PI
+    acc += x.valor
+    return { ...x, a0, a1: (acc / soma) * 2 * Math.PI, pct: (x.valor / soma) * 100 }
+  })
+  const maior = cruas.reduce((m, x) => (x.valor > m.valor ? x : m), cruas[0] ?? { valor: 0 })
+  const giro = maior.a0 === undefined ? 0 : Math.PI / 2 - (maior.a0 + maior.a1) / 2
+  return {
+    angulo: (giro * 180) / Math.PI,
+    fatias: cruas.map((x) => ({ ...x, meio: (x.a0 + x.a1) / 2 + giro })),
+  }
+}
+
+function linhaGuia(id, x1, y1, x2, y2) {
+  const flip = `${x2 < x1 ? ' flipH="1"' : ''}${y2 < y1 ? ' flipV="1"' : ''}`
+  return (
+    `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="Linha-guia ${id}"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr>` +
+    `<p:spPr><a:xfrm${flip}><a:off x="${cm(Math.min(x1, x2))}" y="${cm(Math.min(y1, y2))}"/>` +
+    `<a:ext cx="${cm(Math.abs(x2 - x1))}" cy="${cm(Math.abs(y2 - y1))}"/></a:xfrm>` +
+    '<a:prstGeom prst="line"><a:avLst/></a:prstGeom>' +
+    `<a:ln w="12700"><a:solidFill><a:srgbClr val="${FRACA}"/></a:solidFill></a:ln></p:spPr></p:cxnSp>`
+  )
+}
+
+function corpoRosca(o) {
+  const { cx, cy, r } = ROSCA
+  const { fatias } = fatiasRosca(o.rosca.itens)
+  const GAP = 1.05
+  const Y_MIN = 3.9
+  const Y_MAX = 16.7
+  const rot = fatias.map((f) => {
+    const lado = Math.sin(f.meio) >= 0 ? 1 : -1
+    return {
+      ...f, lado,
+      ax: cx + (r + 0.12) * Math.sin(f.meio),
+      ay: cy - (r + 0.12) * Math.cos(f.meio),
+      y: cy - (r + 0.9) * Math.cos(f.meio),
+    }
+  })
+  for (const lado of [1, -1]) {
+    const doLado = rot.filter((x) => x.lado === lado).sort((a, b) => a.y - b.y)
+    for (let i = 1; i < doLado.length; i++) {
+      if (doLado[i].y - doLado[i - 1].y < GAP) doLado[i].y = doLado[i - 1].y + GAP
+    }
+    const excesso = doLado.length ? doLado[doLado.length - 1].y - Y_MAX : 0
+    if (excesso > 0) for (const x of doLado) x.y -= excesso
+    for (let i = 0; i < doLado.length; i++) doLado[i].y = Math.max(Y_MIN + i * GAP, doLado[i].y)
+  }
+  let id = 100
+  const rotulos = rot.map((f) => {
+    const tx = f.ax + f.lado * 0.8
+    const cotovelo = tx - f.lado * 0.25
+    const larg = f.lado === 1 ? 8.5 : Math.max(2, tx - 0.1 - 0.3)
+    const x = f.lado === 1 ? tx + 0.1 : tx - 0.1 - larg
+    return (
+      linhaGuia(id++, f.ax, f.ay, cotovelo, f.y) + linhaGuia(id++, cotovelo, f.y, tx, f.y) +
+      forma({
+        id: id++, nome: `Rótulo ${f.rotulo}`, x, y: f.y - 0.6, w: larg, h: 1.2, ancora: 'ctr', recuo: 0,
+        paragrafos: [{ algn: f.lado === 1 ? 'l' : 'r', runs: [
+          { t: f.rotuloCurto ?? f.rotulo, sz: 2000, b: true, cor: TINTA },
+          { t: ` (${fmtPct(f.pct)})`, sz: 2000, cor: FRACA },
+        ] }],
+      })
+    )
+  }).join('')
+  const ri = r * (ROSCA.buraco / 100)
+  const centro = forma({
+    id: id++, nome: 'Total no centro', x: cx - ri, y: cy - ri, w: 2 * ri, h: 2 * ri, ancora: 'ctr', recuo: 0,
+    paragrafos: [
+      { algn: 'ctr', runs: [{ t: fmtMilhoes(o.rosca.total).replace(' mi', ''), sz: 2600, b: true, cor: TINTA }] },
+      { algn: 'ctr', runs: [{ t: 'milhões · total', sz: 1200, cor: FRACA }] },
+    ],
+  })
+  // Legenda como a da tela: cor, nome e "R$ X mi (Y%)".
+  const legenda = forma({
+    id: id++, nome: 'Legenda', x: 24.4, y: 4.0, w: 8.4, h: 12.8, ancora: 'ctr', recuo: 0.1,
+    paragrafos: fatias.flatMap((f, i) => [
+      { antes: i === 0 ? 0 : 900, runs: [
+        { t: '■ ', sz: 2000, cor: f.cor },
+        { t: f.rotulo, sz: 1600, b: true, cor: TINTA },
+      ] },
+      { antes: 100, runs: [{ t: `${fmtMilhoes(f.valor)} (${fmtPct(f.pct)})`, sz: 1600, cor: TINTA_2 }] },
+    ]),
+  })
+  const anel = quadroGrafico({ id: 5, nome: o.titulo, x: cx - r, y: cy - r, w: 2 * r, h: 2 * r, rel: 'rId2' })
+  return anel + rotulos + centro + legenda
+}
+
 function umSlideGrafico(d, o) {
   const corpo = [
     forma({
@@ -1005,7 +1152,9 @@ function umSlideGrafico(d, o) {
     }),
     // Painel com gráfico E tabela (ex.: ciclo de aprovação): gráfico em cima,
     // tabela embaixo, dividindo a mesma área.
-    o.tabela && o.grafico
+    o.rosca
+      ? corpoRosca(o)
+      : o.tabela && o.grafico
       ? (() => {
           const hTab = 0.85 + 0.78 * o.tabela.linhas.length
           const hGraf = 13.5 - hTab - 0.3
@@ -1029,6 +1178,9 @@ function umSlideGrafico(d, o) {
 // que monta o baralho inteiro — o slide avulso e o do baralho são o mesmo
 // código, então não têm como divergir.
 
+// Rótulos de dados, eixo e legenda a 20 pt (Dashboard do Resultado LEXOR).
+const FONTE_20 = { szRotulo: 2000, szEixo: 2000, szLegenda: 2000 }
+
 function paineisDashboard(d) {
   const rp = d.porRP.filter((x) => x.valor > 0).map((x) => ({ ...x, cor: corSolida(corDoRP(x.rp)) }))
   const imp = d.impositivas.filter((x) => x.valor > 0).map((x) => ({ ...x, cor: corSolida(x.cor) }))
@@ -1048,7 +1200,8 @@ function paineisDashboard(d) {
       titulo: 'Emendas parlamentares ao PLOA',
       sub: 'Valor solicitado por identificador de resultado primário (RP)',
       total: fmtMilhoes(d.stats.valorTotal),
-      grafico: graficoRosca(rp),
+      rosca: { itens: rp, total: d.stats.valorTotal },
+      grafico: graficoRosca(rp, { externo: true, angulo: fatiasRosca(rp).angulo, buraco: ROSCA.buraco }),
       planilha: planilha(rp.map((x) => x.rotulo), [
         { nome: 'Valor (R$ milhões)', valores: rp.map((x) => x.valor / 1e6) },
       ]),
@@ -1058,7 +1211,8 @@ function paineisDashboard(d) {
       titulo: 'Emendas impositivas',
       sub: 'RP6 por tipo de autor · RP7 por bancada',
       total: fmtMilhoes(d.totalImpositivas),
-      grafico: graficoRosca(imp),
+      rosca: { itens: imp, total: d.totalImpositivas },
+      grafico: graficoRosca(imp, { externo: true, angulo: fatiasRosca(imp).angulo, buraco: ROSCA.buraco }),
       planilha: planilha(imp.map((x) => x.rotulo), [
         { nome: 'Valor (R$ milhões)', valores: imp.map((x) => x.valor / 1e6) },
       ]),
@@ -1072,6 +1226,7 @@ function paineisDashboard(d) {
         cats: catsA,
         series: serieA,
         cores: d.autores.map((a) => (a.sigla === 'Sen' ? AZUL : a.sigla === 'Dep' ? VERDE : FRACA)),
+        ...FONTE_20,
       }),
       planilha: planilha(catsA, serieA),
     },
@@ -1080,7 +1235,8 @@ function paineisDashboard(d) {
       titulo: 'Impositivas por C Mil A',
       sub: 'Somente UO do Exército (Comando do Exército, IMBEL e Fundo do Exército)',
       total: fmtMilhoes(d.totalCMilA),
-      grafico: graficoBarras({ cats: catsC, series: serieC, empilhado: true, legenda: true }),
+      // Segmento estreito demais para o rótulo a 20 pt fica sem número.
+      grafico: graficoBarras({ cats: catsC, series: serieC, empilhado: true, legenda: true, apagarMenorQue: 0.09, ...FONTE_20 }),
       planilha: planilha(catsC, serieC),
     },
     {
@@ -1088,12 +1244,13 @@ function paineisDashboard(d) {
       titulo: 'Emendas por partido',
       sub: 'Exclui comissões e bancadas (sem partido)',
       total: fmtMilhoes(d.totalPartidos),
-      grafico: graficoBarras({ cats: catsP, series: serieP }),
+      grafico: graficoBarras({ cats: catsP, series: serieP, ...FONTE_20 }),
       planilha: planilha(catsP, serieP),
+      // A 20 pt cabem 12 partidos por slide sem sobrepor os nomes.
       paginavel: {
-        cats: catsP, series: serieP,
+        cats: catsP, series: serieP, porBloco: 12,
         construir: (cats, series) => ({
-          grafico: graficoBarras({ cats, series }),
+          grafico: graficoBarras({ cats, series, ...FONTE_20 }),
           planilha: planilha(cats, series),
         }),
       },
@@ -1857,7 +2014,7 @@ function montarSlidesHistoricoPLOA(d) {
 // (fundo, faixa com o título e brasão).
 export async function montarPacote(d, conteudo) {
   const img = await imagensModelo()
-  const slides = [slideCapaModelo(), ...conteudo]
+  const slides = [slideCapaModelo(d.semNumero), ...conteudo]
   const arquivos = [
     { nome: 'ppt/media/capa.jpg', dados: img.capa.bytes },
     { nome: 'ppt/media/brasao.png', dados: img.brasao.bytes },
@@ -1893,7 +2050,7 @@ export async function montarPacote(d, conteudo) {
       )
     }
 
-    const xml = s.capa ? slideXML(s.corpo, 'FFFFFF') : slideXML(moldura(s.titulo) + s.corpo, MODELO.fundo)
+    const xml = s.capa ? slideXML(s.corpo, 'FFFFFF') : slideXML(moldura(s.titulo, d.semNumero) + s.corpo, MODELO.fundo)
     arquivos.push({ nome: `ppt/slides/slide${n}.xml`, dados: xml })
     arquivos.push({ nome: `ppt/slides/_rels/slide${n}.xml.rels`, dados: rels(relSlide) })
     tiposOverride.push(

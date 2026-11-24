@@ -293,6 +293,7 @@ export default function LoaApp() {
       totalCMilA,
       partidos,
       totalPartidos,
+      semNumero: true, // títulos dos slides sem o "5." do modelo
   })
   const baixarPPTX = () => exportarPPTX(cargaPPTX())
   const baixarSlide = (id) => exportarSlidePPTX(cargaPPTX(), id)
