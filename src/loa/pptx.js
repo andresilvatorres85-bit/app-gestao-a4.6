@@ -2073,6 +2073,13 @@ export async function montarPacote(d, conteudo) {
       { id: REL_BRASAO, tipo: TIPO.imagem, alvo: '../media/brasao.png' },
     ]
     if (s.capa) relSlide.push({ id: REL_CAPA, tipo: TIPO.imagem, alvo: '../media/capa.jpg' })
+    // Imagens próprias do slide (ex.: bandeiras das UF): { rel, arquivo, bytes }.
+    for (const im of s.imagens || []) {
+      relSlide.push({ id: im.rel, tipo: TIPO.imagem, alvo: `../media/${im.arquivo}` })
+      if (!arquivos.some((a) => a.nome === `ppt/media/${im.arquivo}`)) {
+        arquivos.push({ nome: `ppt/media/${im.arquivo}`, dados: im.bytes })
+      }
+    }
 
     if (s.grafico) {
       nGrafico += 1
@@ -2457,26 +2464,29 @@ export function exportarPPTXHistoricoExec(d) {
 // ==========================================================================
 // Tabela com alinhamento por coluna (o `tabela()` genérico alinha só a 1ª à
 // esquerda; aqui OM/OBJETO/Parlamentar também vão à esquerda).
-function tabelaLivre({ id, x, y, w, larguras, aligns, cabecalho, linhas }) {
+// Tabela "livre" das folhas por estado: larguras e alinhamentos por coluna,
+// altura de cada linha informada (estimada pelo texto que quebra).
+function tabelaLivre({ id, x, y, w, larguras, aligns, cabecalho, linhas, alturas, hCab, sz = 1400 }) {
   const grid = larguras.map((c) => `<a:gridCol w="${cm(c)}"/>`).join('')
-  const cab = `<a:tr h="${cm(0.5)}">` +
-    cabecalho.map((t, i) => celula(t, { algn: aligns[i], b: true, sz: 850, cor: FRACA })).join('') +
+  const cab = `<a:tr h="${cm(hCab)}">` +
+    cabecalho.map((t, i) => celula(t, { algn: aligns[i], b: true, sz: sz - 200, cor: FRACA })).join('') +
     '</a:tr>'
-  const corpo = linhas.map((ln) =>
-    `<a:tr h="${cm(0.5)}">` +
+  const corpo = linhas.map((ln, k) =>
+    `<a:tr h="${cm(alturas[k])}">` +
     ln.map((c, i) => {
       const o = typeof c === 'object' && c !== null ? c : { t: c }
       return celula(o.t == null ? '' : String(o.t), {
-        algn: o.algn || aligns[i], b: o.b, sz: o.sz || 850,
+        algn: o.algn || aligns[i], b: o.b, sz: o.sz || sz,
         cor: o.cor || (i === 0 ? TINTA : TINTA_2), fundo: o.fundo,
       })
     }).join('') + '</a:tr>'
   ).join('')
+  const hTotal = hCab + alturas.reduce((t, v) => t + v, 0)
   return (
     `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="tabela"/>` +
     '<p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/>' +
     '</p:nvGraphicFramePr>' +
-    `<p:xfrm><a:off x="${cm(x)}" y="${cm(y)}"/><a:ext cx="${cm(w)}" cy="${cm(0.5)}"/></p:xfrm>` +
+    `<p:xfrm><a:off x="${cm(x)}" y="${cm(y)}"/><a:ext cx="${cm(w)}" cy="${cm(hTotal)}"/></p:xfrm>` +
     '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">' +
     '<a:tbl><a:tblPr firstRow="1" bandRow="1"/>' +
     `<a:tblGrid>${grid}</a:tblGrid>${cab}${corpo}</a:tbl>` +
@@ -2490,65 +2500,189 @@ const cortar = (s, n) => {
   return t.length > n ? t.slice(0, n - 1) + '…' : t
 }
 
-function montarSlidesEmendasEstado(d) {
-  const agg = d.porEstado || { anos: [], grupos: [] }
-  const anosTxt = (agg.anos || []).join(', ')
-  const CY_TOP = 2.75, CY_BOT = 17.9
-  const H_ESTADO = 0.85, H_MOD = 0.6, H_CAB = 0.55, H_ROW = 0.55, GAP = 0.3
-  const larguras = [1.2, 6.6, 14.5, 3.7, 5.0]
-  const aligns = ['ctr', 'l', 'l', 'r', 'l']
+// Bandeiras das UF (PNG em src/loa/bandeiras, domínio público — ver o LEIAME
+// da pasta). Os bytes só são buscados para as UF que entram no arquivo.
+const URL_BANDEIRA = Object.fromEntries(
+  Object.entries(import.meta.glob('./bandeiras/*.png', { eager: true, query: '?url', import: 'default' }))
+    .map(([caminho, url]) => [caminho.match(/([A-Z]{2})\.png$/)[1], url])
+)
+async function bytesDeUrl(url) {
+  if (String(url).startsWith('data:')) {
+    const bin = atob(url.slice(url.indexOf(',') + 1))
+    const out = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+    return out
+  }
+  return new Uint8Array(await (await fetch(url)).arrayBuffer())
+}
+async function bandeirasDe(ufs) {
+  const out = {}
+  await Promise.all([...new Set(ufs)].filter((uf) => URL_BANDEIRA[uf]).map(async (uf) => {
+    try { out[uf] = await bytesDeUrl(URL_BANDEIRA[uf]) } catch { /* sem bandeira: só o nome */ }
+  }))
+  return out
+}
 
+// ---- folhas de tabelas (por estado e por comissão) ----
+// Geometria em cm e fontes do pedido: nome do estado 22 pt, tipo de emenda
+// 16 pt, tabelas 14 pt.
+const FOLHA = {
+  topo: 2.75, base: 18.45, x: 1.4, w: 31,
+  hBloco: 1.25, hMod: 0.85, hCab: 0.72, gap: 0.35,
+  linha: 0.6, padLinha: 0.28,
+  // caracteres por cm a 14 pt, com folga (o Calibri cabe ~4,3; fonte
+  // substituta mais larga, ~3,5) — estima a quebra de linha
+  charPorCm: 3.6,
+}
+const alturaLinha = (ln, larguras) => {
+  let maxL = 1
+  ln.forEach((c, i) => {
+    const t = String(typeof c === 'object' && c !== null ? c.t ?? '' : c ?? '')
+    const cap = Math.max(1, Math.floor((larguras[i] - 0.35) * FOLHA.charPorCm))
+    maxL = Math.max(maxL, Math.ceil(t.length / cap) || 1)
+  })
+  return maxL * FOLHA.linha + FOLHA.padLinha
+}
+
+// Pagina blocos (um estado, uma comissão) sem nunca dividir um bloco entre
+// dois slides: se o bloco não cabe no espaço que resta, ele vai inteiro para o
+// slide seguinte. Só um bloco maior que um slide inteiro é quebrado — e,
+// mesmo assim, começa num slide novo e segue com "(cont.)".
+function paginarFolhas(blocos, { tituloDe, d }) {
   const slides = []
-  const porCmila = new Map()
-  for (const g of agg.grupos) {
-    if (!porCmila.has(g.cmila)) porCmila.set(g.cmila, [])
-    porCmila.get(g.cmila).push(g)
+  const disp = FOLHA.base - FOLHA.topo
+  let corpo = [], imagens = [], y = FOLHA.topo, idc = 10, titulo = null
+  const flush = () => {
+    if (corpo.length) slides.push({ titulo, corpo: cabecalhoEmendas(d) + corpo.join(''), imagens })
+    corpo = []; imagens = []; y = FOLHA.topo; idc = 10
   }
-  if (!porCmila.size) {
-    return [slideCapaEmendas(`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''}`, d,
-      'Sem emendas impositivas do Exército para os filtros aplicados.')]
+  const alturaTabela = (t) => FOLHA.hMod + FOLHA.hCab + t.alturas.reduce((a, v) => a + v, 0) + FOLHA.gap
+  const desenharCabecalho = (bl) => {
+    const temBandeira = bl.bandeira
+    if (temBandeira) {
+      const rel = `rIdUF${bl.uf}`
+      if (!imagens.some((im) => im.rel === rel)) imagens.push({ rel, arquivo: `bandeira-${bl.uf}.png`, bytes: bl.bandeira })
+      const hB = 0.85
+      const wB = hB * (bl.proporcao || 1.43)
+      corpo.push(imagem({ id: idc++, nome: `Bandeira ${bl.nome}`, rel, x: FOLHA.x + 0.1, y: y + (FOLHA.hBloco - hB) / 2, w: wB, h: hB }))
+    }
+    const xT = FOLHA.x + (temBandeira ? 0.1 + 0.85 * (bl.proporcao || 1.43) + 0.3 : 0)
+    corpo.push(forma({
+      id: idc++, nome: 'Bloco', x: xT, y, w: FOLHA.w - (xT - FOLHA.x), h: FOLHA.hBloco, ancora: 'ctr', recuo: 0.05,
+      paragrafos: [{ runs: [
+        { t: bl.nome, sz: 2200, b: true, cor: TINTA },
+        ...(bl.nota ? [{ t: `  ${bl.nota}`, sz: 1400, cor: FRACA }] : []),
+      ] }],
+    }))
+    y += FOLHA.hBloco
+  }
+  const desenharTabela = (t, linhas, alturas, cont) => {
+    corpo.push(forma({
+      id: idc++, nome: 'Tipo de emenda', x: FOLHA.x, y, w: FOLHA.w, h: FOLHA.hMod, ancora: 'ctr', recuo: 0.05,
+      paragrafos: [{ runs: [{ t: t.rotulo + (cont ? ' (cont.)' : ''), sz: 1600, b: true, cor: ACENTO }] }],
+    }))
+    y += FOLHA.hMod
+    corpo.push(tabelaLivre({
+      id: idc++, x: FOLHA.x, y, w: FOLHA.w, larguras: t.larguras, aligns: t.aligns,
+      cabecalho: t.cabecalho, linhas, alturas, hCab: FOLHA.hCab,
+    }))
+    y += FOLHA.hCab + alturas.reduce((a, v) => a + v, 0) + FOLHA.gap
   }
 
-  for (const [cmila, grupos] of porCmila) {
-    const titulo = `Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${grupos[0].cmilaNome} (${cmila})`
-    let corpo = [], y = CY_TOP, idc = 10
-    const flush = () => {
-      if (corpo.length) slides.push({ titulo, corpo: cabecalhoEmendas(d) + corpo.join('') })
-      corpo = []; y = CY_TOP; idc = 10
+  for (const bl of blocos) {
+    const tituloBl = tituloDe(bl)
+    if (titulo !== null && tituloBl !== titulo) flush()
+    titulo = tituloBl
+    const hBloco = FOLHA.hBloco + bl.tabelas.reduce((a, t) => a + alturaTabela(t), 0)
+    // regra: o bloco inteiro no slide atual ou inteiro no próximo
+    if (y + hBloco > FOLHA.base && y > FOLHA.topo) flush()
+    if (hBloco <= disp) {
+      desenharCabecalho(bl)
+      for (const t of bl.tabelas) desenharTabela(t, t.linhas, t.alturas, false)
+      continue
     }
-    for (const g of grupos) {
-      if (y + H_ESTADO + H_MOD + H_CAB + H_ROW > CY_BOT) flush()
-      corpo.push(forma({
-        id: idc++, nome: 'Estado', x: 1.4, y, w: 31, h: H_ESTADO,
-        paragrafos: [{ runs: [{ t: `▸ ${g.ufNome}`, sz: 1300, b: true, cor: TINTA }] }],
-      }))
-      y += H_ESTADO
-      for (const t of g.tabelas) {
-        const linhas = [
-          ...t.linhas.map((l) => [String(l.ord), cortar(l.om, 42), cortar(l.objeto, 90), rsInt(l.valor), cortar(l.autor, 34)]),
-          ['', '', { t: 'TOTAL', b: true, algn: 'r' }, { t: rsInt(t.total), b: true }, ''],
-        ]
-        let i = 0, cont = 0
-        while (i < linhas.length) {
-          if (y + H_MOD + H_CAB + H_ROW > CY_BOT) flush()
-          const cap = Math.max(1, Math.floor((CY_BOT - y - H_MOD - H_CAB - GAP) / H_ROW))
-          const take = Math.min(cap, linhas.length - i)
-          const fatia = linhas.slice(i, i + take)
-          corpo.push(forma({
-            id: idc++, nome: 'Modalidade', x: 1.4, y, w: 31, h: H_MOD,
-            paragrafos: [{ runs: [{ t: t.rotulo + (cont ? ' (cont.)' : ''), sz: 1000, b: true, cor: ACENTO }] }],
-          }))
-          y += H_MOD
-          corpo.push(tabelaLivre({
-            id: idc++, x: 1.4, y, w: 31, larguras, aligns,
-            cabecalho: ['ORD', 'OM', 'OBJETO', 'VALOR (R$)', t.colAutor], linhas: fatia,
-          }))
-          y += H_CAB + fatia.length * H_ROW + GAP
-          i += take; cont++
+    // bloco maior que um slide: quebra por linhas, sempre a partir de slide novo
+    desenharCabecalho(bl)
+    for (const t of bl.tabelas) {
+      let i = 0, cont = false
+      while (i < t.linhas.length) {
+        let livre = FOLHA.base - y - FOLHA.hMod - FOLHA.hCab - FOLHA.gap
+        if (livre < t.alturas[i]) {
+          flush()
+          // o estado continua: repete bandeira e nome no slide novo
+          desenharCabecalho({ ...bl, nota: '(cont.)' })
+          livre = FOLHA.base - y - FOLHA.hMod - FOLHA.hCab - FOLHA.gap
         }
+        let j = i, soma = 0
+        while (j < t.linhas.length && soma + t.alturas[j] <= livre) soma += t.alturas[j++]
+        if (j === i) j = i + 1
+        // não deixa a linha de TOTAL sozinha no slide seguinte
+        if (j === t.linhas.length - 1 && j - i > 2) j -= 1
+        desenharTabela(t, t.linhas.slice(i, j), t.alturas.slice(i, j), cont)
+        i = j; cont = true
       }
     }
-    flush()
+  }
+  flush()
+  return slides
+}
+
+const COLS_ESTADO = {
+  larguras: [1.6, 5.5, 11.3, 3.6, 9.0],
+  aligns: ['ctr', 'l', 'l', 'r', 'l'],
+}
+const COLS_COMISSAO = {
+  larguras: [1.6, 2.9, 14.9, 3.8, 7.8],
+  aligns: ['ctr', 'ctr', 'l', 'r', 'l'],
+}
+// Prepara uma tabela: linhas (com o TOTAL) e altura estimada de cada uma.
+function prepararTabela(t, cols, cabecalho, linhas) {
+  const todas = [
+    ...linhas,
+    ['', '', { t: 'TOTAL', b: true, algn: 'r' }, { t: rsInt(t.total), b: true }, ''],
+  ]
+  return {
+    rotulo: t.rotulo, larguras: cols.larguras, aligns: cols.aligns, cabecalho,
+    linhas: todas, alturas: todas.map((ln) => alturaLinha(ln, cols.larguras)),
+  }
+}
+
+const proporcaoPng = (bytes) => {
+  try {
+    const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    return v.getUint32(16) / v.getUint32(20)
+  } catch { return 1.43 }
+}
+
+async function montarSlidesEmendasEstado(d) {
+  const agg = d.porEstado || { anos: [], grupos: [] }
+  const anosTxt = (agg.anos || d.comissoes?.anos || []).join(', ')
+  const plo = `PLOA${anosTxt ? ' ' + anosTxt : ''}`
+  const bandeiras = await bandeirasDe(agg.grupos.map((g) => g.uf))
+
+  const blocosEstado = agg.grupos.map((g) => ({
+    tipo: 'estado', cmila: g.cmila, cmilaNome: g.cmilaNome,
+    uf: g.uf, nome: g.ufNome, bandeira: bandeiras[g.uf],
+    proporcao: bandeiras[g.uf] ? proporcaoPng(bandeiras[g.uf]) : null,
+    tabelas: g.tabelas.map((t) => prepararTabela(t, COLS_ESTADO,
+      ['ORD', 'OM', 'OBJETO', 'VALOR (R$)', t.colAutor],
+      t.linhas.map((l) => [String(l.ord), cortar(l.om, 80), cortar(l.objeto, 200), rsInt(l.valor), cortar(l.autor, 60)]))),
+  }))
+  const slides = blocosEstado.length
+    ? paginarFolhas(blocosEstado, { d, tituloDe: (b) => `Emendas Impositivas ao ${plo} — ${b.cmilaNome} (${b.cmila})` })
+    : [slideCapaEmendas(`Emendas Impositivas ao ${plo}`, d, 'Sem emendas impositivas do Exército para os filtros aplicados.')]
+
+  // Emendas de comissão, ao final (só quando a carga as traz).
+  if (d.comissoes) {
+    const blocosCom = d.comissoes.grupos.map((g) => ({
+      tipo: 'comissao', nome: g.nome, nota: g.casa,
+      tabelas: g.tabelas.map((t) => prepararTabela(t, COLS_COMISSAO,
+        ['ORD', 'EMENDA', 'AÇÃO ORÇAMENTÁRIA', 'VALOR (R$)', 'OM / UO'],
+        t.linhas.map((l) => [String(l.ord), l.emenda, cortar(l.acao, 200), rsInt(l.valor), cortar(l.om, 90)]))),
+    }))
+    slides.push(...(blocosCom.length
+      ? paginarFolhas(blocosCom, { d, tituloDe: () => `Emendas de Comissão ao ${plo} — Exército` })
+      : [slideCapaEmendas(`Emendas de Comissão ao ${plo} — Exército`, d, 'Sem emendas de comissão do Exército para os filtros aplicados.')]))
   }
   return slides
 }
@@ -2573,8 +2707,8 @@ function slideCapaEmendas(titulo, d, aviso) {
   }
 }
 
-export function exportarPPTXEmendasEstado(d) {
-  return baixarPacote(d, montarSlidesEmendasEstado(d), 'emendas impositivas por estado')
+export async function exportarPPTXEmendasEstado(d) {
+  return baixarPacote(d, await montarSlidesEmendasEstado(d), 'emendas impositivas por estado')
 }
 
 // Um gráfico, um slide. `id` é o mesmo identificador usado na lista de painéis,
