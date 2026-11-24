@@ -133,3 +133,64 @@ export function emendasImpositivasPorEstado(registros) {
     qtd: grupos.reduce((s, g) => s + g.qtd, 0),
   }
 }
+
+// ---------------------------------------------------------------------------
+// Emendas de COMISSÃO do Exército — slides ao final da exportação por estado.
+// Comissão não tem UF: o bloco é a comissão (autor), com a Casa ao lado, e uma
+// tabela por RP. Cada linha é uma emenda (valores somados), com a ação
+// orçamentária e a OM (ou, sem OM, a UO).
+const CASA_COMISSAO = {
+  'COMISSÃO CÂMARA DOS DEPUTADOS': 'Câmara dos Deputados',
+  'COMISSÃO SENADO FEDERAL': 'Senado Federal',
+  'COMISSÃO MISTA DO CONGRESSO': 'Congresso Nacional (mista)',
+}
+const ehComissao = (r) =>
+  String(r.modalidade || '').toUpperCase().startsWith('COMISS') ||
+  String(r.autorTipo || '').toUpperCase().startsWith('COMISS')
+
+export function emendasComissaoExercito(registros) {
+  const regs = registros.filter((r) => ehExercito(r) && ehComissao(r))
+  const anos = [...new Set(regs.map((r) => r.ano))].sort()
+  const idx = new Map() // comissão -> rp -> Map(emenda -> acumulador)
+  for (const r of regs) {
+    const chave = `${r.autorTipo || ''}|${r.autor || '—'}`
+    if (!idx.has(chave)) idx.set(chave, { autor: r.autor || '—', autorTipo: r.autorTipo || '', porRp: new Map() })
+    const g = idx.get(chave)
+    const rp = String(r.rp || '—')
+    if (!g.porRp.has(rp)) g.porRp.set(rp, new Map())
+    const porEmenda = g.porRp.get(rp)
+    const k = `${r.ano}-${r.emenda}`
+    if (!porEmenda.has(k)) porEmenda.set(k, { emenda: r.emenda, valor: 0, acoes: new Set(), oms: new Set(), uos: new Set() })
+    const e = porEmenda.get(k)
+    e.valor += r.valor || 0
+    if (r.acao) e.acoes.add(r.acao)
+    if (r.om) e.oms.add(r.om)
+    if (r.uo) e.uos.add(r.uo)
+  }
+  const grupos = [...idx.values()].map((g) => {
+    const tabelas = [...g.porRp.keys()].sort().map((rp) => {
+      const linhas = [...g.porRp.get(rp).values()]
+        .sort((a, b) => (b.valor - a.valor) || a.emenda.localeCompare(b.emenda))
+        .map((e, i) => ({
+          ord: i + 1,
+          emenda: e.emenda,
+          acao: [...e.acoes].join(' / '),
+          om: [...(e.oms.size ? e.oms : e.uos)].join(' / '),
+          valor: e.valor,
+        }))
+      return {
+        rp,
+        rotulo: `Emenda de Comissão (RP ${rp})`,
+        linhas,
+        total: linhas.reduce((s, l) => s + l.valor, 0),
+      }
+    })
+    return {
+      nome: g.autor,
+      casa: CASA_COMISSAO[String(g.autorTipo).toUpperCase()] || g.autorTipo,
+      tabelas,
+      total: tabelas.reduce((s, t) => s + t.total, 0),
+    }
+  }).sort((a, b) => (b.total - a.total) || a.nome.localeCompare(b.nome, 'pt-BR'))
+  return { anos, grupos, totalGeral: grupos.reduce((s, g) => s + g.total, 0) }
+}

@@ -38,7 +38,7 @@ import {
   exportarPPTXPLOA, exportarPPTXHistoricoPLOA,
   exportarPPTXExec, exportarPPTXHistoricoExec, exportarPPTXEmendasEstado,
 } from './pptx.js'
-import { emendasImpositivasPorEstado } from './emendasEstado.js'
+import { emendasImpositivasPorEstado, emendasComissaoExercito } from './emendasEstado.js'
 import { exportarFolhaPDF } from './pdf.js'
 import MultiSelect from './components/MultiSelect.jsx'
 import BotaoPNG from './components/BotaoPNG.jsx'
@@ -306,6 +306,7 @@ export default function LoaApp() {
     const porAno = resumoPorAno(filtrados)
     const serie = (campo) => porAno.map((a) => a[campo])
     return {
+      semNumero: true, // Resultado LEXOR: títulos dos slides sem o "5." do modelo
       titulo: 'EMENDAS PARLAMENTARES APRESENTADAS AO PLOA',
       escopo,
       recorte: recorteHistorico,
@@ -663,6 +664,8 @@ export default function LoaApp() {
     geradoEm: new Date().toLocaleString('pt-BR'),
     fonte: dados.fonte,
     porEstado: emendasImpositivasPorEstado(execEmFiltrados),
+    comissoes: emendasComissaoExercito(execEmFiltrados), // slides finais: emendas de comissão
+    semNumero: true, // títulos dos slides sem o "5." do modelo
   })
   const baixarPPTXEmendasEstado = () => exportarPPTXEmendasEstado(cargaEmendasEstado())
 
@@ -675,6 +678,8 @@ export default function LoaApp() {
     geradoEm: new Date().toLocaleString('pt-BR'),
     fonte: dados.fonte,
     porEstado: emendasImpositivasPorEstado(filtrados),
+    comissoes: emendasComissaoExercito(filtrados), // slides finais: emendas de comissão
+    semNumero: true, // títulos dos slides sem o "5." do modelo
   })
   const baixarPPTXEmendasEstadoLexor = () => exportarPPTXEmendasEstado(cargaEmendasEstadoLexor())
 
