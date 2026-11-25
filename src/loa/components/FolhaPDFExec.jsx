@@ -578,7 +578,9 @@ export function FolhaHistoricoEmendasExec({ registros, registrosTodasForcas, fil
         <Cabeca titulo={L.titulo} valor={filtrosTexto}
           sec={`Comparativo dos exercícios ${anos.join(', ')} · responde ao filtro de Ano · ${L.noun}`} />
 
-        <div className="pdf-anos">
+        {/* cards dos exercícios em duas fileiras no topo da página */}
+        <div className="pdf-anos pdf-anos-2f"
+          style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.ceil(anosResumo.length / 2))}, 1fr)` }}>
           {anosResumo.map((a) => {
             const c = fmtCompacto(a.valor)
             return (
