@@ -1404,9 +1404,11 @@
 .loa-app .folha-pdf .pdf-ano-linhas > div { display: flex; justify-content: space-between; gap: 0.8mm; }
 .loa-app .folha-pdf .pdf-ano-linhas dt { color: var(--tinta-fraca); margin: 0; }
 .loa-app .folha-pdf .pdf-ano-linhas dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* Histórico (Resultado LEXOR / Emendas LOA): duas fileiras, cards mais largos */
+/* Histórico (Resultado LEXOR / Emendas LOA): até 3 cards por fileira; o
+   card nunca passa da largura da coluna e o texto quebra em vez de estourar */
 .loa-app .folha-pdf .pdf-anos-2f { gap: 2.5mm; margin-bottom: 4mm; }
-.loa-app .folha-pdf .pdf-anos-2f .pdf-ano { padding: 2mm 2.6mm; }
+.loa-app .folha-pdf .pdf-anos-2f .pdf-ano { padding: 2mm 2.6mm; min-width: 0; overflow: hidden; }
+.loa-app .folha-pdf .pdf-anos-2f .pdf-ano-linhas dd { white-space: normal; text-align: right; }
 .loa-app .folha-pdf .pdf-anos-2f .pdf-ano-ano { font-size: 9.5pt; }
 .loa-app .folha-pdf .pdf-anos-2f .pdf-ano-val { font-size: 12pt; }
 .loa-app .folha-pdf .pdf-anos-2f .pdf-ano-var { font-size: 6.6pt; }
