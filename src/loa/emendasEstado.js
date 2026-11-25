@@ -90,8 +90,8 @@ export function emendasImpositivasPorEstado(registros) {
     for (const uf of ufs) {
       const porRp = porUf.get(uf)
       const tabelas = []
-      // RP 7 (bancada) antes do RP 6 (individual), como no arquivo.
-      for (const rp of ['7', '6']) {
+      // RP 6 (individual) antes do RP 7 (bancada).
+      for (const rp of ['6', '7']) {
         const porEmenda = porRp.get(rp)
         if (!porEmenda) continue
         const linhas = [...porEmenda.values()]
@@ -127,12 +127,76 @@ export function emendasImpositivasPorEstado(registros) {
     }
   }
 
+  // Demais órgãos (Marinha, Aeronáutica, Ministério da Defesa): sem OM, sem
+  // objeto e sem C Mil A — só órgão → estado → RP, com ORD, EMENDA, VALOR e
+  // PARLAMENTAR/BANCADA.
+  const outros = impositivasOutrosOrgaos(registros)
+  const anosTodos = [...new Set([...anos, ...outros.anos])].sort()
+
   return {
-    anos,
+    anos: anosTodos,
     grupos,
+    outros: outros.orgaos,
     totalGeral: grupos.reduce((s, g) => s + g.total, 0),
     qtd: grupos.reduce((s, g) => s + g.qtd, 0),
   }
+}
+
+const ORDEM_ORGAOS = ['MARINHA', 'AERONÁUTICA', 'MINISTÉRIO DA DEFESA']
+const NOME_ORGAO = { MARINHA: 'Marinha', 'AERONÁUTICA': 'Aeronáutica', 'MINISTÉRIO DA DEFESA': 'Ministério da Defesa' }
+
+function impositivasOutrosOrgaos(registros) {
+  const impos = registros.filter((r) => !ehExercito(r) && r.orgao &&
+    (String(r.rp) === '6' || String(r.rp) === '7'))
+  const anos = [...new Set(impos.map((r) => r.ano))].sort()
+  const idx = new Map() // orgao -> uf -> rp -> Map(emenda -> acumulador)
+  for (const r of impos) {
+    const org = r.orgao
+    const uf = r.autorUF && r.autorUF !== 'NA' ? r.autorUF : '—'
+    const rp = String(r.rp)
+    if (!idx.has(org)) idx.set(org, new Map())
+    const porUf = idx.get(org)
+    if (!porUf.has(uf)) porUf.set(uf, new Map())
+    const porRp = porUf.get(uf)
+    if (!porRp.has(rp)) porRp.set(rp, new Map())
+    const porEmenda = porRp.get(rp)
+    const k = `${r.ano}-${r.emenda}`
+    if (!porEmenda.has(k)) porEmenda.set(k, { emenda: r.emenda, valor: 0, r0: r })
+    porEmenda.get(k).valor += r.valor || 0
+  }
+  const ordemOrg = (o) => { const i = ORDEM_ORGAOS.indexOf(o); return i === -1 ? ORDEM_ORGAOS.length : i }
+  const orgaos = [...idx.keys()].sort((a, b) => ordemOrg(a) - ordemOrg(b) || a.localeCompare(b, 'pt-BR'))
+    .map((org) => {
+      const porUf = idx.get(org)
+      const ufs = [...porUf.keys()].sort((a, b) => (UF_NOME[a] || a).localeCompare(UF_NOME[b] || b, 'pt-BR'))
+      const grupos = ufs.map((uf) => {
+        const porRp = porUf.get(uf)
+        const tabelas = ['6', '7'].filter((rp) => porRp.has(rp)).map((rp) => {
+          const linhas = [...porRp.get(rp).values()]
+            .sort((a, b) => (b.valor - a.valor) || a.emenda.localeCompare(b.emenda))
+            .map((e, i) => ({
+              ord: i + 1,
+              emenda: e.emenda,
+              valor: e.valor,
+              autor: rp === '7' ? (UF_NOME[uf] || uf) : rotuloParlamentar(e.r0),
+            }))
+          return {
+            rp,
+            rotulo: rp === '7' ? 'Emenda de Bancada (RP 7)' : 'Emenda Individual (RP 6)',
+            colAutor: rp === '7' ? 'BANCADA' : 'PARLAMENTAR',
+            linhas,
+            total: linhas.reduce((s, l) => s + l.valor, 0),
+            qtd: linhas.length,
+          }
+        })
+        return {
+          uf, ufNome: UF_NOME[uf] || (uf === '—' ? 'Sem UF' : uf), tabelas,
+          total: tabelas.reduce((s, t) => s + t.total, 0),
+        }
+      })
+      return { orgao: org, orgaoNome: NOME_ORGAO[org] || org, grupos }
+    })
+  return { anos, orgaos }
 }
 
 // ---------------------------------------------------------------------------

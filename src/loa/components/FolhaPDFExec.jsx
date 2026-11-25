@@ -682,11 +682,12 @@ export function FolhaEmendasEstado({ registros, filtrosTexto, base = 'exec' }) {
   const agg = emendasImpositivasPorEstado(registros)
   const anosTxt = agg.anos.join(', ')
 
-  if (!agg.grupos.length) {
+  const outros = agg.outros || []
+  if (!agg.grupos.length && !outros.length) {
     return (
       <div className="pdf-pagina">
         <Cabeca titulo={`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''}`} valor={filtrosTexto} />
-        <p className="pdf-vazio">Sem emendas impositivas do Exército para os filtros aplicados.</p>
+        <p className="pdf-vazio">Sem emendas impositivas para os filtros aplicados.</p>
       </div>
     )
   }
@@ -698,6 +699,59 @@ export function FolhaEmendasEstado({ registros, filtrosTexto, base = 'exec' }) {
     if (ult && ult.cmila === g.cmila) ult.grupos.push(g)
     else porCmila.push({ cmila: g.cmila, cmilaNome: g.cmilaNome, grupos: [g] })
   }
+
+  // Marinha, Aeronáutica e MD: sem OM, objeto e C Mil A — uma página nova por
+  // órgão, com as seções por estado e só ORD, EMENDA, VALOR e PARLAMENTAR.
+  const paginasOutros = outros.map((o, oi) => {
+    const linhas = []
+    for (const g of o.grupos) {
+      linhas.push(<tr className="tab-sec" key={`${g.uf}-sec`}><td colSpan={4}>▸ {g.ufNome}</td></tr>)
+      for (const t of g.tabelas) {
+        linhas.push(
+          <tr className="tab-mod" key={`${g.uf}-${t.rp}-m`}>
+            <td colSpan={3}>{t.rotulo}</td><td className="c-aut">{t.colAutor}</td>
+          </tr>
+        )
+        for (const l of t.linhas) {
+          linhas.push(
+            <tr key={`${g.uf}-${t.rp}-${l.ord}`}>
+              <td className="c-ord">{l.ord}</td>
+              <td className="c-em">{l.emenda}</td>
+              <td className="c-val">{rsInt(l.valor)}</td>
+              <td className="c-aut">{l.autor}</td>
+            </tr>
+          )
+        }
+        linhas.push(
+          <tr className="tab-total" key={`${g.uf}-${t.rp}-tot`}>
+            <td className="c-ord" /><td className="c-em">TOTAL</td>
+            <td className="c-val">{rsInt(t.total)}</td><td className="c-aut" />
+          </tr>
+        )
+      }
+    }
+    return (
+      <div className={`pdf-pagina pdf-pagina-fluida${porCmila.length || oi > 0 ? ' pdf-pagina-nova' : ''}`} key={o.orgao}>
+        <section className="pdf-card pdf-card-fluido tab-emendas-card">
+          <Cabeca
+            titulo={`Emendas Impositivas ao PLOA${anosTxt ? ' ' + anosTxt : ''} — ${o.orgaoNome}`}
+            valor={filtrosTexto}
+            sec={`Emendas impositivas (RP 6 individual e RP 7 de bancada) por estado · ${noun}`} />
+          <table className="matriz tab-emendas tab-emendas-org">
+            <thead>
+              <tr>
+                <th className="c-ord">ORD</th>
+                <th className="c-em">EMENDA</th>
+                <th className="c-val">VALOR (R$)</th>
+                <th className="c-aut">PARLAMENTAR / BANCADA</th>
+              </tr>
+            </thead>
+            <tbody>{linhas}</tbody>
+          </table>
+        </section>
+      </div>
+    )
+  })
 
   return (
     <>
@@ -756,6 +810,7 @@ export function FolhaEmendasEstado({ registros, filtrosTexto, base = 'exec' }) {
           </div>
         )
       })}
+      {paginasOutros}
     </>
   )
 }

@@ -1372,6 +1372,11 @@
 .loa-app .folha-pdf .tab-emendas .c-val { width: 22mm; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .loa-app .folha-pdf .tab-emendas .c-aut { width: 34mm; }
 .loa-app .folha-pdf .tab-emendas .tab-total td { font-weight: 700; border-top: 1.2px solid var(--tinta-2); }
+/* Marinha, Aeronáutica e MD: só ORD, EMENDA, VALOR e PARLAMENTAR, centralizados */
+.loa-app .folha-pdf .tab-emendas-org .c-ord { width: 14mm; }
+.loa-app .folha-pdf .tab-emendas-org .c-em { width: 32mm; text-align: center; }
+.loa-app .folha-pdf .tab-emendas-org .c-val { width: 36mm; text-align: center; }
+.loa-app .folha-pdf .tab-emendas-org .c-aut { width: auto; text-align: center; }
 .loa-app .folha-pdf .pdf-vazio { font-size: 10pt; color: var(--tinta-2); margin: 6mm 0; }
 
 /* Inconsistências: mesma base de tabela, colunas próprias (Emenda/Autor/UO/Regra/Valor) */
