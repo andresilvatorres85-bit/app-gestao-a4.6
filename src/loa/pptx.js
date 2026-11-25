@@ -853,9 +853,10 @@ function faixaTitulo(id, runs, barra) {
 
 // `semNumero`: o título vai sem o "5." do modelo (Dashboard do Resultado LEXOR).
 const tirarNumero = (t) => String(t || '').replace(/^\d+\.\s*/, '')
-function moldura(titulo, semNumero = false) {
+function moldura(titulo, semNumero = false, semBrasao = false) {
   const b = GEO.brasao
   const t = semNumero ? tirarNumero(titulo) : prefixarTitulo(titulo || '')
+  if (semBrasao) return faixaTitulo(9001, [{ t, sz: tamanhoTitulo(t) * 100 }], GEO.barra)
   return (
     faixaTitulo(9001, [{ t, sz: tamanhoTitulo(t) * 100 }], GEO.barra) +
     imagem({ id: 9003, nome: 'Brasão da Assessoria Parlamentar', rel: REL_BRASAO,
@@ -2053,7 +2054,8 @@ function montarSlidesHistoricoPLOA(d) {
 // (fundo, faixa com o título e brasão).
 export async function montarPacote(d, conteudo) {
   const img = await imagensModelo()
-  const slides = [slideCapaModelo(d.semNumero), ...conteudo]
+  // `d.semCapa`: pacote sem o slide de capa do modelo.
+  const slides = d.semCapa ? [...conteudo] : [slideCapaModelo(d.semNumero), ...conteudo]
   const arquivos = [
     { nome: 'ppt/media/capa.jpg', dados: img.capa.bytes },
     { nome: 'ppt/media/brasao.png', dados: img.brasao.bytes },
@@ -2096,7 +2098,7 @@ export async function montarPacote(d, conteudo) {
       )
     }
 
-    const xml = s.capa ? slideXML(s.corpo, 'FFFFFF') : slideXML(moldura(s.titulo, d.semNumero) + s.corpo, MODELO.fundo)
+    const xml = s.capa ? slideXML(s.corpo, 'FFFFFF') : slideXML(moldura(s.titulo, d.semNumero, s.semBrasao) + s.corpo, MODELO.fundo)
     arquivos.push({ nome: `ppt/slides/slide${n}.xml`, dados: xml })
     arquivos.push({ nome: `ppt/slides/_rels/slide${n}.xml.rels`, dados: rels(relSlide) })
     tiposOverride.push(
@@ -2650,6 +2652,13 @@ const COLS_ESTADO = {
   aligns: ['ctr', 'ctr', 'ctr', 'l', 'ctr', 'ctr'],
   iTexto: 3, iValor: 4,
 }
+// Marinha, Aeronáutica e MD: sem OM nem objeto — ORD, EMENDA, VALOR e
+// PARLAMENTAR/BANCADA, todas centralizadas. `iTexto` = coluna do rótulo TOTAL.
+const COLS_ORGAO = {
+  larguras: [3.0, 6.0, 7.0, 15.0],
+  aligns: ['ctr', 'ctr', 'ctr', 'ctr'],
+  iTexto: 1, iValor: 2,
+}
 const COLS_COMISSAO = {
   larguras: [1.5, 2.7, 15.0, 3.8, 8.0],
   aligns: ['ctr', 'ctr', 'l', 'ctr', 'ctr'],
@@ -2691,10 +2700,30 @@ async function montarSlidesEmendasEstado(d) {
   }))
   const slides = blocosEstado.length
     ? paginarFolhas(blocosEstado, { d, tituloDe: (b) => `Emendas Impositivas ao ${plo} — ${b.cmilaNome} (${b.cmila})` })
-    : [slideCapaEmendas(`Emendas Impositivas ao ${plo}`, d, 'Sem emendas impositivas do Exército para os filtros aplicados.')]
+    : []
 
-  // Emendas de comissão, ao final (só quando a carga as traz).
-  if (d.comissoes) {
+  // Marinha, Aeronáutica e MD: por estado, sem OM/objeto e sem C Mil A; os
+  // slides desses órgãos saem sem o brasão.
+  const outros = agg.outros || []
+  const bandeirasOutros = await bandeirasDe(outros.flatMap((o) => o.grupos.map((g) => g.uf)))
+  for (const o of outros) {
+    const blocos = o.grupos.map((g) => ({
+      tipo: 'estado', uf: g.uf, nome: g.ufNome, bandeira: bandeirasOutros[g.uf],
+      proporcao: bandeirasOutros[g.uf] ? proporcaoPng(bandeirasOutros[g.uf]) : null,
+      tabelas: g.tabelas.map((t) => prepararTabela(t, COLS_ORGAO,
+        ['ORD', 'EMENDA', 'VALOR (R$)', t.colAutor],
+        t.linhas.map((l) => [String(l.ord), l.emenda || '—', rsInt(l.valor), cortar(l.autor, 70)]))),
+    }))
+    slides.push(...paginarFolhas(blocos, { d, tituloDe: () => `Emendas Impositivas ao ${plo} — ${o.orgaoNome}` })
+      .map((sl) => ({ ...sl, semBrasao: true })))
+  }
+  if (!slides.length) {
+    slides.push(slideCapaEmendas(`Emendas Impositivas ao ${plo}`, d, 'Sem emendas impositivas para os filtros aplicados.'))
+  }
+
+  // Emendas de comissão do Exército, ao final (só quando a carga as traz e o
+  // recorte inclui o Exército).
+  if (d.comissoes && blocosEstado.length) {
     const blocosCom = d.comissoes.grupos.map((g) => ({
       tipo: 'comissao', nome: g.nome, nota: g.casa,
       tabelas: g.tabelas.map((t) => prepararTabela(t, COLS_COMISSAO,
@@ -2729,7 +2758,11 @@ function slideCapaEmendas(titulo, d, aviso) {
 }
 
 export async function exportarPPTXEmendasEstado(d) {
-  return baixarPacote(d, await montarSlidesEmendasEstado(d), 'emendas impositivas por estado')
+  // Sem Exército no recorte (só Marinha, Aeronáutica e/ou MD): sem a capa.
+  const agg = d.porEstado || {}
+  const semCapa = !(agg.grupos || []).length && (agg.outros || []).length > 0
+  const carga = { ...d, semCapa }
+  return baixarPacote(carga, await montarSlidesEmendasEstado(carga), 'emendas impositivas por estado')
 }
 
 // Um gráfico, um slide. `id` é o mesmo identificador usado na lista de painéis,
