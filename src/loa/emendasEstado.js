@@ -98,6 +98,7 @@ export function emendasImpositivasPorEstado(registros) {
           .sort((a, b) => (b.valor - a.valor) || a.emenda.localeCompare(b.emenda))
           .map((e, i) => ({
             ord: i + 1,
+            emenda: e.emenda,
             om: [...e.oms].join(' / '),
             objeto: [...e.objetos].join(' / '),
             valor: e.valor,

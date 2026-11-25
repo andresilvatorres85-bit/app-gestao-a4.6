@@ -2468,19 +2468,25 @@ export function exportarPPTXHistoricoExec(d) {
 // altura de cada linha informada (estimada pelo texto que quebra).
 function tabelaLivre({ id, x, y, w, larguras, aligns, cabecalho, linhas, alturas, hCab, sz = 1400 }) {
   const grid = larguras.map((c) => `<a:gridCol w="${cm(c)}"/>`).join('')
+  // Cabeçalho: faixa verde (a do destaque do Dashboard), títulos brancos em
+  // negrito e centralizados. Corpo em faixas alternadas (branco / verde bem
+  // claro) sobre o fundo do slide; a linha de TOTAL (`total: true` na
+  // primeira célula) ganha um verde-claro e negrito.
   const cab = `<a:tr h="${cm(hCab)}">` +
-    cabecalho.map((t, i) => celula(t, { algn: aligns[i], b: true, sz: sz - 200, cor: FRACA })).join('') +
+    cabecalho.map((t) => celula(t, { algn: 'ctr', b: true, sz: sz - 100, cor: 'FFFFFF', fundo: '548235' })).join('') +
     '</a:tr>'
-  const corpo = linhas.map((ln, k) =>
-    `<a:tr h="${cm(alturas[k])}">` +
-    ln.map((c, i) => {
-      const o = typeof c === 'object' && c !== null ? c : { t: c }
-      return celula(o.t == null ? '' : String(o.t), {
-        algn: o.algn || aligns[i], b: o.b, sz: o.sz || sz,
-        cor: o.cor || (i === 0 ? TINTA : TINTA_2), fundo: o.fundo,
-      })
-    }).join('') + '</a:tr>'
-  ).join('')
+  const corpo = linhas.map((ln, k) => {
+    const ehTotal = ln.some((c) => typeof c === 'object' && c !== null && c.total)
+    const fundoLinha = ehTotal ? 'D5E8CB' : k % 2 ? 'EEF5EA' : 'FFFFFF'
+    return `<a:tr h="${cm(alturas[k])}">` +
+      ln.map((c, i) => {
+        const o = typeof c === 'object' && c !== null ? c : { t: c }
+        return celula(o.t == null ? '' : String(o.t), {
+          algn: o.algn || aligns[i], b: o.b || ehTotal, sz: o.sz || sz,
+          cor: o.cor || TINTA, fundo: o.fundo || fundoLinha,
+        })
+      }).join('') + '</a:tr>'
+  }).join('')
   const hTotal = hCab + alturas.reduce((t, v) => t + v, 0)
   return (
     `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="tabela"/>` +
@@ -2636,20 +2642,26 @@ function paginarFolhas(blocos, { tituloDe, d }) {
   return slides
 }
 
+// Tudo centralizado, menos o texto longo (OBJETO / AÇÃO), à esquerda; os
+// títulos das colunas são sempre centralizados (ver tabelaLivre).
+// `iTexto`/`iValor`: onde vão o rótulo TOTAL e a soma na última linha.
 const COLS_ESTADO = {
-  larguras: [1.6, 5.5, 11.3, 3.6, 9.0],
-  aligns: ['ctr', 'l', 'l', 'r', 'l'],
+  larguras: [1.5, 2.7, 5.0, 10.0, 3.4, 8.4],
+  aligns: ['ctr', 'ctr', 'ctr', 'l', 'ctr', 'ctr'],
+  iTexto: 3, iValor: 4,
 }
 const COLS_COMISSAO = {
-  larguras: [1.6, 2.9, 14.9, 3.8, 7.8],
-  aligns: ['ctr', 'ctr', 'l', 'r', 'l'],
+  larguras: [1.5, 2.7, 15.0, 3.8, 8.0],
+  aligns: ['ctr', 'ctr', 'l', 'ctr', 'ctr'],
+  iTexto: 2, iValor: 3,
 }
 // Prepara uma tabela: linhas (com o TOTAL) e altura estimada de cada uma.
 function prepararTabela(t, cols, cabecalho, linhas) {
-  const todas = [
-    ...linhas,
-    ['', '', { t: 'TOTAL', b: true, algn: 'r' }, { t: rsInt(t.total), b: true }, ''],
-  ]
+  const total = cols.larguras.map(() => '')
+  total[0] = { t: '', total: true }
+  total[cols.iTexto] = { t: 'TOTAL', b: true, algn: 'r' }
+  total[cols.iValor] = { t: rsInt(t.total), b: true }
+  const todas = [...linhas, total]
   return {
     rotulo: t.rotulo, larguras: cols.larguras, aligns: cols.aligns, cabecalho,
     linhas: todas, alturas: todas.map((ln) => alturaLinha(ln, cols.larguras)),
@@ -2674,8 +2686,8 @@ async function montarSlidesEmendasEstado(d) {
     uf: g.uf, nome: g.ufNome, bandeira: bandeiras[g.uf],
     proporcao: bandeiras[g.uf] ? proporcaoPng(bandeiras[g.uf]) : null,
     tabelas: g.tabelas.map((t) => prepararTabela(t, COLS_ESTADO,
-      ['ORD', 'OM', 'OBJETO', 'VALOR (R$)', t.colAutor],
-      t.linhas.map((l) => [String(l.ord), cortar(l.om, 80), cortar(l.objeto, 200), rsInt(l.valor), cortar(l.autor, 60)]))),
+      ['ORD', 'EMENDA', 'OM', 'OBJETO', 'VALOR (R$)', t.colAutor],
+      t.linhas.map((l) => [String(l.ord), l.emenda || '—', cortar(l.om, 80), cortar(l.objeto, 200), rsInt(l.valor), cortar(l.autor, 60)]))),
   }))
   const slides = blocosEstado.length
     ? paginarFolhas(blocosEstado, { d, tituloDe: (b) => `Emendas Impositivas ao ${plo} — ${b.cmilaNome} (${b.cmila})` })
