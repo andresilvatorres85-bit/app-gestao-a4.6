@@ -844,14 +844,22 @@ export function FolhaInconsistencias({ registros, filtrosTexto }) {
         <Cabeca titulo="Análise de Inconsistências — Emendas ao PLOA" valor={filtrosTexto}
           sec="Cruzamento de dados: Mod. Aplicação ≠ 90 e UO × Justificativa (OM de outra Força)" />
 
-        <div className="pdf-topo">
-          <section className="pdf-mini pdf-mini-heroi">
+        {/* os mesmos 4 cards da tela, no tom de alerta */}
+        <div className="pdf-topo pdf-topo-alerta">
+          <section className="pdf-mini pdf-mini-alerta">
             <p className="pdf-mini-rot">Registros inconsistentes</p>
             <p className="pdf-mini-val">{fmtInt(res.qtdRegistros)}</p>
-            <p className="pdf-mini-nota">{fmtInt(res.qtdEmendas)} emenda(s) · {fmtMilhoes(res.valor)}</p>
+            <p className="pdf-mini-nota">
+              {fmtInt(res.qtdEmendas)} emenda(s) · {fmtPct(res.baseRegistros ? (res.qtdRegistros / res.baseRegistros) * 100 : 0)} da base filtrada
+            </p>
+          </section>
+          <section className="pdf-mini pdf-mini-alerta">
+            <p className="pdf-mini-rot">Valor envolvido</p>
+            <p className="pdf-mini-val">{fmtMilhoes(res.valor)}</p>
+            <p className="pdf-mini-nota">{fmtBRL(res.valor)}</p>
           </section>
           {res.porTipo.map((t) => (
-            <section className="pdf-mini" key={t.id}>
+            <section className="pdf-mini pdf-mini-alerta" key={t.id}>
               <p className="pdf-mini-rot">{t.rotulo}</p>
               <p className="pdf-mini-val">{fmtInt(t.qtd)}</p>
               <p className="pdf-mini-nota">{fmtMilhoes(t.valor)}</p>
@@ -880,10 +888,10 @@ export function FolhaInconsistencias({ registros, filtrosTexto }) {
             </ol>
           </figure>
         </CardPDF>
-      </div>
 
-      <div className="pdf-pagina pdf-pagina-nova pdf-pagina-fluida">
-        <section className="pdf-card pdf-card-fluido">
+        {/* a tabela segue na mesma folha, logo abaixo dos cards (o pdf.js só
+            abre outra folha se as linhas não couberem) */}
+        <section className="pdf-card pdf-card-fluido pdf-card-continua">
           <div className="pdf-card-cab">
             <div className="pdf-card-txt"><h2>Emendas sinalizadas</h2></div>
             <span className="pdf-card-total">{fmtInt(grupos.length)} emenda(s)</span>
