@@ -1277,6 +1277,11 @@
 .loa-app .folha-pdf .pdf-mini-heroi .pdf-mini-val { font-size: 16pt; }
 .loa-app .folha-pdf .pdf-mini-un { font-size: 0.5em; font-weight: 700; color: var(--tinta-fraca); margin-left: 0.2em; }
 .loa-app .folha-pdf .pdf-mini-nota { margin: 0.9mm 0 0; font-size: 6.4pt; color: var(--tinta-fraca); line-height: 1.2; }
+/* Inconsistências: os 4 cards da tela, à esquerda e no tom de alerta */
+.loa-app .folha-pdf .pdf-mini-alerta {
+  text-align: left; border-color: #e2a184; border-left: 3px solid #c8552b; background: #fdf6f2;
+}
+.loa-app .folha-pdf .pdf-mini-alerta .pdf-mini-rot { color: #b04a24; }
 
 /* cards de gráfico */
 .loa-app .folha-pdf .pdf-card {

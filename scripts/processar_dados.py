@@ -414,21 +414,36 @@ REVISAO_MANUAL = {
                      "como executor.",
         "uoSugerida": "52111 (Comando da Aeronáutica)",
     },
-    ("2026", "71020010", "52121"): {
-        "status": "confirmada", "gravidade": "media",
-        "descricao": "A UO é 52121 (Comando do Exército) para implantação/restauração de "
-                     "aeródromo em Santa Rosa do Purus/AC. O município é sede de Pelotão "
-                     "Especial de Fronteira do Exército, o que torna a UO plausível, mas a "
-                     "competência sobre infraestrutura aeroportuária deve ser verificada "
-                     "(Comando da Aeronáutica).",
-        "uoSugerida": "verificar competência — 52111 (Comando da Aeronáutica)",
-    },
     ("2026", "60020002", "52131"): {
         "status": "descartada",
         "motivo": "O Programa Fragatas Classe Tamandaré é conduzido pela Marinha; a "
                   "menção à indústria aeronáutica no texto é contextual.",
     },
 }
+
+# Exceções permanentes da Regra 2.B, valem para qualquer ano e número de
+# emenda: se a UO for a indicada e o texto da emenda (ação, subtítulo e
+# justificativa, sem acento e em maiúsculas) contiver TODOS os termos, o
+# alerta de UO × justificativa é descartado.
+EXCECOES_UO_JUSTIFICATIVA = [
+    {
+        "uo": "52121",
+        "termos": ["AERODROMO", "SANTA ROSA DO PURUS"],
+        "motivo": "O Aeródromo de Santa Rosa do Purus/AC é executado pelo Exército "
+                  "(UO 52121 — Comando do Exército; sede de Pelotão Especial de "
+                  "Fronteira). Não é inconsistência: por ser aeródromo, o texto lembra "
+                  "a Aeronáutica, mas a emenda não foi destinada à Aeronáutica.",
+    },
+]
+
+
+def excecao_uo_justificativa(uo_cod, texto_bruto):
+    texto = _sem_acento(texto_bruto or "").upper()
+    for exc in EXCECOES_UO_JUSTIFICATIVA:
+        if uo_cod == exc["uo"] and all(t in texto for t in exc["termos"]):
+            return exc
+    return None
+
 
 # Falsos positivos genéricos já eliminados na própria varredura (documentado
 # para memória do critério, ver comentário em PADROES_OM):
@@ -437,6 +452,8 @@ FALSOS_POSITIVOS_CONHECIDOS = [
     "Fuzileiros Navais (Marinha) — removidos dos padrões do Exército.",
     "PROFESP / Programa Soldado Cidadão — conduzidos pelo próprio Ministério da "
     "Defesa; a citação de uma Força é apenas o local da atividade.",
+    "Aeródromo de Santa Rosa do Purus/AC — executado pelo Exército (UO 52121); "
+    "não é emenda destinada à Aeronáutica (ver EXCECOES_UO_JUSTIFICATIVA).",
 ]
 
 
@@ -509,6 +526,13 @@ def detectar_inconsistencias(registro, descartadas):
         # UO neutra (órgão conjunto): só é indício quando o texto aponta para
         # UMA única Força — aí o recurso deveria estar na UO daquela Força.
         divergentes = citadas if len(citadas) == 1 else {}
+
+    excecao = excecao_uo_justificativa(uo_cod, texto)
+    if excecao and not revisao:
+        if divergentes:
+            descartadas.append({"ano": ano, "emenda": emenda, "uoCod": uo_cod,
+                                "motivo": excecao["motivo"]})
+        divergentes = {}
 
     if revisao and revisao["status"] == "descartada":
         if divergentes:

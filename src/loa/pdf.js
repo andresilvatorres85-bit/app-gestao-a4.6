@@ -150,13 +150,26 @@ function paginar(folha, palco) {
     const casca = card.cloneNode(true)
     casca.querySelector(LISTA).replaceChildren()
 
-    if (!vazia) novaPagina()
+    // `.pdf-card-continua`: o card segue na folha corrente, logo abaixo do que
+    // já está nela; sem essa classe, um card fluido abre folha própria.
+    const continua = card.classList.contains('pdf-card-continua')
+    if (!vazia && !continua) novaPagina()
+    const dividindoFolha = !vazia
     let shell = casca.cloneNode(true)
     let destino = shell.querySelector(LISTA)
     atual.appendChild(shell); vazia = false
 
     for (const linha of linhas) {
       destino.appendChild(linha.cloneNode(true))
+      // nem o cabeçalho e a 1ª linha couberam no que restou da folha: o card
+      // inteiro começa na folha seguinte
+      if (dividindoFolha && destino.children.length === 1 && shell.parentNode === atual &&
+          atual.children.length > 1 && atual.scrollHeight > USAVEL) {
+        atual.removeChild(shell)
+        novaPagina()
+        atual.appendChild(shell); vazia = false
+        continue
+      }
       if (destino.children.length > 1 && atual.scrollHeight > USAVEL) {
         destino.removeChild(destino.lastChild)
         novaPagina()
